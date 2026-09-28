@@ -47,6 +47,17 @@ export interface DevsPsychologistState {
 	observations: Observation[];
 	/** In-flight tool calls, keyed by toolCallId, awaiting their end event. */
 	pendingTools: Map<string, PendingTool>;
+	/**
+	 * Registered model references, `provider/modelId`, cached from the engine's registry.
+	 *
+	 * Cached because the completion callback receives only the argument prefix — it has no
+	 * context — while `session_start` and the command handler both do. Populated at session
+	 * start and refreshed whenever `/psych` runs, so adding an account mid-session is picked
+	 * up by the next Tab press.
+	 */
+	modelCatalog: string[];
+	/** Providers holding at least one catalog entry. The first level of the picker. */
+	modelProviders: string[];
 
 	// --- appraisal budget ---
 	/**
@@ -110,6 +121,8 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		globalFile: GLOBAL_CONFIG_FILE,
 		observations: [],
 		pendingTools: new Map(),
+		modelCatalog: [],
+		modelProviders: [],
 		appraisalsThisSession: 0,
 		turnsSinceAppraisal: 0,
 		appraisalInFlight: false,
@@ -143,6 +156,63 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		},
 	};
 	return state;
+}
+
+/**
+ * The synchronous slice of the model registry this plugin reads.
+ *
+ * Structural rather than an import of the engine's class, so the cache can be tested against a
+ * fake catalog without standing up a registry.
+ */
+export interface ModelCatalogSource {
+	getAvailable(): readonly ModelRefLike[];
+	getAll(): readonly ModelRefLike[];
+}
+
+export interface ModelRefLike {
+	provider?: unknown;
+	id?: unknown;
+}
+
+/**
+ * Refresh the cached catalog from the registry.
+ *
+ * Prefers models whose providers have complete auth — the ones this plugin could actually call —
+ * and falls back to the whole catalog when nothing is configured yet, so the picker still teaches
+ * what exists instead of being empty. Every entry comes from the registry and none is invented, so
+ * a completed value is always a model the engine can resolve.
+ *
+ * Deliberately not called from `resetWindow`: the catalog is not session-window state and must
+ * survive the reset that every session start performs.
+ */
+export function refreshModelCatalog(
+	state: DevsPsychologistState,
+	registry: ModelCatalogSource | undefined,
+): void {
+	if (!registry) return;
+	const collect = (read: () => readonly ModelRefLike[]): readonly ModelRefLike[] => {
+		try {
+			return read() ?? [];
+		} catch {
+			// A registry that cannot answer is treated as empty, never as a crash.
+			return [];
+		}
+	};
+	let models = collect(() => registry.getAvailable());
+	if (models.length === 0) models = collect(() => registry.getAll());
+
+	const refs = new Set<string>();
+	const providers = new Set<string>();
+	for (const model of models) {
+		const provider = model?.provider;
+		const id = model?.id;
+		if (typeof provider !== "string" || provider.length === 0) continue;
+		if (typeof id !== "string" || id.length === 0) continue;
+		refs.add(provider + "/" + id);
+		providers.add(provider);
+	}
+	state.modelCatalog = [...refs].sort();
+	state.modelProviders = [...providers].sort();
 }
 
 /** Reload the cascading config for a session rooted at `cwd`. */

@@ -1,5 +1,39 @@
 # CHANGELOG
 
+## 0.3.0 — the model picker asks the registry
+
+### Added
+
+- **`/psych model` completes from the engine's registered models and providers** instead of
+  accepting only free text. Two levels: providers, then a provider's models. Multi-account support
+  falls out of this for free — `pi-openrouter-accounts` registers each OpenRouter account as its
+  own provider id, so listing providers *is* listing accounts.
+- Matching is **substring**, because the account is `soukr` while its provider id is
+  `openrouter-soukr`, and the interesting part of a model id is usually in the middle.
+- The list is **capped at 50** with a localised overflow row saying how many were hidden, and
+  selecting that row re-inserts the current text so a truncation is never silent.
+- The **model in effect is marked** with a tick in the label and a text marker in the description,
+  at its own row and at its provider's row. The marker never enters the inserted value, and never
+  uses ANSI.
+- The catalog is cached from the registry at session start and refreshed whenever `/psych` runs,
+  so an account added mid-session is picked up on the next Tab press. With no catalog the picker
+  defers to the engine rather than failing.
+
+### Fixed
+
+- **A fully-typed `model` now offers its providers without waiting for a space.** Tab-confirming a
+  non-terminal token closes the picker, and a space switches the engine to file completion, so the
+  provider list was unreachable by Tab altogether. `lang` already did this; `model` did not. This is
+  the trap `references/command-completions.md` exists to document.
+- Current-value markers moved into `item.label`, where the reference requires them, in addition to
+  the description.
+
+### Notes
+
+- The multilingual lint invariant covers `notify`/`select`/`describe` text, **not** completion
+  items, so two hardcoded English strings in the overflow row were invisible to it. Reading the
+  completion reference is what surfaced them; they now come from the locale table.
+
 ## 0.2.0 — the card, the command, and the delivery policy
 
 T5 and T6. When an appraisal has something to say, it now arrives as a card; `/psych` answers

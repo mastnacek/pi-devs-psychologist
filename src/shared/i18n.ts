@@ -98,6 +98,9 @@ export interface Strings {
 	configSeeded: (path: string) => string;
 	/** The trailing `--global` flag on a setting command. */
 	globalFlag: string;
+	/** The model picker's overflow row: how many entries were not shown. */
+	modelMore: (n: number) => string;
+	typeToNarrow: string;
 	modelSet: (model: string) => string;
 	languageSet: (lang: string) => string;
 	budgetSet: (n: string) => string;
@@ -144,6 +147,8 @@ const EN: Strings = {
 	configWritten: (path) => `Config written to ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
 	globalFlag: "write to ~/.pi/agent instead of the project",
+	modelMore: (n) => `… ${n} more`,
+	typeToNarrow: "type to narrow",
 	modelSet: (model) => `Psychologist model set to ${model}`,
 	languageSet: (lang) => `Language set to ${lang}`,
 	budgetSet: (n) => `Appraisals per session set to ${n}`,
@@ -227,6 +232,8 @@ const CS: Strings = {
 	configWritten: (path) => `Konfigurace zapsána do ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,
 	globalFlag: "zapsat do ~/.pi/agent místo do projektu",
+	modelMore: (n) => `… dalších ${n}`,
+	typeToNarrow: "piš dál pro zúžení",
 	modelSet: (model) => `Model psychologa nastaven na ${model}`,
 	languageSet: (lang) => `Jazyk nastaven na ${lang}`,
 	budgetSet: (n) => `Počet posouzení na relaci nastaven na ${n}`,

@@ -169,7 +169,7 @@ spots is not an observer. A different *account* is not automatically a different
 | `/psych` | Report: the observed signals and the last appraisal |
 | `/psych now` | Form an appraisal immediately, consuming budget |
 | `/psych on` / `off` | Master switch |
-| `/psych model <provider/id>` | Choose the psychologist |
+| `/psych model <provider/id>` | Choose the psychologist. The value completes from the engine's registered models and providers (use `--global` to make it machine-wide) |
 | `/psych budget <n>` | Appraisals per session (`0` = unlimited) |
 | `/psych lang <en\|cs>` | UI language (model-facing text stays English) |
 | `--global` (trailing) | On any setting command: write to `~/.pi/agent` instead of the project |

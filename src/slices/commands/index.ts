@@ -25,7 +25,8 @@
  */
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { LOCALES, stringsFor, type Locale } from "../../shared/i18n.js";
+import type { AutocompleteItem } from "@earendil-works/pi-tui";
+import { LOCALES, stringsFor, type Locale, type Strings } from "../../shared/i18n.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
 
 /** What the command needs from the rest of the plugin, injected by the composition root. */
@@ -40,11 +41,8 @@ export interface CommandDeps {
 	reload(ctx: ExtensionCommandContext): void;
 }
 
-interface Completion {
-	value: string;
-	label: string;
-	description?: string;
-}
+/** The engine's own item type, so this cannot drift from what the picker reads. */
+type Completion = AutocompleteItem;
 
 /** The flag that redirects a setting write to the global layer. */
 export const GLOBAL_FLAG = "--global";
@@ -75,8 +73,11 @@ function subcommands(state: DevsPsychologistState): Completion[] {
 	return [
 		leaf("status", "status", s.reportAppraisal),
 		leaf("now", "now", s.done),
-		branch("on", "on", state.config.enabled ? `${MARK} ${s.enabled}` : s.enabled),
-		branch("off", "off", state.config.enabled ? s.disabled : `${MARK} ${s.disabled}`),
+		// The marker goes in `label` (display-only, the primary column) as well as the description:
+		// a settings menu that does not show which choice is in effect makes the user run `status`
+		// first to find out. `value` stays a clean token because it is inserted verbatim.
+		branch("on", state.config.enabled ? "on ✓" : "on", state.config.enabled ? `${MARK} ${s.enabled}` : s.enabled),
+		branch("off", state.config.enabled ? "off" : "off ✓", state.config.enabled ? s.disabled : `${MARK} ${s.disabled}`),
 		branch("model", "model", state.config.model || "—"),
 		branch("budget", "budget", `${cap === 0 ? "∞" : cap}`),
 		branch("lang", "lang", `${MARK} ${state.config.lang}`),
@@ -86,7 +87,12 @@ function subcommands(state: DevsPsychologistState): Completion[] {
 /** `lang` children: locale codes, with the one in effect marked. */
 function languages(state: DevsPsychologistState): Completion[] {
 	return LOCALES.map((locale) =>
-		leaf(`lang ${locale}`, locale, locale === state.config.lang ? `${MARK} active` : undefined),
+		leaf(
+			`lang ${locale}` ,
+			// ✓ in the label is the primary-column marker; the description carries the text form.
+			locale === state.config.lang ? `${locale} ✓` : locale,
+			locale === state.config.lang ? `${MARK} active` : undefined,
+		),
 	);
 }
 
@@ -134,21 +140,32 @@ export function completePsych(
 	const s = stringsFor(state.config.lang);
 
 	if (!hasSpace) {
-		// Lazy parameter completion: the token is complete, no space yet.
+		// Lazy parameter completion, and it is MANDATORY rather than a nicety: Tab-confirming a
+		// non-terminal token closes the picker, and typing a space switches the engine to file
+		// completion. So a fully-typed `lang` or `model` must offer its parameters *here*, or they
+		// are unreachable by Tab altogether (references/command-completions.md §Lazy).
 		if (head === "lang") return languages(state);
+		if (head === "model") return modelCompletions(state, "");
+		// A partial prefix keeps the trailing-space parent item, so Tab still inserts token + space.
 		const all = subcommands(state);
 		if (head.length === 0) return all;
 		const matching = all.filter((item) => item.label.startsWith(head));
 		return matching.length > 0 ? matching : null;
 	}
 
-	// A parameter is being typed. Only `lang` is enumerable; `model` and `budget` are free text,
-	// and guessing at either would be worse than saying nothing.
+	// `lang` is a closed set of two; `model` comes from the engine's registry, so the picker
+	// lists real models instead of inviting a typo in `openrouter-soukr/deepseek/...`.
 	if (head === "lang") {
 		const partial = (parts[1] ?? "").toLowerCase();
 		const all = languages(state);
 		const matching = partial.length === 0 ? all : all.filter((item) => item.label.startsWith(partial));
 		if (matching.length > 0) return matching;
+	} else if (head === "model") {
+		// A trailing space means the value is settled and only the flag can follow.
+		if (/\s$/.test(typed) && typed.slice(head.length).trim().length > 0) {
+			return flagCompletion(typed, parts, s.globalFlag);
+		}
+		return modelCompletions(state, typed.slice(head.length).trim());
 	}
 
 	if (SETTINGS_HEADS.has(head)) {
@@ -158,6 +175,113 @@ export function completePsych(
 	return null;
 }
 
+
+/**
+ * How many model rows the picker will show before it stops and says so.
+ *
+ * The catalog can hold hundreds of entries — an OpenRouter account alone reuses the whole
+ * built-in catalog — and a 400-row picker is exactly the nagging this plugin exists to avoid.
+ * Narrowing costs one keystroke; scrolling costs attention.
+ */
+export const MODEL_PICKER_CAP = 50;
+
+/**
+ * Model completions, in two levels, all of them from the registry.
+ *
+ * - nothing or a partial provider → the providers, as `model <provider>/`, so the next level is
+ *   one Tab away;
+ * - a settled provider → that provider's models, as `model <provider>/<id>`;
+ * - a partial reference → matching references.
+ *
+ * A provider that is not in the registry is never offered, and nothing is invented, so a completed
+ * value is always something the engine can resolve — which is the whole reason to ask the registry
+ * instead of accepting free text.
+ */
+export function modelCompletions(
+	state: DevsPsychologistState,
+	partial: string,
+): Completion[] | null {
+	// Read at completion time, never captured at registration, so a config change shows up.
+	const s = stringsFor(state.config.lang);
+	const refs = state.modelCatalog;
+	const providers = state.modelProviders;
+	// No catalog (a registry that answered nothing): defer to the engine rather than failing.
+	if (refs.length === 0 && providers.length === 0) return null;
+
+	// ✓ in `label` (the primary column) and the text form in `description`; never in `value`,
+	// which is inserted verbatim, and never ANSI, which cancels the theme colour.
+	const marker = (ref: string) => (ref === state.config.model ? `${MARK} current` : undefined);
+	const ticked = (text: string, active: boolean) => (active ? `${text} ✓` : text);
+	const refItem = (ref: string): Completion =>
+		leaf(`model ${ref}`, ticked(ref, ref === state.config.model), marker(ref));
+
+	// Level three: a settled provider prefix — only its own models can follow.
+	if (partial.endsWith("/")) {
+		const provider = partial.slice(0, -1);
+		if (!providers.includes(provider)) return null;
+		const prefix = provider + "/";
+		return capped(
+			refs
+				.filter((ref) => ref.startsWith(prefix))
+				.map((ref) =>
+					leaf(
+						`model ${ref}`,
+						ticked(ref.slice(prefix.length), ref === state.config.model),
+						marker(ref),
+					),
+				),
+			partial,
+			s,
+		);
+	}
+
+	// Level two: a partial reference.
+	if (partial.includes("/")) {
+		// Substring, not prefix: the interesting part of a reference is often in the middle.
+		// Typing `soukr` should find `openrouter-soukr`, and `claude` a `deepseek/…/claude-…`
+		// entry, without knowing the account prefix first.
+		// The label is the full reference here, because the whole path is what was matched.
+		const matching = refs.filter((ref) => ref.includes(partial)).map(refItem);
+		return matching.length > 0 ? capped(matching, partial, s) : null;
+	}
+
+	// Level one: providers, then any reference that matches the same text.
+	const providerItems = providers
+		// Substring for the same reason as level two: `soukr` must find `openrouter-soukr`.
+		.filter((provider) => provider.includes(partial))
+		.map((provider) =>
+			// The parent level carries the marker too when the model in effect lives under it, which
+			// is the whole point of annotating a hierarchy: you can see the current value without
+			// descending into it.
+			leaf(
+				`model ${provider}/`,
+				ticked(provider, state.config.model.startsWith(provider + "/")),
+				state.config.model.startsWith(provider + "/") ? `${MARK} current` : undefined,
+			),
+		);
+	const refItems = partial.length === 0 ? [] : refs.filter((ref) => ref.includes(partial)).map(refItem);
+	const items = [...providerItems, ...refItems];
+	return items.length > 0 ? capped(items, partial, s) : null;
+}
+
+/**
+ * Cap the list and say what was left out.
+ *
+ * The remainder row deliberately re-inserts the text that is already typed, so selecting it changes
+ * nothing: a picker that silently truncates would hide models with no way to tell.
+ */
+function capped(items: Completion[], partial: string, s: Strings): Completion[] {
+	if (items.length <= MODEL_PICKER_CAP) return items;
+	const rest = items.length - MODEL_PICKER_CAP;
+	return [
+		...items.slice(0, MODEL_PICKER_CAP),
+		// `value` replaces the entire argument text after `/psych `, so the remainder row must
+		// carry the `model ` prefix and the trailing state the operator already typed. Selecting
+		// it therefore re-inserts exactly what is there: a picker that silently truncates hides
+		// models with no way to tell.
+		{ value: "model " + partial, label: s.modelMore(rest), description: s.typeToNarrow },
+	];
+}
 /** Split raw arguments into the subcommand, its value and the global flag. */
 export function parseArgs(raw: string): { sub: string; value: string; isGlobal: boolean } {
 	const tokens = (raw ?? "").trim().split(/\s+/).filter((part) => part.length > 0);

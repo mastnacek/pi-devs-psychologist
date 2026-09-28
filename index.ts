@@ -28,7 +28,7 @@ import { saveConfig, seedGlobalConfig } from "./src/shared/config.js";
 import { readHistory } from "./src/shared/history.js";
 import { stringsFor } from "./src/shared/i18n.js";
 import { extractSignals } from "./src/shared/signals.js";
-import { createDevsPsychologistState, reloadConfig, signalOptions } from "./src/shared/state.js";
+import { refreshModelCatalog, createDevsPsychologistState, reloadConfig, signalOptions } from "./src/shared/state.js";
 import { clearChip, paintChip } from "./src/shared/status.js";
 import { maybeAppraise, registerAppraiser, defaultDeps } from "./src/slices/appraiser/index.js";
 import { registerPsychCommand } from "./src/slices/commands/index.js";
@@ -80,6 +80,9 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal) =>
 		pi.on("session_start", async (_event, ctx) => {
 			const created = seedGlobalConfig(state.globalFile);
 			reloadConfig(state, ctx.cwd);
+			// The catalog must be cached here: the completion callback receives only the argument
+			// prefix, so it cannot ask the registry itself.
+			refreshModelCatalog(state, ctx.modelRegistry);
 			state.resetWindow();
 			paintChip(state, ctx);
 			// Say it exactly once, on the run that created it. Silent seeding would leave the file
@@ -124,6 +127,9 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal) =>
 			return outcome.silent ? s.reportEmpty : s.done;
 		},
 		report: (ctx) => {
+			// Refreshed on every invocation, so adding an OpenRouter account mid-session is picked
+			// up by the next Tab press instead of needing a restart.
+			refreshModelCatalog(state, ctx.modelRegistry);
 			const signals = extractSignals(state.observations, signalOptions(state));
 			const text = renderReport({
 				state,

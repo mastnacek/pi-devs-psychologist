@@ -94,7 +94,39 @@ so the configured model is never invoked and still costs nothing.
 5. **Never hardcode an account id in the plugin.** Account ids are the operator's
    configuration; the plugin only ever reads `config.model`.
 
-## 5. Verifying a setup
+## 5. Choosing a model from the registry
+
+`/psych model` does not accept free text as its only path — it completes from **the models and
+providers the engine has registered**, which is both more discoverable and more correct than
+typing a reference by hand:
+
+| Level | Typed | Offered |
+|---|---|---|
+| 1 | `/psych model ` | the registered providers, as `model <provider>/` |
+| 2 | `/psych model openrouter-soukr/` | that provider's models, as `model <provider>/<id>` |
+
+**Multi-account support needs no special handling**: `pi-openrouter-accounts` registers each
+OpenRouter account as its own provider id, so listing the registry's providers *is* listing the
+accounts.
+
+Three rules the picker obeys:
+
+- **Matching is substring, not prefix.** The account is `soukr` but its provider id is
+  `openrouter-soukr`, and the interesting part of a model id is often in the middle — typing
+  `claude` should find it without knowing the account prefix.
+- **The list is capped at 50** with a row saying how many were hidden; a 400-row picker is the
+  nagging this plugin exists to avoid. Selecting the overflow row changes nothing (it re-inserts
+  what is already typed), so a truncation is never silent.
+- **The model in effect is marked** with `✓` in the picker's label and `· ● current` in its
+  description — on the model's own row *and* on its provider's row, so the current value is
+  visible one level up. The marker never enters the inserted `value`.
+
+A hand-typed reference still works: the picker is a convenience, not a gate. The catalog is
+cached from the registry at session start and refreshed whenever `/psych` runs, so an account
+added mid-session is picked up by the next Tab press. With no catalog at all the picker defers
+to the engine's own completion rather than failing.
+
+## 6. Verifying a setup
 
 1. `/model` — confirm the provider id you intend to use appears with the right badge.
 2. Write `model` into `~/.pi/agent/pi-devs-psychologist.json` (after T6:
