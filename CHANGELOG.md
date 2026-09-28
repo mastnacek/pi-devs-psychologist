@@ -1,5 +1,44 @@
 # CHANGELOG
 
+## 0.0.3 — the second role, decided but not built
+
+Documentation only. No code changed, and deliberately no dead configuration was
+added.
+
+### Added
+
+- **ADR 0001 — two roles, one observer.** The observer sees *how* as well as *how
+  much*: verified against the published tool schemas, `edit` args are
+  `{ path, edits: [{ oldText, newText }] }`, `write` args are `{ path, content }` (the
+  whole file), and `args` reaches extensions verbatim. The plugin already receives
+  all of it and keeps only `path`.
+- **The decision:** the same position can also be a reviewer, on a stronger model
+  than the worker, at delivery boundaries — but as a **separate role with a separate
+  consent gate**. The psychologist reads counts; a reviewer reads content that can
+  leave the machine. Enabling one must not silently opt into the other.
+- **The VSA shape:** `slices/observer` becomes a recorder with a
+  `retain: "counts" | "content"` policy so one capture serves two projections
+  (`slices/psychologist`, `slices/reviewer`). This is the only change the role
+  implies to existing code.
+- **Seven invariants** the reviewer must satisfy, written down while they are cheap:
+  proposes and never writes; abstention (`insufficient_context`) is first-class and
+  silence is the default; convention adherence requires a *stated* convention, because
+  you cannot check adherence to a rule nobody wrote; no style opinion without a
+  citable rule; bounded output; never reviews its own model's work; findings go to the
+  operator, never injected as instructions.
+- **T12a–T12e** with a validation each, and a kill criterion recorded up front: if
+  fewer than half its findings are accepted, or it only reproduces what `pi-lens` and
+  `pi-architecture-watcher` already report deterministically, delete the slice rather
+  than tune it.
+- **PRD §10** and an amendment to §5 prohibition 7, which is now scoped to the
+  psychologist role so the design record does not contradict the roadmap.
+
+### Not done, on purpose
+
+- No content retention and no `retain` key. Nothing consumes it yet, and retaining
+  source code with no consumer is liability — particularly in a plugin whose stated
+  discipline is refusing data it does not need.
+
 ## 0.0.2 — session history: the whole record, and its boundary
 
 The live window sees minutes; a session is hours. This adds the structural fold

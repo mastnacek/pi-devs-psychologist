@@ -145,9 +145,25 @@ blind spots is not an observer.
 
 ---
 
+## Two roles, planned as two
+
+The observer sees *how* as well as *how much* — `edit` and `write` carry the change
+content in their arguments today and this plugin currently keeps only the path. So the
+same position could also act as a **reviewer**: run the work on a model affordable in
+volume, review it with a stronger one at delivery boundaries.
+
+It will be a **separate role with a separate consent gate**, never a switch on this one.
+The psychologist reads counts; a reviewer reads content that can leave the machine.
+Enabling the one must not silently opt you into the other. The decision, the VSA shape
+and the invariants are in [`docs/adr/0001-two-roles-one-observer.md`](docs/adr/0001-two-roles-one-observer.md).
+
+---
+
 ## Status
 
-`0.0.1` — the observation kernel and its tests are landed. The appraiser, the
-intervention policy and `/psych` are the next increments: see `TASKS.md`.
+`0.0.3` — the observation kernel, the session-history fold and its data boundary are
+landed and tested (57 tests). The appraiser (T2–T4), the intervention policy and
+`/psych` are next; the reviewer role is designed and deliberately unbuilt (T12).
+See `TASKS.md`.
 
 MIT.

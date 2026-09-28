@@ -113,7 +113,7 @@ Each is required by a specific finding, not by taste:
 | No invented praise or invented progress | Reward prediction error — a false reward signal is trained away |
 | Never more than one intervention | Zeigarnik: a list of open loops is itself load |
 | Never decide for the programmer | Self-determination theory: autonomy is the need agentic work most damages |
-| No opinion about the code's design | That is the working agent's job; the psychologist's job is the session |
+| No opinion about the code's design — **in the psychologist role** | That is the working agent's job; the psychologist's job is the session. A second role with a separate consent gate would *propose* on the artifact (§10, ADR 0001) — it would still never write |
 
 ## 6. Architecture (VSA)
 
@@ -196,3 +196,27 @@ Recorded up front, so it can be checked later:
    cannot support a claim, the claim is not made.
 4. **It costs more than it gives.** Mitigated by §7, and by the default of
    `model: ""` — installing the plugin cannot cost anything by itself.
+
+---
+
+## 10. A second role: the reviewer (accepted as design, not built)
+
+The observer sees *how* as well as *how much*: `edit` and `write` carry the change
+content in their arguments today and the plugin discards all but the path (verified,
+ADR 0001 §Context). That makes a second role nearly free to capture and genuinely
+valuable: run the **work** on a model affordable in volume, and the **review** on a
+stronger one, at delivery boundaries rather than per keystroke.
+
+It is a separate role with a **separate consent gate**, never a switch on this one: the
+psychologist reads counts, the reviewer reads content that can leave the machine, and
+enabling a mood chip must not silently opt the operator into sending their source code
+to a second model.
+
+The full decision — why it cannot be merged, the VSA shape (`slices/observer` becomes a
+recorder with a `retain: "counts" | "content"` policy so one capture serves two
+projections), the invariants it must satisfy, and the criteria that would prove it
+wrong — is in **`docs/adr/0001-two-roles-one-observer.md`**. Tasks: T12a–T12e.
+
+Nothing is implemented: no content retention and no `retain` key, because nothing
+consumes it yet and retaining code with no consumer is liability. Recording the shape
+is what keeps the reviewer from being designed into a corner.

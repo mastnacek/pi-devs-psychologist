@@ -156,6 +156,50 @@ progress has thinned out this week" becomes answerable. Deliberately last: it is
 the only task that stores something about a person.
 
 ---
+## ? T12 — Reviewer role: the observer as pair programmer
+
+The observer already sees *how* the work is done. Verified against the published
+tool schemas: `edit` args are `{ path, edits: [{ oldText, newText }] }`, `write` args
+are `{ path, content }` (the whole file), and `args` reaches extensions verbatim.
+Today `slices/observer` keeps only `path` and discards the rest. The idea: run the
+*work* on a model affordable in volume and the *review* on a stronger one.
+
+Full reasoning, the two-consent-gate decision, the VSA shape and the invariants are
+in `docs/adr/0001-two-roles-one-observer.md`. Not implemented, on purpose.
+
+Subtasks, in the order they must happen:
+
+- **T12a — Observer becomes a recorder, not a projector.** One capture serving two
+  projections, with `retain: "counts" | "content"` defaulting to `counts`, so the
+  data kept is a function of what is enabled. This is the only change the reviewer
+  role implies to existing code, and it is a shape change, not a feature.
+  *Validation:* with `retain: "counts"` no change content is retained anywhere in
+  the record (asserted by walking it); with `"content"` the record stays within its
+  bound on a 500-edit session.
+- **T12b — Convention sources.** Adherence needs a *stated* convention. A bounded
+  reader for `AGENTS.md` and equivalents, cached, never in the psychologist's path.
+  *Validation:* a repo with no stated rules yields no convention findings rather than
+  invented ones.
+- **T12c — Bounded review sample.** Select the changed hunks worth reviewing at a
+  delivery boundary (a verified run or a labelled checkpoint). Hard token cap.
+  *Validation:* the sample never exceeds its cap on a large diff, and always includes
+  the declared intent alongside the diff (the mismatch signal depends on both).
+- **T12d — Reviewer appraisal with abstention.** Own model, own schema,
+  `insufficient_context` as a first-class outcome, silence as the default.
+  *Validation:* the schema rejects a finding with no citable rule; a diff with no
+  convention source produces `insufficient_context`, not a guess.
+- **T12e — Proposal delivery.** Findings go to the operator, never applied, never
+  injected as instructions to the working agent.
+  *Validation:* a test asserts the plugin performs no file mutation and never writes
+  into the agent's context from this slice.
+
+**Kill criterion (recorded up front):** if fewer than half its findings are accepted
+at review time, or if it only reproduces what `pi-lens` and
+`pi-architecture-watcher` already report deterministically, delete the slice rather
+than tune it.
+
+---
+
 
 ## . T11 — Release
 
