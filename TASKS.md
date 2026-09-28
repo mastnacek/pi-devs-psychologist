@@ -207,3 +207,31 @@ than tune it.
 
 **Validation:** `pi -e git:github.com/mastnacek/pi-devs-psychologist` loads the
 extension; `pi update` reconciles it.
+---
+
+## Plan 0.4 — pi-pair principles + agent runtime
+
+Full specifications (goal, files, behaviour, acceptance, non-goals) live in
+[`docs/plan-0.4.md`](docs/plan-0.4.md); this list is the index only.
+
+- `. T13` README truth pass (stale version, key statuses, `envFacts`)
+- `. T14` Signal-triggered appraisal — deltas since last attempt, clock is a floor
+- `. T15` Delivery-boundary check — commit/push with unverified changes, 0 tokens
+- `. T16` Intervention outcome ledger — measures the plugin, never the person
+- `. T17` Anti-nag cooldown — per-kind cooldown, mute after two no-change repeats
+- `. T18` Recurring friction line from existing `FailureFingerprint`
+- `. T19` Spike: child `pi` launch facts on this machine (10 questions)
+- `. T20` ADR 0002 — agent runtime and the data boundary
+- `. T21` Config + `--psych-runtime` flag + `/psych runtime|context|agent-model`
+- `. T22` Child mode: `psych_submit` tool + read-only `tool_call` guard
+- `. T23` Agent brief: role prompt, pi docs map, pi.dev/packages, web/MCP/skills/nlm
+- `. T24` Runner: argv/env builder, JSONL stream, cost/time limits, tree kill
+- `. T25` Schema `suggestions` with enforced sources
+- `. T26` Async delivery, deliver at a natural pause, `/psych stop`
+- `. T27` Accounting in `/psych`, session cost cap
+- `. T28` Context level `digest` (scrubbed, no tool outputs)
+- `. T29` Context level `fork` (full session, confirm on first use)
+- `. T30` `/psych ask <question>`
+- `. T31` Scout role — recurring friction → existing plugin or a SPAI idea
+- `. T32` Pair role — revises T12, only if pi-pair leaves a gap
+- `. T33` NotebookLM research grounding
