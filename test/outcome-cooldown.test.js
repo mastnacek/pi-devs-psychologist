@@ -26,7 +26,8 @@ function stateFor() {
     trigger: "cadence",
     cadenceTurns: 1,
     outcomeWindowTurns: 1,
-    cooldownTurns: 6,
+    // Short cooldown so a repeat AFTER it expires can be delivered and muting can be reached.
+    cooldownTurns: 2,
   };
   return state;
 }
@@ -88,15 +89,15 @@ test("a kind delivered twice with no improvement is dropped on the third attempt
 
   advance(pi, state, ctx, deps, 2); // closes the first window: all metrics unchanged
 
-  const second = await turn(pi, state, ctx, deps, 2);
+  const second = await turn(pi, state, ctx, deps, 3); // cooldown (2) expired
   assert.equal(state.outcomes.length, 2, "the second delivery is recorded, not dropped");
   assert.match(deps.calls[1].userText, /do not repeat: thin_slice \(named 1 times, no change\)/,
     "from the second call on, the model is warned off the cooling kind");
   assert.ok(!second.downgraded.includes("cooldown"), "cooling alone does not drop the advice");
 
-  advance(pi, state, ctx, deps, 3); // closes the second window
+  advance(pi, state, ctx, deps, 4); // closes the second window
 
-  const third = await turn(pi, state, ctx, deps, 3);
+  const third = await turn(pi, state, ctx, deps, 5);
   assert.equal(state.outcomes.length, 2, "the third attempt is dropped, not delivered");
   assert.ok(third.downgraded.includes("cooldown"), "and the drop is recorded for the report");
   assert.match(deps.calls[2].userText, /do not repeat: thin_slice \(named 2 times, no change\)/);
@@ -109,9 +110,9 @@ test("the drop keeps the verdicts and only removes the intervention", async () =
   const deps = makeDeps("thin_slice");
   await turn(pi, state, ctx, deps, 1);
   advance(pi, state, ctx, deps, 2);
-  await turn(pi, state, ctx, deps, 2);
-  advance(pi, state, ctx, deps, 3);
-  const third = await turn(pi, state, ctx, deps, 3);
+  await turn(pi, state, ctx, deps, 3);
+  advance(pi, state, ctx, deps, 4);
+  const third = await turn(pi, state, ctx, deps, 5);
   assert.equal(third.ok, true);
   assert.equal(third.appraisal.interventions.length, 0, "the repeat is refused");
   assert.equal(third.appraisal.progress.state, "blocked", "but the analysis is intact");
@@ -140,4 +141,27 @@ test("`stop` is exempt from cooldown but still muted after two useless deliverie
   assert.ok(third.downgraded.includes("cooldown"));
   assert.match(deps.calls[2].userText, /do not repeat: stop \(named 2 times, no change\)/,
     "muting is not exempt: once stop is muted, the warning follows");
+});
+
+test("a repeat inside the cooldown is dropped even before any outcome is known", async () => {
+  const pi = makePi();
+  const state = stateFor();
+  const ctx = makeCtx();
+  const deps = makeDeps("thin_slice");
+  await turn(pi, state, ctx, deps, 1);
+  const repeat = await turn(pi, state, ctx, deps, 2); // 1 turn later, cooldown is 2
+  assert.equal(state.outcomes.length, 1, "the repeat is not delivered");
+  assert.ok(repeat.downgraded.includes("cooldown"));
+  assert.equal(repeat.appraisal.progress.state, "blocked", "verdicts survive the drop");
+});
+
+test("`stop` inside the cooldown is still delivered", async () => {
+  const pi = makePi();
+  const state = stateFor();
+  const ctx = makeCtx();
+  const deps = makeDeps("stop");
+  await turn(pi, state, ctx, deps, 1);
+  const repeat = await turn(pi, state, ctx, deps, 2);
+  assert.ok(!repeat.downgraded.includes("cooldown"), "stop is exempt from cooldown");
+  assert.equal(state.outcomes.length, 2);
 });

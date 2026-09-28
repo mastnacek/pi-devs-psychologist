@@ -120,7 +120,8 @@ test("cooling covers recent deliveries, but `stop` is exempt from cooldown", () 
 test("the do-not-repeat line names the kind and how many times it was delivered", () => {
   const ledger = [record({ id: "a", deliveredAtTurn: 4 }), record({ id: "b", deliveredAtTurn: 5 })];
   const lines = doNotRepeatLines(ledger, 6, 6);
-  assert.deepEqual(lines, ["do not repeat: thin_slice (named 2 times, no change)"]);
+  // No window has closed yet, so the line must not claim a measured result.
+  assert.deepEqual(lines, ["do not repeat: thin_slice (named 2 times, cooling down)"]);
   assert.equal(deliveredCount(ledger, "thin_slice"), 2);
 });
 

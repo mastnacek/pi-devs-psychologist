@@ -183,7 +183,8 @@ export function coolingKinds(
 }
 
 /**
- * The ONE live evidence line per cooling/muted kind, model-facing English (T17).
+ * The ONE live evidence line per kind to avoid, model-facing English (T17): cooling, muted, or
+ * measured as not helping in its latest closed window.
  *
  * It is added to both the prompt and `allowedEvidence`, exactly like the T14 trigger line: a
  * warning the model cannot cite would be a warning the model is punished for obeying.
@@ -193,13 +194,23 @@ export function doNotRepeatLines(
 	currentTurn: number,
 	cooldownTurns: number,
 ): string[] {
-	const kinds = new Set<InterventionKind>([
-		...coolingKinds(ledger, currentTurn, cooldownTurns),
-		...mutedKinds(ledger),
-	]);
-	return [...kinds]
-		.sort()
-		.map((kind) => `do not repeat: ${kind} (named ${deliveredCount(ledger, kind)} times, no change)`);
+	const cooling = coolingKinds(ledger, currentTurn, cooldownTurns);
+	// "No change" is claimed only when a closed window measured it (the latest resolved outcome did
+	// not improve, or the kind is muted). A kind that is merely cooling has no measurement yet, so
+	// its line says so instead of asserting a result the ledger does not hold.
+	const measuredNoChange = new Set<InterventionKind>(mutedKinds(ledger));
+	for (const record of ledger) {
+		// `stop` keeps its cooldown exemption here too: only muting silences it.
+		if (record.kind === "stop") continue;
+		const resolved = resolvedRecords(ledger, record.kind);
+		const latest = resolved[resolved.length - 1];
+		if (latest && isNoImprovement(latest.verdicts as MetricVerdicts)) measuredNoChange.add(record.kind);
+	}
+	const kinds = new Set<InterventionKind>([...cooling, ...measuredNoChange]);
+	return [...kinds].sort().map((kind) => {
+		const why = measuredNoChange.has(kind) ? "no change" : "cooling down";
+		return `do not repeat: ${kind} (named ${deliveredCount(ledger, kind)} times, ${why})`;
+	});
 }
 
 /**

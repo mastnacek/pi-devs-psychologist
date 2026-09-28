@@ -34,6 +34,7 @@ import { allowedEvidence, buildUserText, SYSTEM_PROMPT } from "../../shared/prom
 import { environmentEvidence } from "../../shared/environment.js";
 import { extractSignals, type SessionSignals } from "../../shared/signals.js";
 import {
+	coolingKinds,
 	doNotRepeatLines,
 	mutedKinds,
 	resolveDueOutcomes,
@@ -219,11 +220,16 @@ export async function maybeAppraise(
 			return { ran: true, ok: false, stage: "parse", error: parsed.error };
 		}
 
-		// Anti-nag (T17): a kind this session already tried twice with no improvement is dropped
-		// before delivery. The VERDICTS are kept — only the repeat advice is refused — and the drop is
-		// recorded so `/psych` can show the plugin's own restraint.
+		// Anti-nag (T17): a kind still cooling (delivered < cooldownTurns ago) or muted (tried twice
+		// with no improvement) is dropped before delivery. The prompt already warned the model off it;
+		// this is the enforcement for when it ignores the warning. The VERDICTS are kept — only the
+		// repeat advice is refused — and the drop is recorded so `/psych` can show the restraint.
 		const candidate = parsed.appraisal.interventions[0];
-		if (candidate && mutedKinds(state.outcomes).has(candidate.kind)) {
+		const refused =
+			candidate !== undefined &&
+			(mutedKinds(state.outcomes).has(candidate.kind) ||
+				coolingKinds(state.outcomes, state.turnCount, state.config.cooldownTurns).has(candidate.kind));
+		if (refused) {
 			parsed.appraisal.interventions = [];
 			parsed.downgraded.push("cooldown");
 		}
