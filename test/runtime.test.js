@@ -128,3 +128,24 @@ test("an invalid --psych-runtime value is ignored with a notification, and chang
     dir.cleanup();
   }
 });
+
+test("the --psych-runtime override survives an unrelated setting command, and yields to /psych runtime", async () => {
+  const { pi } = load();
+  const dir = world();
+  try {
+    pi.flags.set("psych-runtime", "agent");
+    const ctx = makeCtx({ cwd: dir.cwd });
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    const psych = pi.commands.get("psych");
+
+    // `/psych lang cs` saves and reloads the config; the one-run flag must not be lost by it.
+    await psych.handler("lang cs", ctx);
+    assert.equal(ctx.statusCalls.at(-1).text, stringsFor("cs").chipAgentNoModel, "still agent runtime after a reload");
+
+    // An explicit runtime choice is the operator's latest word and supersedes the flag.
+    await psych.handler("runtime api", ctx);
+    assert.equal(ctx.statusCalls.at(-1).text, stringsFor("cs").chipSignals, "the explicit choice wins");
+  } finally {
+    dir.cleanup();
+  }
+});

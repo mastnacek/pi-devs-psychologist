@@ -72,6 +72,12 @@ export interface DevsPsychologistState {
 	turnsSinceAppraisal: number;
 	/** Turns completed this session. The clock the outcome ledger measures its window against. */
 	turnCount: number;
+	/**
+	 * `--psych-runtime` for this process. Kept apart from `config` so a config reload (every `/psych`
+	 * setting command reloads) re-applies it instead of silently reverting to the persisted runtime.
+	 * An explicit `/psych runtime` clears it: the operator's latest word wins.
+	 */
+	runtimeOverride: "api" | "agent" | undefined;
 	/** True while an appraisal is in flight, so a slow model is not called twice. */
 	appraisalInFlight: boolean;
 	/** Last enforced appraisal, for the report. Never fed back into the observation log. */
@@ -144,6 +150,7 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		appraisalsThisSession: 0,
 		turnsSinceAppraisal: 0,
 		turnCount: 0,
+		runtimeOverride: undefined,
 		appraisalInFlight: false,
 		lastAppraisal: undefined,
 		lastAppraisalAt: undefined,
@@ -246,6 +253,7 @@ export function refreshModelCatalog(
 /** Reload the cascading config for a session rooted at `cwd`. */
 export function reloadConfig(state: DevsPsychologistState, cwd?: string): void {
 	state.config = loadConfig(cwd, state.globalFile);
+	if (state.runtimeOverride) state.config.runtime = state.runtimeOverride;
 }
 
 /**

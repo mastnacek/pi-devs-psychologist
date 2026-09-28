@@ -97,6 +97,7 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal, opt
 			const runtimeFlag = pi.getFlag("psych-runtime");
 			if (typeof runtimeFlag === "string" && runtimeFlag.length > 0) {
 				if (runtimeFlag === "api" || runtimeFlag === "agent") {
+					state.runtimeOverride = runtimeFlag;
 					state.config.runtime = runtimeFlag;
 				} else if (ctx.hasUI) {
 					ctx.ui.notify(stringsFor(state.config.lang).runtimeFlagInvalid(runtimeFlag), "warning");
@@ -194,8 +195,11 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal, opt
 			});
 			if (ctx.hasUI) ctx.ui.notify(text, "info");
 		},
-		save: (patch, isGlobal, ctx) =>
-			saveConfig(patch as never, isGlobal, ctx.cwd, state.globalFile),
+		save: (patch, isGlobal, ctx) => {
+			// An explicit runtime choice supersedes the one-run flag; any other setting keeps it.
+			if (patch && typeof patch === "object" && "runtime" in patch) state.runtimeOverride = undefined;
+			return saveConfig(patch as never, isGlobal, ctx.cwd, state.globalFile);
+		},
 		reload: (ctx) => {
 			reloadConfig(state, ctx.cwd);
 			paintChip(state, ctx);
