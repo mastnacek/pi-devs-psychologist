@@ -101,11 +101,19 @@ sections, cost totals, other plugins' state, cross-session history) and why — 
 
 ## Configuration
 
+`model` is a `provider/modelId` handle, so it selects a provider **account** as well
+as a model. This workshop runs several OpenRouter accounts side by side via
+`pi-openrouter-accounts` (each account registers as its own provider id, e.g.
+`openrouter-default`, `openrouter-soukr`), which is how the three roles get their own
+models and their own budget: worker on the main account, psychologist on the
+free-tier account, and — later — the reviewer on the main account where capability
+actually pays. Mapping, rules and verification: **[`docs/models.md`](docs/models.md)**.
+
 Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-devs-psychologist.json` (project wins).
 
 ```json
 {
-  "model": "openrouter/anthropic/claude-sonnet-4.5",
+  "model": "openrouter-soukr/<a :free model>",
   "cadenceTurns": 8,
   "maxAppraisalsPerSession": 12,
   "steerAgent": false,
@@ -116,8 +124,9 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 Set it from the session instead: `/psych model <provider/id>`, `/psych budget 6`,
 `/psych on|off`, `/psych global`.
 
-**Pick a model the working agent is not.** An observer that shares the worker's
-blind spots is not an observer.
+**Pick a model the working agent is not.** An observer that shares the worker's blind
+spots is not an observer. A different *account* is not automatically a different
+*model* — check the model id, not just the provider. See [`docs/models.md`](docs/models.md).
 
 ---
 

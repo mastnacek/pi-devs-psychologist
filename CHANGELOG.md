@@ -1,5 +1,39 @@
 # CHANGELOG
 
+## 0.0.4 — multi-model setup: several OpenRouter accounts, three roles
+
+Documentation only. Records how the plugin will run different models, and different
+*accounts*, for the different roles.
+
+### Added
+
+- **`docs/models.md`** — the operator's model plan. `config.model` is a
+  `provider/modelId` handle, so it selects a provider account as well as a model;
+  `pi-openrouter-accounts` registers each OpenRouter account as its own provider id
+  (`openrouter-default`, `openrouter-soukr`), which is how the roles get their own
+  models and their own budgets.
+- **Role → account mapping.** Worker on the main account. **Psychologist on the
+  free-tier account** — a low-cadence observer (~7 evidence lines every
+  `cadenceTurns`) is precisely the workload a free tier fits, so the second opinion
+  can cost nothing extra while the work account's quota stays untouched. The
+  reviewer (T12) on the main account, where capability actually pays.
+- **Five rules stated in the doc:** the psychologist must not be the worker's model
+  (a different account is not a different model); `onlyFree` accounts reject paid
+  models at call time, and `config.model` is deliberately validated as a string only;
+  evidence lines leave the machine too, so account choice is a data-policy decision
+  and not only a billing one; budget isolation needs both
+  `maxAppraisalsPerSession` and a separate account; account ids are never hardcoded in
+  the plugin, which reads only `config.model`.
+- README Configuration and PRD §3 now point at that doc.
+
+### Notes
+
+- Credentials stay in `auth.json`, owned by `pi-openrouter-accounts`. This plugin's
+  config never holds a key, a base URL or a token source.
+- Installed into the operator's settings as
+  `git:github.com/mastnacek/pi-devs-psychologist`. Until T2–T4 land the plugin only
+  observes and paints `psych: signals`; it spends nothing.
+
 ## 0.0.3 — the second role, decided but not built
 
 Documentation only. No code changed, and deliberately no dead configuration was

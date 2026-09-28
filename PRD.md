@@ -49,6 +49,14 @@ shaped by the working agent's own narrative of how well it is doing.
 
 The plugin is explicit about this in `README`: pick a model the worker is not.
 
+The handle is `provider/modelId`, so "different model" and "different provider account"
+are both available and both used: this workshop runs several OpenRouter accounts
+side by side, each registered as its own provider id, which is how the psychologist
+gets its own model *and* its own budget. The role → account mapping is in
+`docs/models.md`. Notably, a low-cadence observer (~7 evidence lines every
+`cadenceTurns`) is precisely the workload that fits a free-tier account, so the second
+opinion can cost nothing extra while the work account's quota stays untouched.
+
 ## 4. The evidence discipline (the actual invention)
 
 A model asked "how is the programmer doing?" will invent an answer. Everything
