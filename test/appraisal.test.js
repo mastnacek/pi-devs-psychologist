@@ -306,3 +306,16 @@ test("a fully fabricated response parses to a silent, neutral appraisal", () => 
   assert.equal(result.appraisal.progress.state, NEUTRAL.progress);
   assert.deepEqual(result.appraisal.interventions, []);
 });
+test("a citation copied with the prompt's list marker still matches its evidence line", () => {
+  // Observed live: the prompt shows lines as `- <line>`, the model copied the bullet, and four
+  // correct citations were dropped. The marker is presentation, not content.
+  const line = "tool failures: 3/3 (100%), repeated: bash";
+  const raw = {
+    ...neutralAppraisal(),
+    load: { level: "high", cited: [`- ${line}`, `• ${line}`] },
+  };
+  const { appraisal, unmatched } = enforceEvidence(raw, [line]);
+  assert.equal(appraisal.load.level, "high", "the verdict survives");
+  assert.deepEqual(unmatched, []);
+  assert.ok(appraisal.load.cited.every((c) => c === line), "the stored citation is the canonical line");
+});

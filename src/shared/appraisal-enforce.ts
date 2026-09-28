@@ -30,9 +30,18 @@ import {
 	type SuggestionKind,
 } from "./appraisal.js";
 
-/** Comparison form for a citation: case and inner whitespace are not evidence. */
+/**
+ * Comparison form for a citation: case, inner whitespace and a leading list marker are not
+ * evidence. The prompt presents every line as `- <line>`, and a model copying "exactly" copies the
+ * bullet too — observed live (T26 RPC run): four correct citations dropped for their `- ` prefix,
+ * leaving an appraisal with no verdicts. The marker is presentation, not content.
+ */
 function normalize(line: string): string {
-	return line.trim().replace(/\s+/g, " ").toLowerCase();
+	return line
+		.trim()
+		.replace(/^(?:[-*\u2022\u00b7]\s+)+/, "")
+		.replace(/\s+/g, " ")
+		.toLowerCase();
 }
 
 /**
