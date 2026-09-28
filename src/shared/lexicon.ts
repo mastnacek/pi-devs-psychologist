@@ -267,7 +267,7 @@ export const CHILD_FORBIDDEN_TOOLS: ReadonlySet<string> = new Set([
 ]);
 
 /** Any tool whose name says it writes, removes or installs, listed or not. */
-export const CHILD_FORBIDDEN_TOOL_PATTERN = /(write|edit|delete|replace|install|remove)/i;
+export const CHILD_FORBIDDEN_TOOL_PATTERN = /(write|edit|delete|replace|install|remove|scaffold|create|rename)/i;
 
 /**
  * The child's own submission tool, which the pattern must never catch and the read-only rule must
@@ -286,7 +286,14 @@ export function isChildForbiddenTool(toolName: string): boolean {
  * a subshell bracket or a newline. Anchoring to a statement start is what keeps `cat src/copy.ts`
  * readable — a bare word-boundary test would refuse to read any file with "copy" in its name.
  */
-const COMMAND_START = "(?:^|[;&|()\\n])\\s*";
+const COMMAND_START =
+	"(?:^|[;&|()\\n])\\s*" +
+	// Wrappers that run the next word as the command: `sudo rm`, `env A=1 git push`, `xargs rm`.
+	// Without this, one prefix word walks straight past every entry below.
+	"(?:(?:sudo|doas|env|command|nohup|time|exec|xargs)\\s+(?:-\\S+\\s+|\\w+=\\S*\\s+)*)*";
+
+/** `git` plus any global options before the subcommand: `git -c a=b commit`, `git -C dir push`. */
+const GIT = "git(?:\\s+(?:-[cC]\\s+\\S+|--?[\\w-]+(?:=\\S+)?))*";
 
 /**
  * Bash forms the child must not run (T22, D4), each with the reason the model is told.
@@ -298,7 +305,7 @@ const COMMAND_START = "(?:^|[;&|()\\n])\\s*";
  */
 export const CHILD_FORBIDDEN_BASH: ReadonlyArray<readonly [RegExp, string]> = [
 	[
-		new RegExp(`${COMMAND_START}git\\s+(?:commit|push|reset|checkout|switch|clean|rebase|merge|stash|tag|rm|mv)\\b`, "i"),
+		new RegExp(`${COMMAND_START}${GIT}\\s+(?:commit|push|reset|checkout|switch|clean|rebase|merge|stash|tag|rm|mv)\\b`, "i"),
 		"this git command changes or publishes state",
 	],
 	[
@@ -328,6 +335,15 @@ export const CHILD_FORBIDDEN_BASH: ReadonlyArray<readonly [RegExp, string]> = [
 	],
 	[new RegExp(`${COMMAND_START}nlm\\s+login\\b`, "i"), "`nlm login` is interactive"],
 	[new RegExp(`${COMMAND_START}nlm\\s+chat\\s+start\\b`, "i"), "`nlm chat start` opens a REPL"],
+	[
+		// Interpreter one-liners that reach the filesystem: `node -e "fs.writeFileSync(...)"`,
+		// `python -c "open(p,'w')"`. Matched on the write API, so `node -e "console.log(1)"` passes.
+		new RegExp(
+			`${COMMAND_START}(?:node|deno|bun|python3?|py|ruby|perl)\\b[^|;&]*\\s(?:-e|-c|--eval|-p)\\b.*(?:writeFile|appendFile|rmSync|rmdir|unlink|rename|mkdir|copyFile|createWriteStream|open\\([^)]*['"][wa]|shutil|os\\.remove)`,
+			"i",
+		),
+		"this interpreter one-liner writes to disk",
+	],
 	[
 		/\bsed\b[^|;&<>]*\s(?:-i|--in-place)\b/i,
 		"`sed -i` rewrites the file in place",
