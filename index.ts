@@ -18,6 +18,9 @@
  * - the `/psych` text report   → src/slices/report
  * - the `/psych` command       → src/slices/commands
  *
+ * In CHILD mode (T22) none of that is wired: this package becomes a read-only guard plus the single
+ * `psych_submit` tool — src/slices/child. See the branch at the top of the factory.
+ *
  * What this plugin is NOT: not a coach with opinions about code, not a score, and not an
  * authority over the working agent. It observes, it may name one intervention, and it always
  * shows the evidence it used.
@@ -31,7 +34,9 @@ import { stringsFor } from "./src/shared/i18n.js";
 import { extractSignals } from "./src/shared/signals.js";
 import { refreshModelCatalog, createDevsPsychologistState, reloadConfig, restoreAppraisal, signalOptions } from "./src/shared/state.js";
 import { clearChip, paintChip } from "./src/shared/status.js";
+import { parseChildLimits, parseChildRole } from "./src/shared/child-limits.js";
 import { maybeAppraise, registerAppraiser, defaultDeps } from "./src/slices/appraiser/index.js";
+import { registerChildSlice } from "./src/slices/child/index.js";
 import { registerPsychCommand } from "./src/slices/commands/index.js";
 import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
 import { registerObserver } from "./src/slices/observer/index.js";
@@ -50,6 +55,18 @@ export default function devsPsychologistExtension(
 	pi: ExtensionAPI,
 	options: DevsPsychologistOptions = {},
 ): void {
+	// Child mode (T22, D3/D4): this process is the headless child our own agent runtime spawned. The
+	// same package must NOT wire the observer, the appraiser, any command or the chip here — only the
+	// read-only guard and the one submission tool. Checked BEFORE the subagent guard below because the
+	// child deliberately carries neither PI_SUBAGENT nor PI_CHILD_SESSION (D5 keeps the other workshop
+	// plugins on), so without this branch it would fall straight through into parent mode and start
+	// observing its own one-shot session. The limits come from the environment, and a malformed value
+	// fails closed: ten tool calls and no capability (src/shared/child-limits.ts).
+	if (process.env.PI_DEVS_PSYCH_CHILD === "1") {
+		registerChildSlice(pi, parseChildRole(process.env.PI_DEVS_PSYCH_ROLE), parseChildLimits(process.env.PI_DEVS_PSYCH_LIMITS));
+		return;
+	}
+
 	// Subagent and child sessions load every global extension. An observer that watched its own
 	// children would fold its own prompts into the programmer's signals and spend the session's
 	// appraisal budget on noise (skill §8).

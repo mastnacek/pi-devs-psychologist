@@ -238,3 +238,135 @@ export function hasCorrectionMarker(text: string): boolean {
 	const lower = text.toLowerCase();
 	return CORRECTION_MARKERS.some((marker) => lower.includes(marker));
 }
+
+// --- T22: the read-only child's deny list ----------------------------------------------------
+
+/**
+ * Tools the child pi must not call (T22, D4). The child runs with the whole workshop loadout
+ * (spike Q6), so this is a deny list with a catch-all, not an allow list: a tool the child genuinely
+ * needs is never on it, and a tool whose *name* smells like a mutation is refused by pattern below,
+ * so a newly installed `something_writer` cannot slip through merely by being unlisted.
+ *
+ * `MUTATION_TOOLS` is reused rather than repeated: `edit` and `write` are its members, and the guard's
+ * whole purpose is to stop file mutation, so the codebase's own definition of "a tool that touches a
+ * file" is the right starting set.
+ */
+export const CHILD_FORBIDDEN_TOOLS: ReadonlySet<string> = new Set([
+	...MUTATION_TOOLS,
+	"ast_grep_replace",
+	"record_spai_item",
+	"update_spai_status",
+	"workflow",
+	"workflow_control",
+	"batch_submit_goal",
+	"subagent",
+	"subagents_enable",
+	"plugin_dev_scaffold",
+	"add_project_root",
+	"add_project_manually",
+]);
+
+/** Any tool whose name says it writes, removes or installs, listed or not. */
+export const CHILD_FORBIDDEN_TOOL_PATTERN = /(write|edit|delete|replace|install|remove)/i;
+
+/**
+ * The child's own submission tool, which the pattern must never catch and the read-only rule must
+ * never block: it is the only way the child is allowed to speak (D3).
+ */
+export const CHILD_SUBMIT_TOOL = "psych_submit";
+
+/** True when the child must not call this tool. */
+export function isChildForbiddenTool(toolName: string): boolean {
+	if (toolName === CHILD_SUBMIT_TOOL) return false;
+	return CHILD_FORBIDDEN_TOOLS.has(toolName) || CHILD_FORBIDDEN_TOOL_PATTERN.test(toolName);
+}
+
+/**
+ * A shell command that starts a new statement: the beginning, or after a pipe, `;`, `&&`, `||`,
+ * a subshell bracket or a newline. Anchoring to a statement start is what keeps `cat src/copy.ts`
+ * readable — a bare word-boundary test would refuse to read any file with "copy" in its name.
+ */
+const COMMAND_START = "(?:^|[;&|()\\n])\\s*";
+
+/**
+ * Bash forms the child must not run (T22, D4), each with the reason the model is told.
+ *
+ * A readable list like every other table here, and deliberately narrow so the read-only work stays
+ * possible: `git diff` / `git log` / `git show`, `npm test`, `ls`, `cat`, and (when the run allows it)
+ * `nlm notebook query` must all pass. The list is a floor, not a proof: a shell form nobody thought of
+ * is still a way through, which is why the brief forbids mutation in prose as well.
+ */
+export const CHILD_FORBIDDEN_BASH: ReadonlyArray<readonly [RegExp, string]> = [
+	[
+		new RegExp(`${COMMAND_START}git\\s+(?:commit|push|reset|checkout|switch|clean|rebase|merge|stash|tag|rm|mv)\\b`, "i"),
+		"this git command changes or publishes state",
+	],
+	[
+		new RegExp(`${COMMAND_START}(?:rm|rmdir|del|mv|move|cp|copy)\\b`, "i"),
+		"this command deletes, moves or copies files",
+	],
+	[new RegExp(`${COMMAND_START}tee\\b`, "i"), "`tee` writes to a file"],
+	[
+		new RegExp(`${COMMAND_START}(?:Remove-Item|Set-Content|Out-File)\\b`, "i"),
+		"this PowerShell cmdlet writes to disk",
+	],
+	[
+		new RegExp(`${COMMAND_START}(?:npm|pnpm|yarn|bun)\\s+(?:i|install|add|publish|uninstall)\\b`, "i"),
+		"this package-manager command installs or publishes",
+	],
+	[
+		new RegExp(`${COMMAND_START}pi\\s+(?:install|remove|uninstall|update|config)\\b`, "i"),
+		"this pi command changes what is installed",
+	],
+	[
+		new RegExp(`${COMMAND_START}gh\\s+(?:repo|pr|issue|release)\\s+(?:create|edit|delete|merge|close)\\b`, "i"),
+		"this GitHub command writes",
+	],
+	[
+		new RegExp(`${COMMAND_START}nlm\\s+(?:notebook|source|note)\\s+(?:create|delete|add|rename|update)\\b`, "i"),
+		"this NotebookLM command changes the notebook",
+	],
+	[new RegExp(`${COMMAND_START}nlm\\s+login\\b`, "i"), "`nlm login` is interactive"],
+	[new RegExp(`${COMMAND_START}nlm\\s+chat\\s+start\\b`, "i"), "`nlm chat start` opens a REPL"],
+	[
+		/\bsed\b[^|;&<>]*\s(?:-i|--in-place)\b/i,
+		"`sed -i` rewrites the file in place",
+	],
+	[
+		/\b(?:curl|wget)\b[^|;&<>]*(?:\s-[oO]\b|--output\b)/i,
+		"this download is written to a file",
+	],
+];
+
+/**
+ * Where a `>` or `>>` sends its output, if anywhere.
+ *
+ * Needs a function rather than a list entry because the decision is about the TARGET: `2>&1`
+ * duplicates a file descriptor and `> /dev/null` (or `> nul`) discards output — both are read-only
+ * plumbing — while `> out.txt` is a write. A bare `\btarget\b` pattern cannot tell them apart.
+ */
+export function forbiddenRedirection(command: string): string | undefined {
+	for (const match of command.matchAll(/(>>?)\s*([^\s|;&<>]+)/g)) {
+		const target = match[2];
+		if (target.startsWith("&")) continue;
+		if (/^\/dev\/(?:null|stdout|stderr)$/i.test(target)) continue;
+		if (/^nul$/i.test(target)) continue;
+		return target;
+	}
+	return undefined;
+}
+
+/**
+ * Why the child must not run this command, or `undefined` when it may.
+ *
+ * The reason is model-facing, so it says what the command would do and nothing about the operator.
+ */
+export function childBashBlockReason(command: string | undefined): string | undefined {
+	if (!command) return undefined;
+	for (const [pattern, reason] of CHILD_FORBIDDEN_BASH) {
+		if (pattern.test(command)) return reason;
+	}
+	const target = forbiddenRedirection(command);
+	if (target !== undefined) return `this command redirects output into ${target}`;
+	return undefined;
+}

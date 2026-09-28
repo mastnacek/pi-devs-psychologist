@@ -31,6 +31,26 @@ report and the statusline chip; the appraiser still uses the API call.
   opens a confirm stating what will leave the machine; outside a TUI it is refused, because a
   one-run channel must never carry a persisted (consent) decision.
 - **`/psych` report** now shows the runtime, the effective agent model and the context level.
+- **Child mode (T22).** With `PI_DEVS_PSYCH_CHILD=1` this package registers **only** a read-only
+  `tool_call` guard and one tool, `psych_submit`, and returns before the recursion guard — no observer,
+  no appraiser, no `/psych`, no chip (the child must not observe itself). New slice `src/slices/child/`
+  (`guard.ts`, `submit.ts`).
+- **`psych_submit`** takes the role's TypeBox schema (`psychologist` → the appraisal contract, the
+  other roles → `ASK_SCHEMA` for now, TODO(T30/T31)), validated with `Value.Check`; an invalid answer
+  `throw`s with the failing field path (first three, so a child model can retry), a third still-invalid
+  submission is told to stop guessing, a second successful submit is refused, and success returns
+  `"Submitted. Stop now."` with `terminate: true`, so the run ends instead of spending another turn
+  (the engine's tool-termination contract, `AgentToolResult.terminate`).
+- **The read-only guard (D4) blocks by name and by pattern, not by prompt.** Tools: `edit`, `write`,
+  `apply_patch`, `str_replace`, `ast_grep_replace`, `record_spai_item`, `update_spai_status`,
+  `workflow`, `workflow_control`, `batch_submit_goal`, `subagent`, `subagents_enable`,
+  `plugin_dev_scaffold`, `add_project_root`, `add_project_manually`, and any name matching
+  `/(write|edit|delete|replace|install|remove)/i`; bash: the new `CHILD_FORBIDDEN_BASH` table plus
+  output redirection into a path (`2>&1`, `>/dev/null` and `> nul` stay allowed); `web_*` /
+  `mcp*` / `nlm` gated by `allowWeb` / `allowMcp` / `allowNlm`; and everything except `psych_submit`
+  once the tool budget is spent. `PI_DEVS_PSYCH_LIMITS` is parsed **fail-closed**
+  (`src/shared/child-limits.ts`): a missing, malformed or non-boolean value means the capability is
+  off and the budget is 10.
 
 ## 0.4.0
 
