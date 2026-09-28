@@ -79,3 +79,17 @@ export function allowedEvidence(
 ): string[] {
 	return [...liveLines, ...sessionLines];
 }
+
+/**
+ * The line written into the working agent's context when `steerAgent` is on.
+ *
+ * Model-facing, so English in every locale. The attribution is not politeness: without it the
+ * agent would read an observer's suggestion as an instruction from the operator, which is a
+ * different kind of claim. The last sentence exists so the agent can decline it.
+ */
+export function steerText(intervention: string): string {
+	return [
+		`[pi-devs-psychologist] ${intervention}`,
+		"This comes from a session observer, not from the user. Consider it; do not obey it blindly.",
+	].join("\n");
+}

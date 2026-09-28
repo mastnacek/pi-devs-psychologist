@@ -9,7 +9,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_LOCALE, LOCALES, normalizeLocale, stringsFor } from "../src/shared/i18n.js";
+import { DEFAULT_LOCALE, LABEL_GROUPS, LABEL_SOURCES, LOCALES, normalizeLocale, stringsFor } from "../src/shared/i18n.js";
 import { DEFAULT_CONFIG } from "../src/shared/config.js";
 import { paintChip, STATUS_ID } from "../src/shared/status.js";
 import { makeCtx, makeState } from "./fakes.js";
@@ -116,4 +116,52 @@ test("the chip is skipped entirely when there is no UI", () => {
   const ctx = makeCtx({ hasUI: false });
   paintChip(stateWith(), ctx);
   assert.deepEqual(ctx.statusCalls, []);
+});
+
+/** Every leaf of a strings object as dotted paths, so nested tables are compared too. */
+function leafPaths(node, prefix = "") {
+  const paths = [];
+  for (const name in node) {
+    const value = node[name];
+    const path = prefix === "" ? name : prefix + "." + name;
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      paths.push(...leafPaths(value, path));
+    } else {
+      paths.push(path);
+    }
+  }
+  return paths.sort();
+}
+
+test("every locale carries the same leaves, recursively", () => {
+  // The top-level check could pass while a nested label was missing, and a missing label
+  // renders `undefined` into the card rather than failing.
+  const reference = leafPaths(stringsFor(DEFAULT_LOCALE));
+  for (const locale of LOCALES) {
+    assert.deepEqual(leafPaths(stringsFor(locale)), reference, locale + " differs from " + DEFAULT_LOCALE);
+  }
+});
+
+test("every enum member in the appraisal contract has a human name in every locale", () => {
+  // The compile-time `Record<Enum, string>` types already guarantee this; this test is the
+  // evidence, because a raw token on screen is what the guarantee exists to prevent.
+  for (const group of LABEL_GROUPS) {
+    const members = LABEL_SOURCES[group];
+    for (const locale of LOCALES) {
+      const table = stringsFor(locale).labels[group];
+      for (const member of members) {
+        assert.equal(
+          typeof table[member],
+          "string",
+          locale + ".labels." + group + "." + member + " is missing",
+        );
+        assert.ok(table[member].trim().length > 0, locale + ".labels." + group + "." + member + " is empty");
+      }
+    }
+  }
+});
+
+test("the two locales actually differ, so the table is not English twice", () => {
+  assert.notDeepEqual(stringsFor("en").labels, stringsFor("cs").labels);
+  assert.notEqual(stringsFor("cs").reportTitle, stringsFor("en").reportTitle);
 });

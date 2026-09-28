@@ -136,7 +136,7 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `retainObservations` | `600` | **Live.** Bounds the observation window held in memory |
 | `cadenceTurns` | `8` | **Live.** Turns between appraisals; an attempt restarts the count |
 | `maxAppraisalsPerSession` | `12` | **Live.** Hard ceiling on *attempts* per session; `0` = unlimited |
-| `steerAgent` | `false` | Pending T5. Whether an intervention may enter the working agent's context. Off by default: an observer is not an authority |
+| `steerAgent` | `false` | **Live.** Whether an intervention may enter the working agent's context. Off by default: an observer is not an authority |
 | `restatementThreshold` | `0.6` | Pending T3/T4. Token overlap at which a prompt counts as a restatement |
 | `unscopedWordFloor` | `25` | Pending T3/T4. Word count above which an anchor-less prompt is reported unscoped |
 | `idleGapMs` | `600000` | Pending T3/T4. Gap between prompts counted as an interruption (10 min) |
@@ -162,7 +162,7 @@ spots is not an observer. A different *account* is not automatically a different
 
 ---
 
-## Command (target interface — not built yet, T6)
+## Command
 
 | Command | Effect |
 |---|---|
@@ -172,7 +172,13 @@ spots is not an observer. A different *account* is not automatically a different
 | `/psych model <provider/id>` | Choose the psychologist |
 | `/psych budget <n>` | Appraisals per session (`0` = unlimited) |
 | `/psych lang <en\|cs>` | UI language (model-facing text stays English) |
-| `/psych global` | Write settings to `~/.pi/agent` instead of the project |
+| `--global` (trailing) | On any setting command: write to `~/.pi/agent` instead of the project |
+
+When an appraisal has an intervention, it arrives as a **card** — verdicts with the evidence
+lines they cited, and the one intervention underneath. `esc`/`enter`/`ctrl+c` closes it;
+`PgUp`/`PgDn` scrolls the verdicts when the terminal is short, and the intervention is never
+scrolled away. Where a card cannot render (RPC, `json`/`print` modes) the same intervention
+arrives as a notification instead. Silence is the normal outcome, not a failure.
 
 ---
 
@@ -202,17 +208,13 @@ and the invariants are in [`docs/adr/0001-two-roles-one-observer.md`](docs/adr/0
 
 ## Status
 
-`0.1.0` — **the appraiser works.** It reads the two evidence sets, asks the configured
-model on a cadence, enforces that every verdict cites a line the plugin actually supplied,
-and reports at most one intervention. 119 tests.
+`0.2.0` — **complete.** It observes, appraises on a cadence, shows the appraisal as a card, and
+answers `/psych`. 169 tests.
 
-Live today: the observation window, the session-history fold, the appraiser and its
-budget, and the statusline chip. Next: the intervention policy proper (T5), `/psych` and
-its report (T6), persistence (T7). The reviewer role is designed and deliberately unbuilt
-(T12). See `TASKS.md`.
-
-Not yet built, so not yet in the README as if it were: `/psych` (T6). Today the appraisal
-reaches you as a single notification when it has an intervention, and otherwise as
-silence — which is the designed behaviour, not a failure.
+Live today: the observation window, the session-history fold, the appraiser with its budget, the
+appraisal card, the delivery policy (card → notification → steering, off by default), the
+`/psych` command and report, and the statusline chip. Next: persistence of the last appraisal
+across `/reload` (T7) and the structural mapper (T8). The reviewer role is designed and
+deliberately unbuilt (T12). See `TASKS.md`.
 
 MIT.

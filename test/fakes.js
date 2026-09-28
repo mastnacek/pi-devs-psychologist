@@ -22,6 +22,14 @@ export function makePi() {
   const entries = [];
   const unsubscribed = [];
   return {
+    /** A no-op theme: `visibleWidth` then equals `text.length`, so widths assert exactly. */
+    plain: { fg: (_c, t) => t, bold: (t) => t, bg: (_c, t) => t },
+    /** A theme that really paints, to prove width maths survives ANSI escapes. */
+    ansi: {
+      fg: (_c, t) => `\u001b[36m${t}\u001b[39m`,
+      bold: (t) => `\u001b[1m${t}\u001b[22m`,
+      bg: (_c, t) => `\u001b[48;5;236m${t}\u001b[49m`,
+    },
     tools,
     commands,
     handlers,

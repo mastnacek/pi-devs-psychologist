@@ -91,7 +91,7 @@ exactly 3 model calls occur; a slow fake in flight suppresses the next one.
 
 ---
 
-## . T5 — Intervention policy and delivery
+## x T5 — Intervention policy and delivery
 
 `src/slices/interventions/index.ts`: map an appraisal to at most one delivery —
 a TUI note (default) or, when `steerAgent` is true, one line into the working
@@ -103,7 +103,7 @@ never touches the agent's context, and an empty appraisal produces silence.
 
 ---
 
-## . T6 — `/psych` command and report
+## x T6 — `/psych` command and report
 
 `src/slices/report/index.ts` + `src/slices/commands/index.ts`: the report from
 `src/shared/i18n.ts` copy, width-safe (`visibleWidth` / `truncateToWidth`), and

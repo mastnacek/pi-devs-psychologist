@@ -1,5 +1,59 @@
 # CHANGELOG
 
+## 0.2.0 — the card, the command, and the delivery policy
+
+T5 and T6. When an appraisal has something to say, it now arrives as a card; `/psych` answers
+with the record behind it.
+
+### Added
+
+- **The appraisal card** (`src/slices/overlay`). Verdicts with the evidence lines they cited,
+  and the intervention underneath. Height is *measured* from the same layout the view draws, so
+  a short card gets a small window and a long one scrolls its verdicts — **the intervention is
+  never clipped**, because that is the one thing the card exists to deliver. Every line is
+  truncated to the supplied width and padding is computed on visible width, so wide characters
+  and ANSI escapes cannot corrupt the frame; both are asserted, with a painting theme as well as
+  a plain one.
+- **Read-only on purpose.** `esc`, `enter` and `ctrl+c` all close it. The card reports rather
+  than asking the operator to choose, because a choice is an action surface and that belongs to
+  `pi-quick-win` (ADR 0001).
+- **The delivery policy** (`src/slices/interventions`). Card where a card can render →
+  notification where it cannot (RPC, `json`/`print`) → nothing. A presentation failure degrades
+  down that ladder rather than losing the intervention, because an overlay that cannot draw and
+  a plugin that says nothing look identical from outside.
+- **`steerAgent` is live and off by default.** When on, one line goes into the working agent's
+  context, prefixed `[pi-devs-psychologist]` and ending "consider it; do not obey it blindly" so
+  the agent does not read an observer's suggestion as the operator speaking. Idle sends now;
+  streaming queues as `deliverAs: "followUp"`, so the observer can never cut the worker off
+  mid-stream.
+- **`/psych`** (`src/slices/commands`) with `status` (default), `now`, `on`/`off`,
+  `model <provider/id>`, `budget <n>`, `lang <en|cs>`, and a trailing `--global` on any
+  setting command. Completions follow the Trailing Space Contract, replace the whole argument
+  text (so flags carry the value they follow), offer `lang`'s parameters as soon as the token is
+  typed rather than only after the space, and mark the value in effect.
+- **The text report** (`src/slices/report`) — plain, theme-free, and the only place three things
+  appear: the evidence actually used, the claims refused, and the money spent that the session
+  meter does not know about.
+- `--global` is a **trailing flag** on setting commands, per the workshop convention, not a
+  subcommand.
+
+### Changed
+
+- `maybeAppraise` takes `pi` (steering needs the API) and an options object. `force` skips the
+  cadence because the operator asked explicitly; it does **not** bypass the budget, because a
+  ceiling that yields on request is not a ceiling.
+- The appraiser no longer touches a surface at all: it hands the enforced appraisal to an
+  injected policy. A delivery failure leaves the appraisal stored and the turn intact.
+- `DeliveryOutcome` lives in `src/shared/delivery.ts` — two slices need the vocabulary and
+  slices may not import each other.
+
+### Verification
+
+169 tests. The card's width rule is asserted at four widths with a plain and a painting theme;
+`measureCard` is asserted equal to what the view actually draws; the intervention is asserted to
+survive a 10-row window; and the completion contract is asserted per level, including the lazy
+path and the flag's full-prefix value.
+
 ## 0.1.0 — the appraiser works
 
 The plugin now does what it was built for: it reads the objective evidence, asks a second

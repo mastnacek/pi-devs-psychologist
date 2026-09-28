@@ -35,6 +35,7 @@ import { extractSignals } from "../../shared/signals.js";
 import { signalOptions, type DevsPsychologistState } from "../../shared/state.js";
 import type { SessionHistory } from "../../shared/history.js";
 import { paintChip } from "../../shared/status.js";
+import type { DeliveryOutcome } from "../../shared/delivery.js";
 
 /** An appraisal response is a small JSON object; the cap is a spend guard, not a need. */
 export const APPRAISAL_MAX_TOKENS = 1200;
@@ -57,6 +58,8 @@ export type AppraiseOutcome =
 			unmatched: string[];
 			downgraded: string[];
 			modelRef: string;
+			/** How the intervention reached the operator, and whether the agent was told. */
+			delivery: DeliveryOutcome;
 	  }
 	| { ran: true; ok: false; stage: ModelCallStage | "parse"; error: string };
 
@@ -68,21 +71,24 @@ export interface AppraiserDeps {
 		registry: ExtensionContext["modelRegistry"],
 		req: Parameters<typeof callModel>[1],
 	): Promise<ModelCallResult>;
-	/** Deliver at most one line to the operator. */
-	notify(ctx: ExtensionContext, text: string): void;
+	/** Hand the intervention to a surface. Injected, so this slice knows no other slice. */
+	deliver(
+		pi: ExtensionAPI,
+		state: DevsPsychologistState,
+		ctx: ExtensionContext,
+		appraisal: Appraisal,
+	): Promise<DeliveryOutcome>;
 }
 
 /** The real dependencies. Called only from the composition root. */
 export function defaultDeps(
 	readHistory: AppraiserDeps["readHistory"],
+	deliver: AppraiserDeps["deliver"],
 ): AppraiserDeps {
 	return {
 		readHistory,
 		callModel: (registry, req) => callModel(registry, req),
-		notify: (ctx, text) => {
-			if (!ctx.hasUI) return;
-			ctx.ui.notify(text, "info");
-		},
+		deliver,
 	};
 }
 
@@ -97,17 +103,25 @@ function describe(error: unknown): string {
  * before any await and cleared in a `finally`.
  */
 export async function maybeAppraise(
+	pi: ExtensionAPI,
 	state: DevsPsychologistState,
 	ctx: ExtensionContext,
 	deps: AppraiserDeps,
-): Promise<AppraiseOutcome> {
+	options: { force?: boolean } = {},
+	): Promise<AppraiseOutcome> {
+	const force = options.force === true;
 	if (!state.config.enabled) return { ran: false, reason: "disabled" };
 	// No human to read it, and this is the plugin's only spend. json/print modes have no UI,
 	// so an appraisal there would cost money for a report nobody can see.
 	if (!ctx.hasUI) return { ran: false, reason: "headless" };
 	if (state.config.model.trim().length === 0) return { ran: false, reason: "no_model" };
 	if (state.appraisalInFlight) return { ran: false, reason: "in_flight" };
-	if (state.turnsSinceAppraisal < state.config.cadenceTurns) return { ran: false, reason: "cadence" };
+	// `force` is the operator asking explicitly (`/psych now`), which is a different question
+	// from the cadence. It never bypasses the budget: a hard ceiling is a hard ceiling, and
+	// silently exceeding it on request would make the number meaningless.
+	if (!force && state.turnsSinceAppraisal < state.config.cadenceTurns) {
+		return { ran: false, reason: "cadence" };
+	}
 	if (!state.budgetAvailable()) return { ran: false, reason: "budget" };
 
 	state.appraisalInFlight = true;
@@ -154,16 +168,14 @@ export async function maybeAppraise(
 		state.lastAppraisalFailure = undefined;
 
 		const silent = isSilent(parsed.appraisal);
-		const intervention = parsed.appraisal.interventions[0];
-		// Delivery is deliberately minimal here: one line, only when there is an intervention.
-		// The richer policy — whether an intervention may enter the working agent's context —
-		// is T5, and it ships off by default (steerAgent).
-		if (!silent && intervention) {
-			try {
-				deps.notify(ctx, intervention.text);
-			} catch {
-				// A dead UI must not fail the turn.
-			}
+		// The slice itself never touches a surface. It hands the appraisal to the injected
+		// delivery policy, which decides between the card, a notification, steering the working
+		// agent, or nothing at all.
+		let delivery: DeliveryOutcome = { human: "none", agent: false, reason: "silent" };
+		try {
+			delivery = await deps.deliver(pi, state, ctx, parsed.appraisal);
+		} catch {
+			// A delivery failure must not fail the turn: the appraisal is already stored.
 		}
 
 		return {
@@ -174,6 +186,7 @@ export async function maybeAppraise(
 			unmatched: parsed.unmatched,
 			downgraded: parsed.downgraded,
 			modelRef,
+			delivery,
 		};
 	} catch (error) {
 		const message = describe(error);
@@ -193,7 +206,7 @@ export function registerAppraiser(
 ): void {
 	state.track(
 		pi.on("turn_end", async (_event, ctx) => {
-			await maybeAppraise(state, ctx, deps);
+			await maybeAppraise(pi, state, ctx, deps);
 		}),
 	);
 }
