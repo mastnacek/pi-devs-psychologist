@@ -31,9 +31,23 @@ const OUTPUT_PARAGRAPH_ANCHOR = [
 	`{"needs":{"autonomy":{"state":"<${NEED_STATES.join("|")}>","cited":[]},"competence":{"state":"<...>","cited":[]},"relatedness":{"state":"<...>","cited":[]}},"load":{"level":"<${LOAD_LEVELS.join("|")}>","cited":[]},"progress":{"state":"<${PROGRESS_STATES.join("|")}>","cited":[]},"flow":{"state":"<${FLOW_STATES.join("|")}>","cited":[]},"interventions":[{"kind":"<${INTERVENTION_KINDS.join("|")}>","text":"one actionable sentence","cited":[]}]}`,
 ].join("\n");
 
-/** The model-facing constant that replaces the output paragraph for the psychologist role. */
-export const SUBMIT_OUTPUT_INSTRUCTION =
-	"Submit your answer by calling `psych_submit` exactly once, with the same fields.";
+/**
+ * The model-facing constant that replaces the output paragraph for the psychologist role.
+ *
+ * The replacement anchor below stays byte-identical to `SYSTEM_PROMPT`, so the API runtime's prompt
+ * is untouched (D2); only this instruction names the extra `suggestions` field, which research may
+ * fill and which travels to the operator alone.
+ */
+export const SUBMIT_OUTPUT_INSTRUCTION = [
+	"Submit your answer by calling `psych_submit` exactly once, with the same fields.",
+	"You may add an optional `suggestions` array (at most 3); leave it out when research changed nothing.",
+	"Each suggestion is `{ kind, text, source, cited? }`:",
+	"- `kind` is one of: package | skill | doc | research | workflow.",
+	"- `text` is one sentence (at most 200 chars) naming something the operator can pick up.",
+	"- `source` must be where it came from, and must be one of: an `https://` URL; a path inside the pi docs directory listed above; `nlm:<notebookId>` for a notebook listed as allowed; or an install spec `npm:<name>` / `git:github.com/<owner>/<repo>`.",
+	"- `cited` is optional (at most 2) and, when present, must copy evidence lines exactly.",
+	"Suggestions reach the operator only: they are never sent to the working agent.",
+].join("\n");
 
 /**
  * `SYSTEM_PROMPT` with the output paragraph swapped for the submit instruction. Computed at module

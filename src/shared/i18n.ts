@@ -54,6 +54,10 @@ export interface Strings {
 	cardNoObservation: string;
 	cardCited: string;
 	cardUnmatched: (count: number) => string;
+	/** Header of the card's researched-suggestions section (T25); the section is omitted when empty. */
+	cardSuggestions: string;
+	/** One suggestion in the notification fallback: its text and its enforced source. */
+	notifySuggestion: (text: string, source: string) => string;
 	cardFooter: { close: string; scroll: string };
 
 	/** The `/psych` report. */
@@ -158,6 +162,8 @@ const EN: Strings = {
 	cardNoObservation: "The model cited nothing, so no verdict was reached. Not a statement about the session.",
 	cardCited: "from",
 	cardUnmatched: (count) => `${count} unsupported claim(s) dropped`,
+	cardSuggestions: "Researched suggestions",
+	notifySuggestion: (text, source) => `${text} (source: ${source})`,
 	cardFooter: { close: "close", scroll: "scroll" },
 
 	reportTitle: "DEVELOPER PSYCHOLOGIST",
@@ -246,6 +252,8 @@ const CS: Strings = {
 	cardNoObservation: "Model nic nedoložil, žádný výrok nepadl. Není to tvrzení o relaci.",
 	cardCited: "z",
 	cardUnmatched: (count) => `${count} nepodložených tvrzení zahozeno`,
+	cardSuggestions: "Prozkoumané náměty",
+	notifySuggestion: (text, source) => `${text} (zdroj: ${source})`,
 	cardFooter: { close: "zavřít", scroll: "posun" },
 
 	reportTitle: "VÝVOJÁŘSKÝ PSYCHOLOG",

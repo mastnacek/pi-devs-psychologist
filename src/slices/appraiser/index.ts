@@ -22,7 +22,7 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { parseAppraisal, isSilent } from "../../shared/appraisal-enforce.js";
+import { parseAppraisal, isSilent, type SourcePolicy } from "../../shared/appraisal-enforce.js";
 import type { Appraisal } from "../../shared/appraisal.js";
 import {
 	callModel,
@@ -92,6 +92,12 @@ export interface AppraiserDeps {
 		appraisal: Appraisal,
 		options?: { evenIfSilent?: boolean },
 	): Promise<DeliveryOutcome>;
+	/**
+	 * What a suggestion's `source` may be, for this machine (T25). Injected because the docs
+	 * directory is resolved by the composition root and the notebook ids live in the config; this
+	 * slice must not import either. Absent means "no docs dir, no notebooks".
+	 */
+	sourcePolicy?(): SourcePolicy;
 }
 
 /** The real dependencies. Called only from the composition root. */
@@ -100,10 +106,12 @@ export function defaultDeps(
 	deliver: AppraiserDeps["deliver"],
 	/** The runtime choice, injected by the composition root (T24). Defaults to today's API call. */
 	callModelImpl: AppraiserDeps["callModel"] = (registry, req) => callModel(registry, req),
+	/** The suggestion source policy (T25); absent means only URLs and install specs are valid. */
+	sourcePolicy?: AppraiserDeps["sourcePolicy"],
 ): AppraiserDeps {
 	// `callModel` is the seam: the appraiser never learns which runtime ran, and the API call is the
 	// default (D1). The composition root swaps in the agent runner and branches on `state.config.runtime`.
-	return { readHistory, callModel: callModelImpl, deliver };
+	return { readHistory, callModel: callModelImpl, deliver, sourcePolicy };
 }
 
 function describe(error: unknown): string {
@@ -219,7 +227,7 @@ export async function maybeAppraise(
 		// The engine cannot be told about this call, so the plugin keeps its own figures.
 		state.lastAppraisalUsage = summarizeUsage(result.usage);
 
-		const parsed = parseAppraisal(result.text, lines);
+		const parsed = parseAppraisal(result.text, lines, deps.sourcePolicy?.());
 		if (parsed.ok === false) {
 			state.lastAppraisalFailure = { stage: "parse", error: parsed.error };
 			return { ran: true, ok: false, stage: "parse", error: parsed.error };

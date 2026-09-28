@@ -198,7 +198,12 @@ export default function devsPsychologistExtension(
 	const callModelDep: AppraiserDeps["callModel"] = (registry, req) =>
 		state.config.runtime !== "agent" ? apiCallModel(registry, req) : agentCallModel(registry, req);
 
-	const appraiserDeps = defaultDeps(readHistory, deliver, callModelDep);
+	const appraiserDeps = defaultDeps(readHistory, deliver, callModelDep, () => ({
+		// Resolved by this root (never by the slice), read live so a config edit that adds a notebook
+		// takes effect without a restart. Sources are judged in `appraisal-enforce.ts` (T25).
+		docsDir,
+		nlmNotebooks: state.config.agent.nlmNotebooks,
+	}));
 
 	// Session init: seed the config file if it is missing (so the plugin is self-describing and
 	// there is something to edit), reload the cascade — which needs a cwd that does not exist at

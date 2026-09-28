@@ -17,7 +17,7 @@
  *     window whose intervention is off-screen is not an intervention window.
  */
 
-import { visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import type { ThemeColor } from "@earendil-works/pi-coding-agent";
 import type { Appraisal, NeedKey } from "../../shared/appraisal.js";
 import { NEEDS } from "../../shared/appraisal.js";
@@ -196,6 +196,19 @@ export function layoutCard(input: CardInput, s: Strings, width: number, paint: P
 			...NEEDS.map((need) => input.appraisal.needs[need]),
 		].some((verdict) => verdict.cited.length > 0);
 		tail.push({ text: `  ${paint.fg("dim", cited ? s.cardNothingToAct : s.cardNoObservation)}` });
+	}
+
+	// Researched suggestions (T25): the operator's alone. One clamped line per suggestion and its
+	// enforced source on its own dim line, so a narrow terminal truncates instead of wrapping into a
+	// count the frame does not expect. Omitted entirely when there are none.
+	const suggestions = input.appraisal.suggestions ?? [];
+	if (suggestions.length > 0) {
+		const clamp = Math.max(10, bodyWidth - 2);
+		tail.push({ text: paint.fg("dim", paint.bold(s.cardSuggestions)) });
+		for (const suggestion of suggestions) {
+			tail.push({ text: `  ${paint.bold(truncateToWidth(`• ${suggestion.text}`, clamp))}` });
+			tail.push({ text: `  ${paint.fg("dim", truncateToWidth(suggestion.source, clamp))}` });
+		}
 	}
 	tail.push({ text: paint.fg("border", rule(width)) });
 

@@ -88,8 +88,16 @@ test("the schema uses no anyOf or const, so every provider accepts it", () => {
 });
 
 test("the schema's required keys still match the hand-written Appraisal type", () => {
-  // Drift guard, because Appraisal is no longer derived from the schema (TS2883).
-  assert.deepEqual([...APPRAISAL_SCHEMA.required].sort(), Object.keys(neutralAppraisal()).sort());
+  // Drift guard, because Appraisal is no longer derived from the schema (TS2883). `suggestions`
+  // is the one optional key: the API runtime never fills it, so it is absent from `required`
+  // while still present on the neutral value.
+  assert.deepEqual(
+    [...APPRAISAL_SCHEMA.required].sort(),
+    Object.keys(neutralAppraisal())
+      .filter((key) => key !== "suggestions")
+      .sort(),
+  );
+  assert.equal(APPRAISAL_SCHEMA.required.includes("suggestions"), false, "suggestions stays optional");
   assert.deepEqual(
     [...APPRAISAL_SCHEMA.properties.needs.required].sort(),
     [...NEEDS].sort(),

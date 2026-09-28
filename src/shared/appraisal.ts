@@ -58,6 +58,34 @@ export type InterventionKind = (typeof INTERVENTION_KINDS)[number];
 /** Citations are short: a verdict resting on eight quotes is not resting on evidence. */
 const Cited = Type.Array(Type.String(), { maxItems: 4 });
 
+/**
+ * What a researched suggestion can be. Each is a concrete thing the operator can pick up — the
+ * psychologist never invents one, it points at something that already exists.
+ */
+export const SUGGESTION_KINDS = ["package", "skill", "doc", "research", "workflow"] as const;
+export type SuggestionKind = (typeof SUGGESTION_KINDS)[number];
+
+/**
+ * One researched suggestion, for the operator only. `source` is enforced to an existing artefact
+ * in `appraisal-enforce.ts`; a suggestion without a real source is dropped there, not shown.
+ */
+export interface Suggestion {
+	kind: SuggestionKind;
+	text: string;
+	source: string;
+	cited: string[];
+}
+
+// `cited` is optional on the wire but always normalised to an array by enforcement.
+const SuggestionSchema = Type.Object({
+	kind: StringEnum(SUGGESTION_KINDS, { description: SUGGESTION_KINDS.join(" | ") }),
+	text: Type.String({ maxLength: 200, description: "one sentence naming something usable" }),
+	source: Type.String({
+		description: "https URL, a path in the pi docs dir, nlm:<id>, npm:<name> or git:github.com/<owner>/<repo>",
+	}),
+	cited: Type.Optional(Type.Array(Type.String(), { maxItems: 2 })),
+});
+
 const NeedSchema = Type.Object({
 	state: StringEnum(NEED_STATES, { description: "met | at_risk | unmet | unassessed" }),
 	cited: Cited,
@@ -94,6 +122,14 @@ export const APPRAISAL_SCHEMA: TSchema = Type.Object({
 		}),
 		{ maxItems: 1, description: "at most one intervention; an empty list is a valid answer" },
 	),
+	// Optional on purpose: the API runtime has no tools and never fills it, and a bare appraisal
+	// without it stays valid. Only the agent runtime, which can research, produces suggestions.
+	suggestions: Type.Optional(
+		Type.Array(SuggestionSchema, {
+			maxItems: 3,
+			description: "researched output for the operator; never sent to the working agent",
+		}),
+	),
 });
 
 /**
@@ -103,7 +139,7 @@ export const APPRAISAL_SCHEMA: TSchema = Type.Object({
  * evidence lines it rests on — so the child-mode tool can be validated today without inventing the
  * role contracts early. `cited` mirrors the appraisal's citation rule, which T23 keeps in the brief.
  *
- * TODO(T30/T31): `ask` gains `suggestions` in T25, `scout` returns candidates with an `installSpec`,
+ * TODO(T30/T31): `ask` gains `suggestions` in T30, `scout` returns candidates with an `installSpec`,
  * `pair` a convention finding; each then gets a schema of its own instead of this shared stand-in.
  */
 export const ASK_SCHEMA: TSchema = Type.Object({
@@ -133,6 +169,7 @@ export interface Appraisal {
 	progress: { state: (typeof PROGRESS_STATES)[number]; cited: string[] };
 	flow: { state: (typeof FLOW_STATES)[number]; cited: string[] };
 	interventions: Intervention[];
+	suggestions: Suggestion[];
 }
 
 /**
@@ -163,5 +200,6 @@ export function neutralAppraisal(): Appraisal {
 		progress: { state: NEUTRAL.progress, cited: [] },
 		flow: { state: NEUTRAL.flow, cited: [] },
 		interventions: [],
+		suggestions: [],
 	};
 }

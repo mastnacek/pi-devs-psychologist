@@ -83,7 +83,12 @@ export async function deliverIntervention(
 		human = shown ? "card" : "notification";
 		if (!shown) {
 			try {
-				deps.notify(ctx, intervention ? intervention.text : stringsFor(state.config.lang).cardNothingToAct);
+				const s = stringsFor(state.config.lang);
+				// At most ONE suggestion in the fallback, so the notification stays one thing to read; the
+				// rest wait for the card. Suggestions are never part of the agent steer below.
+				const suggestion = appraisal.suggestions?.[0];
+				const base = intervention ? intervention.text : s.cardNothingToAct;
+				deps.notify(ctx, suggestion ? `${base}\n${s.notifySuggestion(suggestion.text, suggestion.source)}` : base);
 			} catch {
 				// A dead UI must not fail the turn.
 			}

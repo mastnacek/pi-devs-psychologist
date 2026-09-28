@@ -81,6 +81,19 @@ report and the statusline chip; the appraiser still uses the API call.
   `deps.callModel` for the runner when the effective `runtime` is `agent`, tracks session cost and
   refuses a run once `agent.maxCostUsdPerSession` is reached, and `session_shutdown` kills a running
   child. The appraiser's gate is unchanged; only the call is.
+- **Researched suggestions (T25).** The appraisal contract gains an optional `suggestions` array
+  (≤ 3), each `{ kind: package|skill|doc|research|workflow, text ≤ 200, source, cited? ≤ 2 }`; the
+  schema accepts it with and without, and `psych_submit` carries it for the child. Enforcement
+  (`appraisal-enforce.ts`, new `SourcePolicy`) keeps a suggestion only when its `source` resolves to
+  something real — an `https://` URL, a path inside the resolved pi docs dir (both absolute and
+  relative, `..` refused), `nlm:<id>` for a consented `agent.nlmNotebooks` id, or an install spec
+  `npm:<name>` / `git:github.com/<owner>/<repo>`; anything else is dropped and counted in `unmatched`
+  as `suggestion: <source>`, unmatched `cited` lines are dropped, and text is trimmed and truncated.
+  The appraiser passes the policy from the composition root (`docsDir` + `agent.nlmNotebooks`). The
+  card gains a width-safe "Researched suggestions" section (one clamped line per suggestion plus its
+  dim source, omitted when empty) and the notification fallback lists at most one. Suggestions are
+  operator-only: they are **never** sent to the working agent, even with `steerAgent: true`. The API
+  runtime's `SYSTEM_PROMPT` is untouched (D2); only `SUBMIT_OUTPUT_INSTRUCTION` names the field.
 
 ## 0.4.0
 
