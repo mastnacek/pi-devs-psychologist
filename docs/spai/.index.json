@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-09-28 20:24:32",
+  "lastUpdated": "2026-09-28 20:43:28",
   "records": [
     {
       "id": "SPAI-001",
@@ -155,6 +155,22 @@
       "project": "pi-devs-psychologist",
       "projectPath": "D:/01_programovani/pi/plugins/pi-devs-psychologist",
       "file": "2026-09-28-SPAI-010-land-the-appraisal-card-delivery-policy-and-psych-.md"
+    },
+    {
+      "id": "SPAI-011",
+      "title": "Registry-driven model picker for /psych model plus two completion-reference violations fixed: two-level picker (registered providers, then a provider's models, so multi-account falls out because pi-openrouter-accounts registers each account as its own provider id), substring matching because the account is 'soukr' while its provider id is 'openrouter-soukr', capped at 50 with a localised non-silent overflow row, and the model in effect ticked in item.label plus marked in description at its own row and its provider's row. Fixed: a fully-typed 'model' now offers its providers immediately (Tab-confirming a non-terminal token closes the picker and a space switches to file completion, so the list was unreachable by Tab), and markers moved into item.label as command-completions.md requires. Process failure owned: the multilingual lint invariant covers notify/select/description text but NOT completion items, so two hardcoded English strings were invisible to it and only the reference surfaced them. 179 tests, tsc clean",
+      "type": "Todo",
+      "status": "done",
+      "symbol": "x",
+      "timestamp": "2026-09-28 20:43:28",
+      "tags": [
+        "done",
+        "completion",
+        "registry"
+      ],
+      "project": "pi-devs-psychologist",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-devs-psychologist",
+      "file": "2026-09-28-SPAI-011-registry-driven-model-picker-for-psych-model-plus-.md"
     }
   ]
 }
