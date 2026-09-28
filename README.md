@@ -224,8 +224,8 @@ and the invariants are in [`docs/adr/0001-two-roles-one-observer.md`](docs/adr/0
 
 ## Status
 
-`0.3.1` — **complete.** It observes, appraises on a cadence, shows the appraisal as a card, and
-answers `/psych`. 200 tests.
+`0.4.0` — **complete.** It observes, appraises when the evidence carries something new, names unverified commits, measures whether its interventions help, shows the appraisal as a card, and
+answers `/psych`. 265 tests.
 
 Live today: the observation window, the session-history fold, the appraiser with its budget, the
 appraisal card, the delivery policy (card → notification → steering, off by default), the

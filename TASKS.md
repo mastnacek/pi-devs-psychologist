@@ -221,12 +221,12 @@ extension; `pi update` reconciles it.
 Full specifications (goal, files, behaviour, acceptance, non-goals) live in
 [`docs/plan-0.4.md`](docs/plan-0.4.md); this list is the index only.
 
-- `. T13` README truth pass (stale version, key statuses, `envFacts`)
-- `. T14` Signal-triggered appraisal — deltas since last attempt, clock is a floor
-- `. T15` Delivery-boundary check — commit/push with unverified changes, 0 tokens
-- `. T16` Intervention outcome ledger — measures the plugin, never the person
-- `. T17` Anti-nag cooldown — per-kind cooldown, mute after two no-change repeats
-- `. T18` Recurring friction line from existing `FailureFingerprint`
+- `x T13` README truth pass (stale version, key statuses, `envFacts`)
+- `x T14` Signal-triggered appraisal — deltas since last attempt, clock is a floor
+- `x T15` Delivery-boundary check — commit/push with unverified changes, 0 tokens
+- `x T16` Intervention outcome ledger — measures the plugin, never the person
+- `x T17` Anti-nag cooldown — per-kind cooldown, mute after two no-change repeats
+- `x T18` Recurring friction line from existing `FailureFingerprint`
 - `. T19` Spike: child `pi` launch facts on this machine (10 questions)
 - `. T20` ADR 0002 — agent runtime and the data boundary
 - `. T21` Config + `--psych-runtime` flag + `/psych runtime|context|agent-model`

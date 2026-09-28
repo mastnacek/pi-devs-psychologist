@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.4.0 (unreleased)
+## 0.4.0
 
 T14, T15 and T18. The appraiser stops running on a clock and starts running on evidence, and a
 commit no run ever verified is named for zero tokens. T16 and T17 add a ledger that measures
