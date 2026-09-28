@@ -98,6 +98,10 @@ sections, cost totals, other plugins' state, cross-session history) and why — 
 6. **Bounded cost.** `model: ""` (the default) is *observation with zero model
    spend*. With a model set, `cadenceTurns` and `maxAppraisalsPerSession` cap the
    spend, and a slow appraisal is single-flighted so it never runs twice.
+7. **Three consent levels for session context.** The `agent` runtime (`runtime:
+   "agent"`) reads the same evidence by default; `digest` and `fork` widen what leaves
+   the machine and are only set as a persisted decision, never by a one-run flag. See
+   [`docs/adr/0002-agent-runtime.md`](docs/adr/0002-agent-runtime.md).
 
 ---
 
@@ -117,6 +121,22 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 {
   "enabled": true,
   "model": "",
+  "runtime": "api",
+  "agent": {
+    "model": "",
+    "thinking": "",
+    "context": "evidence",
+    "timeoutMs": 180000,
+    "maxToolCalls": 25,
+    "maxCostUsd": 0.25,
+    "maxCostUsdPerSession": 2,
+    "allowWeb": true,
+    "allowMcp": true,
+    "allowNlm": true,
+    "nlmNotebooks": [],
+    "extraArgs": [],
+    "keepTranscript": false
+  },
   "trigger": "signals",
   "cadenceTurns": 3,
   "triggerThresholds": {
@@ -164,6 +184,26 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `unscopedWordFloor` | `25` | **Live.** Word count above which an anchor-less prompt is reported unscoped |
 | `idleGapMs` | `600000` | **Live.** Gap between prompts counted as an interruption (10 min) |
 | `envFacts` | `true` | **Live.** Include the parent-computed environment lines (pi version, pi-lens LSP/format/guard state) among the citable evidence |
+| `runtime` | `"api"` | **Live.** `api` \| `agent` — which runtime forms the appraisal. `agent` is config, report and chip only until T24; the appraiser still uses the API call |
+| `agent` | see below | **Live.** Settings for the `agent` runtime. Normalised key by key and merged per key across layers |
+
+#### `agent` keys (runtime `"agent"`)
+
+| Key | Default | Effect today |
+|---|---|---|
+| `agent.model` | `""` | **Live.** `provider/id[:thinking]` for the child agent. Empty falls back to the shared `model` |
+| `agent.thinking` | `""` | **Live.** `off` \| `minimal` \| `low` \| `medium` \| `high` \| `xhigh` \| `max`; `""` = the engine default |
+| `agent.context` | `"evidence"` | **Live.** The consent level (D6): `evidence` sends counts only, `digest` adds scrubbed prompt/assistant excerpts, `fork` sends the whole session. Set in a terminal via `/psych context` (a confirm states what leaves the machine) or in the config file |
+| `agent.timeoutMs` | `180000` | **Live.** Hard wall-clock cap before the child tree is killed |
+| `agent.maxToolCalls` | `25` | **Live.** Cap on the child's tool calls before only `psych_submit` remains |
+| `agent.maxCostUsd` | `0.25` | **Live.** Per-run cost cap in USD; `0` = unlimited |
+| `agent.maxCostUsdPerSession` | `2` | **Live.** Across-run cost cap in USD; `0` = unlimited |
+| `agent.allowWeb` | `true` | **Live.** Whether the child may use the web tools |
+| `agent.allowMcp` | `true` | **Live.** Whether the child may use MCP tools |
+| `agent.allowNlm` | `true` | **Live.** Whether the child may query NotebookLM |
+| `agent.nlmNotebooks` | `[]` | **Live.** NotebookLM notebook ids the child may query |
+| `agent.extraArgs` | `[]` | **Live.** Extra argv tokens appended verbatim. An escape hatch |
+| `agent.keepTranscript` | `false` | **Live.** Keep the child's JSONL transcript in a temp file for debugging |
 
 Coercion, so a typo degrades instead of breaking the session: junk numbers fall back to
 the default; `model` must be a string, and an unparsable one becomes `""` rather than a
@@ -188,6 +228,9 @@ spots is not an observer. A different *account* is not automatically a different
 | `/psych model <provider/id>` | Choose the psychologist. The value completes from the engine's registered models and providers (use `--global` to make it machine-wide) |
 | `/psych budget <n>` | Appraisals per session (`0` = unlimited) |
 | `/psych lang <en\|cs>` | UI language (model-facing text stays English) |
+| `/psych runtime <api\|agent>` | Which runtime forms the appraisal. `agent` is observational until T24 (nothing spawns yet) |
+| `/psych context <evidence\|digest\|fork>` | How much session context the child agent may see. `digest`/`fork` open a confirm stating what leaves the machine; outside a TUI they are refused — set `agent.context` in the config file |
+| `/psych agent-model <provider/id>` | Model for the child agent (empty = the shared `model`). Completes from the engine's registered models |
 | `--global` (trailing) | On any setting command: write to `~/.pi/agent` instead of the project |
 
 When an appraisal has an intervention, it arrives as a **card** — verdicts with the evidence

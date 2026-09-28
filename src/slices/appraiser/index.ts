@@ -100,6 +100,9 @@ export function defaultDeps(
 ): AppraiserDeps {
 	return {
 		readHistory,
+		// T24 swaps this for the agent runtime by branching on `state.config.runtime` in the
+		// composition root: `callModel` is the seam, so the appraiser never learns which runtime ran and
+		// the API call stays the default until then.
 		callModel: (registry, req) => callModel(registry, req),
 		deliver,
 	};

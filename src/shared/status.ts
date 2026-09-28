@@ -8,6 +8,7 @@
  */
 
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { effectiveAgentModel } from "./config.js";
 import { stringsFor } from "./i18n.js";
 import type { DevsPsychologistState } from "./state.js";
 
@@ -40,7 +41,15 @@ export function paintChip(state: DevsPsychologistState, ctx: ExtensionContext): 
 		setStatus(ctx, strings.chipOff);
 		return;
 	}
-	if (state.config.model.length === 0) {
+	// `runtime: "agent"` resolves its model from `agent.model` first, so the "no model" question is
+	// asked of the effective model, not of the shared `model` alone. With no model either way the
+	// agent runtime is observation-only, and the chip has to say so rather than look configured.
+	if (state.config.runtime === "agent") {
+		if (effectiveAgentModel(state.config).length === 0) {
+			setStatus(ctx, strings.chipAgentNoModel);
+			return;
+		}
+	} else if (state.config.model.length === 0) {
 		setStatus(ctx, strings.chipSignals);
 		return;
 	}

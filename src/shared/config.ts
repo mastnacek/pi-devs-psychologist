@@ -19,6 +19,17 @@ import { DEFAULT_SIGNAL_OPTIONS } from "./signals.js";
 import { DEFAULT_COOLDOWN_TURNS, DEFAULT_OUTCOME_WINDOW_TURNS } from "./outcome.js";
 import { DEFAULT_TRIGGER_THRESHOLDS, type TriggerThresholds } from "./triggers.js";
 import { normalizeLocale, type Locale } from "./i18n.js";
+import {
+	DEFAULT_AGENT_CONFIG,
+	normalizeAgent,
+	runtimeMode,
+	type AgentConfig,
+	type RuntimeMode,
+} from "./agent-config.js";
+
+// Re-exported so `config.ts` stays the one import for the plugin's settings vocabulary.
+export { DEFAULT_AGENT_CONFIG, effectiveAgentModel, normalizeAgent, THINKING_LEVELS } from "./agent-config.js";
+export type { AgentConfig, AgentContextLevel, RuntimeMode } from "./agent-config.js";
 
 /** How the appraiser decides when to run: on new evidence (D7) or on a turn clock. */
 export type TriggerMode = "signals" | "cadence";
@@ -28,6 +39,14 @@ export interface DevsPsychologistConfig {
 	enabled: boolean;
 	/** Language of the plugin's own UI copy. Model-facing text stays English. */
 	lang: Locale;
+	/**
+	 * Which runtime forms the appraisal. `api` (the default) is today's single completion call;
+	 * `agent` spawns a headless child pi with its own tools and a chosen model. Nothing spawns yet
+	 * (T24): `agent` currently changes only the config, the report and the chip.
+	 */
+	runtime: RuntimeMode;
+	/** Settings for the `agent` runtime. Normalised key by key, and merged per key across layers. */
+	agent: AgentConfig;
 	/**
 	 * The model that plays the psychologist, as `provider/modelId`. It should be
 	 * a DIFFERENT model than the one doing the work: an observer sharing the
@@ -97,6 +116,8 @@ export interface DevsPsychologistConfig {
 export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	enabled: true,
 	lang: "en",
+	runtime: "api",
+	agent: { ...DEFAULT_AGENT_CONFIG },
 	model: "",
 	trigger: "signals",
 	cadenceTurns: 3,
@@ -121,6 +142,39 @@ export function projectConfigPath(cwd: string): string {
 	return join(cwd, ".pi", "pi-devs-psychologist.json");
 }
 
+/** True for a plain object (not null, not an array). */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Merge a patch layer over a base object, one level deep for nested objects.
+ *
+ * A shallow spread would let a project patch replace the whole `agent` (or `triggerThresholds`)
+ * object and silently drop every key the outer layer set. "The project layer wins where it speaks"
+ * has to mean per KEY, and a setting that is itself a group of settings is no exception.
+ */
+function mergeLayer(
+	base: Partial<DevsPsychologistConfig> | DevsPsychologistConfig,
+	patch: Partial<DevsPsychologistConfig>,
+): Partial<DevsPsychologistConfig> {
+	// SAFETY: every config key holds a JSON value, so an open string-keyed view is a faithful
+	// description of the object, and the merge below only reads and spreads those keys.
+	const baseRecord = base as Record<string, unknown>;
+	const patchRecord = patch as Record<string, unknown>;
+	const merged: Record<string, unknown> = { ...baseRecord, ...patchRecord };
+	for (const key of Object.keys(patchRecord)) {
+		const baseValue = baseRecord[key];
+		const patchValue = patchRecord[key];
+		if (isPlainObject(baseValue) && isPlainObject(patchValue)) {
+			merged[key] = { ...baseValue, ...patchValue };
+		}
+	}
+	// SAFETY: `merged` starts as a copy of a valid config and only replaces a config key's value
+	// with a deeper merge of that same key, so it is still a valid partial config.
+	return merged as Partial<DevsPsychologistConfig>;
+}
+
 function readLayer(path: string): Partial<DevsPsychologistConfig> {
 	try {
 		if (existsSync(path)) {
@@ -136,9 +190,9 @@ export function loadConfig(
 	cwd?: string,
 	globalFile: string = GLOBAL_CONFIG_FILE,
 ): DevsPsychologistConfig {
-	const fromGlobal = normalizeConfig({ ...DEFAULT_CONFIG, ...readLayer(globalFile) });
+	const fromGlobal = normalizeConfig(mergeLayer(DEFAULT_CONFIG, readLayer(globalFile)));
 	if (!cwd) return fromGlobal;
-	return normalizeConfig({ ...fromGlobal, ...readLayer(projectConfigPath(cwd)) });
+	return normalizeConfig(mergeLayer(fromGlobal, readLayer(projectConfigPath(cwd))));
 }
 
 /** Whole number at or above `min`, or the fallback when unusable. */
@@ -180,6 +234,8 @@ export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsych
 	return {
 		enabled: cfg.enabled !== false,
 		lang: normalizeLocale(cfg.lang),
+		runtime: runtimeMode(cfg.runtime),
+		agent: normalizeAgent(cfg.agent),
 		// An unparsable model id must fail to "no model", never to a guess: a typo
 		// that silently selects some other model would spend money on the wrong
 		// observer.
@@ -230,10 +286,13 @@ export function saveConfig(
 	try {
 		mkdirSync(dirname(target), { recursive: true });
 		const layer = readLayer(target);
+		// Merge per key, nested objects included: patching `agent.model` must not clobber the
+		// `agent.context` an earlier write left in the same file.
 		// Write-then-rename: a crash mid-write must not leave a truncated config
 		// that the next session silently reads as corrupt.
 		const tmp = `${target}.tmp`;
-		writeFileSync(tmp, JSON.stringify({ ...layer, ...patch }, null, 2), "utf8");
+		const merged = mergeLayer(layer, patch);
+		writeFileSync(tmp, JSON.stringify(merged, null, 2), "utf8");
 		renameSync(tmp, target);
 	} catch {
 		// Silent fallback: an unwritable config must never break a session.

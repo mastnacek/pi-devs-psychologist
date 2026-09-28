@@ -19,6 +19,7 @@ export function makePi() {
   const tools = new Map();
   const commands = new Map();
   const handlers = new Map();
+  const flags = new Map();
   const entries = [];
   const unsubscribed = [];
   return {
@@ -33,6 +34,8 @@ export function makePi() {
     tools,
     commands,
     handlers,
+    /** Registered CLI flags, and the values `getFlag` returns. Tests preset values here. */
+    flags,
     entries,
     /** Events whose unsubscribe function was invoked — proves the drain happened. */
     unsubscribed,
@@ -49,6 +52,13 @@ export function makePi() {
     },
     registerCommand(name, def) {
       commands.set(name, def);
+    },
+    registerFlag(name, options) {
+      // Record the registration and seed the default, so `getFlag` mirrors the engine.
+      flags.set(name, options?.default);
+    },
+    getFlag(name) {
+      return flags.get(name);
     },
     appendEntry(customType, data) {
       entries.push({ type: "custom", customType, data });
@@ -73,6 +83,8 @@ export function makeCtx(over = {}) {
       setStatus: (id, text) => status.push({ id, text }),
       notify: (message, level) => notes.push({ message, level }),
       select: async () => undefined,
+      // Default: the operator confirms. A test can override `confirm` to model a refusal.
+      confirm: async () => true,
     },
     sessionManager: { getEntries: () => [] },
     isIdle: () => true,

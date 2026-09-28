@@ -12,6 +12,7 @@
 
 import { NEEDS } from "../../shared/appraisal.js";
 import { isSilent } from "../../shared/appraisal-enforce.js";
+import { effectiveAgentModel } from "../../shared/config.js";
 import { stringsFor, type Locale } from "../../shared/i18n.js";
 import { effectByKind, type OutcomeRecord } from "../../shared/outcome.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
@@ -51,7 +52,7 @@ export function renderReport(input: ReportInput): string {
 		lines.push("", `⚠ ${s.reportDisabled}`);
 		return lines.join("\n");
 	}
-	if (state.config.model.trim().length === 0) {
+	if (state.config.model.trim().length === 0 && effectiveAgentModel(state.config).trim().length === 0) {
 		lines.push("", `⚠ ${s.reportNoModel}`);
 		return lines.join("\n");
 	}
@@ -61,6 +62,16 @@ export function renderReport(input: ReportInput): string {
 	lines.push(
 		"",
 		`model     ${state.config.model}`,
+		`${s.reportRuntime} ${state.config.runtime}`,
+		`${s.reportContext} ${state.config.agent.context}`,
+	);
+	// The agent runtime resolves `agent.model`, else the shared `model`; the effective one is what
+	// the report must show, because that is what would actually be called.
+	if (state.config.runtime === "agent") {
+		const effective = effectiveAgentModel(state.config);
+		lines.push(`${s.reportAgentModel} ${effective.length > 0 ? effective : s.notSet}`);
+	}
+	lines.push(
 		`${s.reportBudget(state.appraisalsThisSession, cap === 0 ? "∞" : String(cap))}`,
 		`cadence   ${state.turnsSinceAppraisal}/${state.config.cadenceTurns} turns since the last attempt`,
 	);

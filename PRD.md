@@ -109,6 +109,11 @@ Reading the session is also scoped to the current branch: `getBranch()`, never
 and reporting abandoned work as progress is precisely the invention this design
 exists to prevent.
 
+This boundary is the default and holds for the API runtime unchanged. The optional
+`agent` runtime (`runtime: "agent"`) adds two *wider* consent levels — `digest` and
+`fork` — scoped to that runtime alone and only as a persisted decision; what leaves the
+machine at each level is recorded in [ADR 0002](docs/adr/0002-agent-runtime.md).
+
 ## 5. Hard prohibitions
 
 Each is required by a specific finding, not by taste:

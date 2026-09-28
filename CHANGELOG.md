@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## 0.5.0 (unreleased)
+
+T20 and T21. The `agent` runtime is introduced as a switch: config, a one-run CLI flag, `/psych`
+commands and an ADR. Nothing spawns yet — `runtime: "agent"` changes only the config, the
+report and the statusline chip; the appraiser still uses the API call.
+
+### Added
+
+- **ADR 0002 (`docs/adr/0002-agent-runtime.md`, T20).** Why a child pi over a bare completion;
+  the three context levels as three consent levels and what leaves the machine at each;
+  the read-only guarantee and that it is enforced by our own `tool_call` guard because no peer
+  plugin (notably `pi-secret-guard`) can be assumed (spike Q5); the private child marker (D5);
+  and the kill criterion. PRD §4.1 links to it; README obtains a consent-levels hard rule.
+- **Config `runtime: "api" | "agent"` (default `"api"`) and a nested `agent` object (T21):**
+  `model`, `thinking`, `context` (`evidence|digest|fork`), `timeoutMs`, `maxToolCalls`,
+  `maxCostUsd`, `maxCostUsdPerSession`, `allowWeb`, `allowMcp`, `allowNlm`, `nlmNotebooks`,
+  `extraArgs`, `keepTranscript`. Every key is normalised independently (junk → default; arrays
+  must be arrays of strings; numbers finite and ≥ 0), and the `agent` object merges **per key**
+  across the global and project layers, like the rest of the cascade.
+- **Effective agent model.** `agent.model` when non-empty, else the shared `model`. With
+  `runtime: "agent"` and no resolvable model the plugin is observation-only, and the chip
+  says so (`psych: agent, no model`, en + cs).
+- **CLI flag `--psych-runtime agent|api`.** Overrides `runtime` for this process only and is
+  never written to disk; an invalid value is ignored with a notification. Read via `pi.getFlag`
+  at `session_start`.
+- **`/psych runtime <api|agent>`, `/psych context <evidence|digest|fork>`,
+  `/psych agent-model <provider/id>`**, all accepting the trailing `--global`. The `agent-model`
+  picker reuses the registry-driven two-level model picker. Selecting `digest`/`fork` in a TUI
+  opens a confirm stating what will leave the machine; outside a TUI it is refused, because a
+  one-run channel must never carry a persisted (consent) decision.
+- **`/psych` report** now shows the runtime, the effective agent model and the context level.
+
 ## 0.4.0
 
 T14, T15 and T18. The appraiser stops running on a clock and starts running on evidence, and a

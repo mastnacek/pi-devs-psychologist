@@ -55,6 +55,14 @@ export default function devsPsychologistExtension(
 	// appraisal budget on noise (skill §8).
 	if (process.env.PI_SUBAGENT === "true" || Boolean(process.env.PI_CHILD_SESSION)) return;
 
+	// This process's runtime override, never written to disk: `--psych-runtime agent|api`. Consent for
+	// session context is deliberately NOT settable here — a one-run flag must never carry a persisted
+	// decision (T21). Read back at session_start; the value is applied to the in-memory config only.
+	pi.registerFlag("psych-runtime", {
+		description: "Override the psychologist runtime for this run (api|agent)",
+		type: "string",
+	});
+
 	const state = createDevsPsychologistState(pi);
 	if (options.globalFile) state.globalFile = options.globalFile;
 
@@ -84,6 +92,16 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal, opt
 		pi.on("session_start", async (_event, ctx) => {
 			const created = seedGlobalConfig(state.globalFile);
 			reloadConfig(state, ctx.cwd);
+			// The runtime flag overrides the persisted runtime for THIS process only. An invalid value is
+			// ignored with a notification rather than silently doing nothing, so a typo is not invisible.
+			const runtimeFlag = pi.getFlag("psych-runtime");
+			if (typeof runtimeFlag === "string" && runtimeFlag.length > 0) {
+				if (runtimeFlag === "api" || runtimeFlag === "agent") {
+					state.config.runtime = runtimeFlag;
+				} else if (ctx.hasUI) {
+					ctx.ui.notify(stringsFor(state.config.lang).runtimeFlagInvalid(runtimeFlag), "warning");
+				}
+			}
 			// The catalog must be cached here: the completion callback receives only the argument
 			// prefix, so it cannot ask the registry itself.
 			refreshModelCatalog(state, ctx.modelRegistry);

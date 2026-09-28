@@ -116,6 +116,26 @@ export interface Strings {
 	done: string;
 	/** `/psych now` while another appraisal is already running. */
 	busy: string;
+	/** The chip when `runtime: "agent"` but no model resolves: observation only, said out loud. */
+	chipAgentNoModel: string;
+	/** The subcommand descriptions for the runtime switch. */
+	cmdRuntime: string;
+	cmdContext: string;
+	cmdAgentModel: string;
+	runtimeSet: (mode: string) => string;
+	contextSet: (level: string) => string;
+	agentModelSet: (model: string) => string;
+	/** Shown when `--psych-runtime` carries something other than `api`/`agent`. */
+	runtimeFlagInvalid: (value: string) => string;
+	/** The consent dialog before `digest`/`fork` is persisted: it states what leaves the machine. */
+	contextConfirmTitle: string;
+	contextConfirmBody: (level: string) => string;
+	/** Outside a terminal there is nobody to confirm consent for `digest`/`fork`. */
+	contextNeedsTui: string;
+	/** Report row labels for the runtime switch. */
+	reportRuntime: string;
+	reportContext: string;
+	reportAgentModel: string;
 	labels: Labels;
 	/**
 	 * The names of the three verdict ROWS. Distinct from `labels.progressStates` etc., which
@@ -176,7 +196,7 @@ const EN: Strings = {
 	nowValue: (value) => `(now: ${value})`,
 	// The help must not advertise a `global` subcommand: it is a trailing flag, and a user who
 	// followed the old text got "Unknown option: global".
-	usage: "Usage: /psych [status|now|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>] [--global]",
+	usage: "Usage: /psych [status|now|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Unknown option",
 	configWritten: (path) => `Config written to ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
@@ -191,6 +211,23 @@ const EN: Strings = {
 	notTui: "This view needs a terminal UI. Use /psych status for the text report.",
 	done: "Appraisal complete.",
 	busy: "An appraisal is already running.",
+	chipAgentNoModel: "psych: agent, no model",
+	cmdRuntime: "switch between the API call and a child pi agent",
+	cmdContext: "how much session context the child agent may see",
+	cmdAgentModel: "model for the child agent (empty = the shared model)",
+	runtimeSet: (mode) => `Runtime set to ${mode}`,
+	contextSet: (level) => `Context level set to ${level}`,
+	agentModelSet: (model) => `Agent model set to ${model}`,
+	runtimeFlagInvalid: (value) => `Ignoring --psych-runtime ${value}: use api or agent`,
+	contextConfirmTitle: "Send session context to the child agent?",
+	contextConfirmBody: (level) =>
+		level === "fork"
+			? "The child agent will be given the entire session, tool outputs included, and sends it to the model provider."
+			: "The child agent will be given scrubbed excerpts of your prompts and the assistant's text, sent to the model provider.",
+	contextNeedsTui: "Setting digest or fork needs a terminal UI. Set agent.context in the config file instead.",
+	reportRuntime: "runtime  ",
+	reportContext: "context  ",
+	reportAgentModel: "agent    ",
 
 	labels: EN_LABELS,
 	fields: { progress: "Progress", load: "Load", flow: "Flow" },
@@ -245,7 +282,7 @@ const CS: Strings = {
 	cmdEffect: "zobrazit, zda zásahy pomohly",
 	notSet: "(nenastaveno)",
 	nowValue: (value) => `(nyní: ${value})`,
-	usage: "Použití: /psych [status|now|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>] [--global]",
+	usage: "Použití: /psych [status|now|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Neznámá volba",
 	configWritten: (path) => `Konfigurace zapsána do ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,
@@ -260,6 +297,23 @@ const CS: Strings = {
 	notTui: "Toto zobrazení potřebuje terminálové UI. Použij /psych status pro textový report.",
 	done: "Posouzení dokončeno.",
 	busy: "Posouzení už běží.",
+	chipAgentNoModel: "psych: agent, bez modelu",
+	cmdRuntime: "přepnout mezi voláním API a podřízeným pi agentem",
+	cmdContext: "kolik kontextu relace smí podřízený agent vidět",
+	cmdAgentModel: "model pro podřízeného agenta (prázdné = sdílený model)",
+	runtimeSet: (mode) => `Runtime nastaven na ${mode}`,
+	contextSet: (level) => `Úroveň kontextu nastavena na ${level}`,
+	agentModelSet: (model) => `Model agenta nastaven na ${model}`,
+	runtimeFlagInvalid: (value) => `Přepínač --psych-runtime ${value} ignorován: použij api nebo agent`,
+	contextConfirmTitle: "Poslat kontext relace podřízenému agentovi?",
+	contextConfirmBody: (level) =>
+		level === "fork"
+			? "Podřízený agent dostane celou relaci včetně výstupů nástrojů a pošle ji poskytovateli modelu."
+			: "Podřízený agent dostane očištěné výňatky z tvých zadání a textu asistenta a pošle je poskytovateli modelu.",
+	contextNeedsTui: "Nastavení digest nebo fork vyžaduje terminálové UI. Nastav agent.context v konfiguračním souboru.",
+	reportRuntime: "runtime  ",
+	reportContext: "kontext  ",
+	reportAgentModel: "agent    ",
 
 	labels: CS_LABELS,
 	fields: { progress: "Postup", load: "Zátěž", flow: "Tok" },
