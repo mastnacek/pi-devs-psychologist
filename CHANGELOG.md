@@ -1,5 +1,49 @@
 # CHANGELOG
 
+## 0.0.5 — config that works, and config that is honest about not working yet
+
+### Fixed
+
+- **`lang` was dead config.** The key was validated, persisted, documented and then
+  ignored: `status.ts` hardcoded `psych: off`, `psych: signals` and the budget
+  format, so the locale table existed and nothing read it. The chip now renders from
+  `stringsFor(config.lang)` and a regression test asserts the locale changes the
+  painted text. A config key that silently does nothing is worse than no key at all.
+- The chip's strings moved into the locale table where they belonged, including the
+  appraisal format as a function so a locale can reorder the parts.
+
+### Changed
+
+- `STRINGS` uses `satisfies Record<Locale, Strings>` instead of a type annotation:
+  a locale missing a key is still a compile error (verified by deleting one and
+  reading the TS2741), but the literal types are no longer widened away.
+- `normalizeLocale` takes `string | null | undefined` rather than `unknown`. The JSON
+  boundary in `config.ts` is where unvalidated input is parsed; by the time a value
+  reaches the locale table it is known to be a string or absent. The runtime guard
+  stays, because a hand-written JSON file can still violate the type.
+
+### Added
+
+- **11 more tests (69 total).** The invariant that every locale provides every key,
+  that no locale ships an empty string (a blank chip is not a translation), that an
+  unknown locale falls back to English text rather than to silence, that `off` beats
+  `configured` in the chip, that an unlimited budget renders as one number and not a
+  fraction of zero, and that an in-flight appraisal is visible so a slow model does
+  not look like a dead one.
+- **A README table of every configuration key** with its default and whether it is
+  live or pending. Seven of the ten keys are validated and persisted but inert until
+  T3–T5 invoke the fold and the appraiser they configure; that is now stated instead
+  of implied.
+
+### Reviewed, deliberately unchanged
+
+- `pi-lens` flags `writeFileSync` in `saveConfig` (`no-raw-json-store-write`). The
+  write is already write-to-temp-then-rename, which is the atomic pattern the rule
+  exists to produce; the rule matches the call, not the idiom.
+- `positiveInt` / `ratio` keep their `unknown` parameters: they read a parsed JSON
+  layer, so that function *is* the decode boundary the `no-unknown-parameters` hint
+  asks for.
+
 ## 0.0.4 — multi-model setup: several OpenRouter accounts, three roles
 
 Documentation only. Records how the plugin will run different models, and different

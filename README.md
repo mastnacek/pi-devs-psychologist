@@ -113,13 +113,45 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 
 ```json
 {
-  "model": "openrouter-soukr/<a :free model>",
+  "enabled": true,
+  "model": "",
   "cadenceTurns": 8,
   "maxAppraisalsPerSession": 12,
   "steerAgent": false,
-  "lang": "en"
+  "lang": "en",
+  "restatementThreshold": 0.6,
+  "unscopedWordFloor": 25,
+  "idleGapMs": 600000,
+  "retainObservations": 600
 }
 ```
+
+### Every key
+
+| Key | Default | Effect today |
+|---|---|---|
+| `enabled` | `true` | **Live.** Master switch. Off observes nothing and spends nothing |
+| `model` | `""` | **Chip only until T4.** `provider/modelId`. Empty means observation at zero model spend, and the chip reads `psych: signals` |
+| `lang` | `"en"` | **Live.** `en` \| `cs` — the chip's own text. Model-facing text stays English in every locale |
+| `retainObservations` | `600` | **Live.** Bounds the observation window held in memory |
+| `cadenceTurns` | `8` | Pending T4. Turns between appraisals |
+| `maxAppraisalsPerSession` | `12` | Pending T4. Hard ceiling per session; `0` = unlimited |
+| `steerAgent` | `false` | Pending T5. Whether an intervention may enter the working agent's context. Off by default: an observer is not an authority |
+| `restatementThreshold` | `0.6` | Pending T3/T4. Token overlap at which a prompt counts as a restatement |
+| `unscopedWordFloor` | `25` | Pending T3/T4. Word count above which an anchor-less prompt is reported unscoped |
+| `idleGapMs` | `600000` | Pending T3/T4. Gap between prompts counted as an interruption (10 min) |
+
+**"Pending" keys are validated and persisted now but do nothing yet** — the slice that
+reads them has not landed, so nothing invokes the fold or the appraiser they configure.
+Setting them early is harmless and they start working when their slice ships. They are
+listed rather than hidden because a config key that silently does nothing is worse than
+no key at all: you would set it, see no change, and stop believing the file.
+
+Coercion, so a typo degrades instead of breaking the session: junk numbers fall back to
+the default; `model` must be a string, and an unparsable one becomes `""` rather than a
+guess at which model you meant; an unknown `lang` becomes `en`; `0` is a real value for
+the budget (unlimited). The two layers merge **per key**, so a project patch never freezes
+the values it inherits.
 
 Today the model is set in the config file; the `/psych` command below is **not built yet**
 (T2–T6).

@@ -8,6 +8,7 @@
  */
 
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { stringsFor } from "./i18n.js";
 import type { DevsPsychologistState } from "./state.js";
 
 export const STATUS_ID = "devs-psychologist";
@@ -23,17 +24,21 @@ export function setStatus(ctx: ExtensionContext, text: string | undefined): void
 }
 
 /**
- * The chip. `psych` alone means observation is quiet; `psych: signals` makes the
- * no-model state visible, because silent and unconfigured look identical from
- * the outside; `psych: n/s` is the appraisal budget being spent.
+ * The chip. `psych: signals` makes the no-model state visible, because silent and
+ * unconfigured look identical from the outside; `psych n/s` is the appraisal budget
+ * being spent. `psych: off` is the one state the user must never have to ask about.
+ *
+ * Every string comes from the locale table (`config.lang`). Hardcoding them here was
+ * a defect: `lang` was validated, persisted and then ignored.
  */
 export function paintChip(state: DevsPsychologistState, ctx: ExtensionContext): void {
+	const strings = stringsFor(state.config.lang);
 	if (!state.config.enabled) {
-		setStatus(ctx, "psych: off");
+		setStatus(ctx, strings.chipOff);
 		return;
 	}
 	if (state.config.model.length === 0) {
-		setStatus(ctx, "psych: signals");
+		setStatus(ctx, strings.chipSignals);
 		return;
 	}
 	const cap = state.config.maxAppraisalsPerSession;
@@ -42,7 +47,7 @@ export function paintChip(state: DevsPsychologistState, ctx: ExtensionContext): 
 	// Turns since the last appraisal is the one number that explains silence:
 	// the observer is waiting for its cadence, not dead.
 	const waiting = state.appraisalInFlight ? "…" : `${state.turnsSinceAppraisal}t`;
-	setStatus(ctx, `psych ${waiting} · ${budget}`);
+	setStatus(ctx, strings.chipAppraisal(waiting, budget));
 }
 
 /** Clear the slot. Idempotent; called from session_shutdown. */
