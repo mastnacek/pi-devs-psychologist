@@ -31,6 +31,7 @@ import {
 	type ModelCallStage,
 } from "../../shared/model-call.js";
 import { allowedEvidence, buildUserText, SYSTEM_PROMPT } from "../../shared/prompt.js";
+import { environmentEvidence } from "../../shared/environment.js";
 import { extractSignals } from "../../shared/signals.js";
 import { signalOptions, type DevsPsychologistState } from "../../shared/state.js";
 import type { SessionHistory } from "../../shared/history.js";
@@ -133,13 +134,24 @@ export async function maybeAppraise(
 	try {
 		const signals = extractSignals(state.observations, signalOptions(state));
 		const history = deps.readHistory(ctx);
-		const lines = allowedEvidence(signals.evidence, history.evidence);
+		// The environment lines join the SESSION block, not the LIVE one: they describe the
+		// machine the session ran on, not the window that just elapsed, and mixing the two
+		// would let the model read a stale flag as a fresh observation.
+		const sessionLines = [
+			...history.evidence,
+			...(state.config.envFacts ? environmentEvidence({ cwd: ctx.cwd }) : []),
+		];
+		// `allowedEvidence` is what enforcement matches citations against, so the environment
+		// lines must be in BOTH: offered to the model and admissible as proof. Adding them to
+		// only one of the two produces the worst possible failure — a verdict the model was
+		// told to make and is then punished for making.
+		const lines = allowedEvidence(signals.evidence, sessionLines);
 		const modelRef = state.config.model;
 
 		const result = await deps.callModel(ctx.modelRegistry, {
 			modelRef,
 			systemPrompt: SYSTEM_PROMPT,
-			userText: buildUserText(signals.evidence, history.evidence),
+			userText: buildUserText(signals.evidence, sessionLines),
 			maxTokens: APPRAISAL_MAX_TOKENS,
 			// No temperature and no reasoning overrides: an observer must not request sampling
 			// settings a provider may reject. The call's job is to be boringly repeatable.

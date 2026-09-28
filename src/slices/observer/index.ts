@@ -19,7 +19,7 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { MUTATION_TOOLS } from "../../shared/lexicon.js";
+import { MUTATION_TOOLS, classifyFailure, errorTextFromResult } from "../../shared/lexicon.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
 
 /** Argument spellings seen across the engine's built-in tools. */
@@ -59,6 +59,22 @@ export function isProgrammerPrompt(source: unknown): boolean {
 }
 
 /**
+ * The failure signature for a tool that errored, or `undefined`.
+ *
+ * This is the datum the observer used to throw away. `ToolExecutionEndEvent.result` carries
+ * the tool's own error text, and reducing it to `ok: false` is what made this plugin unable
+ * to tell "the edit tool could not find its target string" from "the test suite is red" —
+ * two failures with opposite remedies, indistinguishable in the evidence set.
+ *
+ * Only the signature travels. The text itself never leaves this function: `classifyFailure`
+ * picks from a fixed vocabulary, so no code, no argument and no path is forwarded.
+ */
+export function signatureFromResult(isError: boolean, result: unknown): string | undefined {
+	if (isError !== true) return undefined;
+	return classifyFailure(errorTextFromResult(result));
+}
+
+/**
  * Wire the observation events. Every subscription is tracked so
  * `session_shutdown` can drain it.
  */
@@ -87,6 +103,10 @@ export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState)
 			if (!state.config.enabled) return;
 			const pending = state.pendingTools.get(event.toolCallId);
 			state.pendingTools.delete(event.toolCallId);
+			const signature = signatureFromResult(event.isError === true, event.result);
+			// The key is added only when there is something to put in it: an `undefined`
+			// property would still occupy a slot in every observation, and the window holds up
+			// to `retainObservations` of them.
 			state.observe({
 				kind: "tool",
 				at: Date.now(),
@@ -96,6 +116,7 @@ export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState)
 				// `isError` is the engine's own verdict; `!event.isError` is not the
 				// same as "the command succeeded", and the fold only claims the former.
 				ok: event.isError !== true,
+				...(signature === undefined ? {} : { errorSignature: signature }),
 			});
 		}),
 	);

@@ -51,6 +51,18 @@ export interface DevsPsychologistConfig {
 	steerAgent: boolean;
 	/** Observations retained in memory. Bounds a long session. */
 	retainObservations: number;
+	/**
+	 * Include the parent-computed environment lines (pi version, pi-lens LSP/format/guard
+	 * state) among the citable evidence.
+	 *
+	 * ON by default, and the measurement is the argument for it: handed those facts, the model
+	 * produced the sharpest advice of the whole experiment with zero tool calls, where a file
+	 * *path* in the same prompt was never opened. They are the first evidence in this plugin
+	 * that describes the operator's machine rather than their work, so this is the switch that
+	 * turns them off — not because they leak (no absolute path is emitted) but because the
+	 * machine is not the programmer's business when they have asked not to be.
+	 */
+	envFacts: boolean;
 }
 
 export const DEFAULT_CONFIG: DevsPsychologistConfig = {
@@ -64,6 +76,7 @@ export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	idleGapMs: DEFAULT_SIGNAL_OPTIONS.idleGapMs,
 	steerAgent: false,
 	retainObservations: DEFAULT_SIGNAL_OPTIONS.maxObservations,
+	envFacts: true,
 };
 
 const CONFIG_DIR = join(homedir(), ".pi", "agent");
@@ -128,6 +141,9 @@ export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsych
 		idleGapMs: positiveInt(cfg.idleGapMs, DEFAULT_CONFIG.idleGapMs, 1000),
 		steerAgent: cfg.steerAgent === true,
 		retainObservations: positiveInt(cfg.retainObservations, DEFAULT_CONFIG.retainObservations, 10),
+		// Default on, opt-out: `false` is the only value that disables it, so a hand-written
+		// config with a missing or nonsense key keeps the better behaviour.
+		envFacts: cfg.envFacts !== false,
 	};
 }
 
