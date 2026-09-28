@@ -1,5 +1,44 @@
 # CHANGELOG
 
+## 0.4.0 (unreleased)
+
+T14 and T18. The appraiser stops running on a clock and starts running on evidence.
+
+### Added
+
+- **Signal-triggered appraisal (T14).** New pure `src/shared/triggers.ts` with
+  `evaluateTriggers(current, baseline, thresholds)` and `snapshotTriggers`. A trigger is a delta
+  against a baseline snapshot taken at the last attempt, so the same old failure never fires twice.
+  Reasons: `failure_streak`, `recurring_failure`, `restatement`, `operator_abort`, `stale_progress`,
+  `compaction`, `thinking_raised`, `delivered`. (`commit_unverified` is left to T15; the reason list
+  is the single extension point.)
+- **Config `trigger: "signals" | "cadence"` (default `"signals"`) and `triggerThresholds`.**
+  `signals` appraises on new evidence with `cadenceTurns` as a floor; `cadence` is exactly the old
+  clock. New default `cadenceTurns` is **3** (it is now a floor). Thresholds normalise per key;
+  junk → default.
+- **The reason is citable evidence.** When a trigger fires, one LIVE line
+  `appraisal triggered by: <reasons>` is added to *both* the prompt and `allowedEvidence`, so the
+  model may cite why it was asked.
+- **`recurring failure: <tool> · <signature> ×N` (T18).** Every `FailureFingerprint` with count ≥ 2
+  becomes its own evidence line, highest count first, capped at three.
+- **`/psych` shows the trigger rule**: the mode, the reasons that last fired, and
+  `appraisals skipped: N (no new evidence)` — the measured saving.
+
+### Changed
+
+- `maybeAppraise` keeps the floor and the budget, and adds a `no_trigger` skip between them.
+  `force` (`/psych now`) bypasses the trigger and the floor, never the budget.
+- State gains `triggerBaseline`, `appraisalsSkipped` and `lastTriggerReasons`; all reset on session
+  start alongside the window.
+- `SessionSignals` gains `failureStreak` and `deliveredRuns`, the two counters the trigger rule
+  needed that the fold did not expose.
+
+### Verification
+
+`trigger-appraisal.test.js` asserts 30 healthy turns cost zero calls, a 3-failure streak spends
+once and not again, and the trigger line is citable. `triggers.test.js` asserts each reason in
+isolation and against a baseline that already saw it.
+
 ## 0.3.1 — README truth pass
 
 ### Fixed

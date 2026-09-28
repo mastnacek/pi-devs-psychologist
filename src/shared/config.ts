@@ -16,7 +16,11 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { DEFAULT_SIGNAL_OPTIONS } from "./signals.js";
+import { DEFAULT_TRIGGER_THRESHOLDS, type TriggerThresholds } from "./triggers.js";
 import { normalizeLocale, type Locale } from "./i18n.js";
+
+/** How the appraiser decides when to run: on new evidence (D7) or on a turn clock. */
+export type TriggerMode = "signals" | "cadence";
 
 export interface DevsPsychologistConfig {
 	/** Master switch. Off means the plugin observes nothing and spends nothing. */
@@ -33,8 +37,20 @@ export interface DevsPsychologistConfig {
 	 * so installing the plugin cannot cost anything by itself.
 	 */
 	model: string;
-	/** Objective signals are folded into an appraisal every N completed turns. */
+	/**
+	 * When the appraiser runs. `signals` (the default) runs on new evidence, with `cadenceTurns` as a
+	 * minimum floor between attempts; `cadence` is the old clock, kept for comparison and for tests.
+	 */
+	trigger: TriggerMode;
+	/**
+	 * The floor between attempts under `trigger: "signals"`, and the exact clock under `"cadence"`.
+	 *
+	 * Under signals the floor exists so a burst of evidence cannot trigger several attempts on
+	 * consecutive turns; under cadence it IS the policy.
+	 */
 	cadenceTurns: number;
+	/** Per-reason trigger thresholds. Each normalised independently; junk → default. */
+	triggerThresholds: TriggerThresholds;
 	/** Hard ceiling on appraisals per session. 0 = unlimited (not recommended). */
 	maxAppraisalsPerSession: number;
 	/** Token-overlap ratio at which a prompt counts as a restatement. */
@@ -69,7 +85,9 @@ export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	enabled: true,
 	lang: "en",
 	model: "",
-	cadenceTurns: 8,
+	trigger: "signals",
+	cadenceTurns: 3,
+	triggerThresholds: { ...DEFAULT_TRIGGER_THRESHOLDS },
 	maxAppraisalsPerSession: 12,
 	restatementThreshold: DEFAULT_SIGNAL_OPTIONS.restatementThreshold,
 	unscopedWordFloor: DEFAULT_SIGNAL_OPTIONS.unscopedWordFloor,
@@ -119,6 +137,27 @@ function ratio(value: unknown, fallback: number): number {
 	return Number.isFinite(parsed) && parsed > 0 && parsed <= 1 ? parsed : fallback;
 }
 
+/** One of the known modes, or the default when the value is junk. */
+function triggerMode(value: unknown): TriggerMode {
+	return value === "cadence" ? "cadence" : value === "signals" ? "signals" : DEFAULT_CONFIG.trigger;
+}
+
+/** Coerce the threshold object key by key, so one bad value cannot lose the rest. */
+function normalizeThresholds(value: unknown): TriggerThresholds {
+	const raw = value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
+	const fallback = DEFAULT_TRIGGER_THRESHOLDS;
+	return {
+		failureStreak: positiveInt(raw.failureStreak, fallback.failureStreak, 1),
+		recurringFailure: positiveInt(raw.recurringFailure, fallback.recurringFailure, 1),
+		restatement: positiveInt(raw.restatement, fallback.restatement, 1),
+		operatorAbort: positiveInt(raw.operatorAbort, fallback.operatorAbort, 1),
+		staleProgress: positiveInt(raw.staleProgress, fallback.staleProgress, 1),
+		compaction: positiveInt(raw.compaction, fallback.compaction, 1),
+		thinkingRaised: positiveInt(raw.thinkingRaised, fallback.thinkingRaised, 1),
+		delivered: positiveInt(raw.delivered, fallback.delivered, 1),
+	};
+}
+
 /** Coerce a persisted layer into a usable config; junk becomes the default. */
 export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsychologistConfig {
 	return {
@@ -128,7 +167,9 @@ export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsych
 		// that silently selects some other model would spend money on the wrong
 		// observer.
 		model: typeof cfg.model === "string" ? cfg.model.trim() : "",
+		trigger: triggerMode(cfg.trigger),
 		cadenceTurns: positiveInt(cfg.cadenceTurns, DEFAULT_CONFIG.cadenceTurns, 1),
+		triggerThresholds: normalizeThresholds(cfg.triggerThresholds),
 		// 0 is meaningful here (unlimited), so the floor is 0 and the default is a
 		// real cap.
 		maxAppraisalsPerSession: positiveInt(

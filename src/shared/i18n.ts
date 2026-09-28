@@ -96,6 +96,12 @@ export interface Strings {
 	reportBudget: (used: number, cap: string) => string;
 	reportDisabled: string;
 	reportNoModel: string;
+	/** `trigger   signals` — which rule decides when the appraiser runs. */
+	reportTrigger: string;
+	/** `triggered by failure_streak, restatement` — the reasons the last appraisal fired. */
+	reportTriggered: string;
+	/** `appraisals skipped: N (no new evidence)` — the measured saving of the trigger rule. */
+	reportSkipped: (n: number) => string;
 
 	/** Command surface. */
 	commandDescription: string;
@@ -161,6 +167,9 @@ const EN: Strings = {
 	reportBudget: (used, cap) => `budget ${used}/${cap}`,
 	reportDisabled: "The psychologist is off. Turn it on with: /psych on",
 	reportNoModel: "No psychologist model configured. Set one with: /psych model <provider/id>",
+	reportTrigger: "trigger  ",
+	reportTriggered: "triggered by",
+	reportSkipped: (n) => `appraisals skipped: ${n} (no new evidence)`,
 
 	commandDescription: "Developer psychologist: appraisal now, state, and settings",
 	cmdStatus: "show the report",
@@ -254,6 +263,9 @@ const CS: Strings = {
 	reportBudget: (used, cap) => `rozpočet ${used}/${cap}`,
 	reportDisabled: "Psycholog je vypnutý. Zapneš ho: /psych on",
 	reportNoModel: "Není nastavený model psychologa. Nastav ho: /psych model <provider/id>",
+	reportTrigger: "spouštěč ",
+	reportTriggered: "spuštěno:",
+	reportSkipped: (n) => `posouzení přeskočeno: ${n} (žádný nový důkaz)`,
 
 	commandDescription: "Vývojářský psycholog: posouzení teď, stav a nastavení",
 	cmdStatus: "zobrazit report",

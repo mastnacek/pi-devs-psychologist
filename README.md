@@ -117,7 +117,18 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 {
   "enabled": true,
   "model": "",
-  "cadenceTurns": 8,
+  "trigger": "signals",
+  "cadenceTurns": 3,
+  "triggerThresholds": {
+    "failureStreak": 3,
+    "recurringFailure": 2,
+    "restatement": 1,
+    "operatorAbort": 1,
+    "staleProgress": 6,
+    "compaction": 1,
+    "thinkingRaised": 1,
+    "delivered": 1
+  },
   "maxAppraisalsPerSession": 12,
   "steerAgent": false,
   "lang": "en",
@@ -137,7 +148,9 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `model` | `""` | **Live.** `provider/modelId`. Empty means observation at zero model spend, and the chip reads `psych: signals` |
 | `lang` | `"en"` | **Live.** `en` \| `cs` — the chip's own text. Model-facing text stays English in every locale |
 | `retainObservations` | `600` | **Live.** Bounds the observation window held in memory |
-| `cadenceTurns` | `8` | **Live.** Turns between appraisals; an attempt restarts the count |
+| `trigger` | `"signals"` | **Live.** `signals` \| `cadence`. `signals` appraises on new evidence; `cadence` is the old turn clock, kept for comparison |
+| `cadenceTurns` | `3` | **Live.** Under `trigger: "signals"` the minimum turns between attempts; under `trigger: "cadence"` the exact clock. An attempt restarts the count |
+| `triggerThresholds` | see JSON | **Live.** Per-reason trigger thresholds. Each key normalised independently; junk → default |
 | `maxAppraisalsPerSession` | `12` | **Live.** Hard ceiling on *attempts* per session; `0` = unlimited |
 | `steerAgent` | `false` | **Live.** Whether an intervention may enter the working agent's context. Off by default: an observer is not an authority |
 | `restatementThreshold` | `0.6` | **Live.** Token overlap at which a prompt counts as a restatement |

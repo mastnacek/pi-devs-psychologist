@@ -258,3 +258,68 @@ test("errorTextFromResult reads the shapes the engine emits", () => {
   assert.equal(errorTextFromResult(null), undefined);
   assert.equal(errorTextFromResult(42), undefined);
 });
+
+// --- recurring friction as a first-class line (T18) -----------------------
+// "The same thing keeps failing" is a different fact from "a thing failed N times", so it ships
+// as its own line kind, capped so a noisy session cannot bury the rest of the evidence.
+
+test("3 identical bash failures plus 1 different produce exactly one recurring line, ×3", () => {
+  const log = [
+    { kind: "tool", at: 1, toolName: "bash", ok: false, errorSignature: "timed out" },
+    { kind: "tool", at: 2, toolName: "bash", ok: false, errorSignature: "timed out" },
+    { kind: "tool", at: 3, toolName: "bash", ok: false, errorSignature: "timed out" },
+    { kind: "tool", at: 4, toolName: "bash", ok: false, errorSignature: "file not found" },
+  ];
+  const recurring = extractSignals(log).evidence.filter((line) => line.startsWith("recurring failure:"));
+  assert.deepEqual(recurring, ["recurring failure: bash · timed out ×3"]);
+});
+
+test("a fingerprint seen only once is not recurring, and the list is highest count first, capped at 3", () => {
+  const single = extractSignals([
+    { kind: "tool", at: 1, toolName: "edit", ok: false, errorSignature: "oldText did not match" },
+  ]);
+  assert.deepEqual(single.evidence.filter((line) => line.startsWith("recurring failure:")), []);
+
+  const log = [];
+  const push = (tool, signature, n) => {
+    for (let i = 0; i < n; i += 1) log.push({ kind: "tool", at: 100 + log.length, toolName: tool, ok: false, errorSignature: signature });
+  };
+  push("bash", "a", 5);
+  push("edit", "b", 4);
+  push("write", "c", 3);
+  push("read", "d", 2);
+  const recurring = extractSignals(log).evidence.filter((line) => line.startsWith("recurring failure:"));
+  assert.deepEqual(recurring, [
+    "recurring failure: bash · a ×5",
+    "recurring failure: edit · b ×4",
+    "recurring failure: write · c ×3",
+  ]);
+});
+
+// --- the two counters the trigger rule added to the fold (T14) ------------
+
+test("failureStreak counts trailing failures and stops at the last success", () => {
+  const allFailures = [
+    { kind: "tool", at: 1, toolName: "bash", ok: false },
+    { kind: "tool", at: 2, toolName: "bash", ok: false },
+    { kind: "tool", at: 3, toolName: "bash", ok: false },
+  ];
+  assert.equal(extractSignals(allFailures).failureStreak, 3);
+  const brokenTail = [
+    { kind: "tool", at: 1, toolName: "bash", ok: false },
+    { kind: "tool", at: 2, toolName: "bash", ok: true },
+    { kind: "tool", at: 3, toolName: "bash", ok: false },
+  ];
+  assert.equal(extractSignals(brokenTail).failureStreak, 1);
+  assert.equal(extractSignals([]).failureStreak, 0);
+});
+
+test("deliveredRuns counts a verified run only after a real change set", () => {
+  const edits = [];
+  for (let i = 0; i < 4; i += 1) edits.push({ kind: "tool", at: i, toolName: "edit", path: "a.ts", ok: true });
+  const verified = { kind: "tool", at: 10, toolName: "bash", command: "npm test", ok: true };
+  assert.equal(extractSignals([...edits, verified]).deliveredRuns, 1);
+  // Three mutations, not four: activity that proved itself is not a delivery.
+  assert.equal(extractSignals([...edits.slice(0, 3), verified]).deliveredRuns, 0);
+  assert.equal(extractSignals([verified]).deliveredRuns, 0);
+});

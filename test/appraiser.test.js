@@ -25,7 +25,10 @@ const SESSION_LINE = "session span: 3 min";
 
 function stateWith(over = {}, turns = undefined) {
   const state = makeState();
-  state.config = { ...DEFAULT_CONFIG, model: "openrouter-soukr/some/model", ...over };
+  // `trigger: "cadence"` is explicit here: these tests are about the clock, the budget and the
+  // single-flight rule, so they must not be silently governed by the evidence-trigger rule. The
+  // trigger tests override it with `trigger: "signals"` where that is the subject.
+  state.config = { ...DEFAULT_CONFIG, model: "openrouter-soukr/some/model", trigger: "cadence", ...over };
   // The cadence gate is open by default, so a test that is not about the cadence is not
   // silently skipped by it. Tests that exercise cadence pass `turns` explicitly.
   state.turnsSinceAppraisal = turns === undefined ? state.config.cadenceTurns : turns;

@@ -62,6 +62,13 @@ export function renderReport(input: ReportInput): string {
 		`${s.reportBudget(state.appraisalsThisSession, cap === 0 ? "∞" : String(cap))}`,
 		`cadence   ${state.turnsSinceAppraisal}/${state.config.cadenceTurns} turns since the last attempt`,
 	);
+	// The trigger rule made visible: what last fired an appraisal, and how many turns it saved.
+	// Both are facts the operator can act on — retune `triggerThresholds`, or see the clock at work.
+	lines.push(`${s.reportTrigger} ${state.config.trigger}`);
+	if (state.lastTriggerReasons.length > 0) {
+		lines.push(`${s.reportTriggered} ${state.lastTriggerReasons.join(", ")}`);
+	}
+	lines.push(s.reportSkipped(state.appraisalsSkipped));
 
 	lines.push("", heading(s.reportSignals));
 	if (input.signals.length === 0) lines.push(bullet(s.reportEmpty));

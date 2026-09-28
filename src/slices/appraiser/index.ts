@@ -33,6 +33,7 @@ import {
 import { allowedEvidence, buildUserText, SYSTEM_PROMPT } from "../../shared/prompt.js";
 import { environmentEvidence } from "../../shared/environment.js";
 import { extractSignals } from "../../shared/signals.js";
+import { evaluateTriggers, snapshotTriggers, type TriggerReason } from "../../shared/triggers.js";
 import { signalOptions, type DevsPsychologistState } from "../../shared/state.js";
 import type { SessionHistory } from "../../shared/history.js";
 import { paintChip } from "../../shared/status.js";
@@ -47,6 +48,7 @@ export type SkipReason =
 	| "no_model"
 	| "in_flight"
 	| "cadence"
+	| "no_trigger"
 	| "budget";
 
 export type AppraiseOutcome =
@@ -127,13 +129,36 @@ export async function maybeAppraise(
 	if (!state.budgetAvailable()) return { ran: false, reason: "budget" };
 
 	state.appraisalInFlight = true;
-	// Counted before the call, and the cadence restarts here: both are about *attempts*.
-	state.appraisalsThisSession += 1;
-	state.turnsSinceAppraisal = 0;
 
 	try {
 		const signals = extractSignals(state.observations, signalOptions(state));
 		const history = deps.readHistory(ctx);
+
+		// The trigger gate (D7). Under `signals` the model runs only when the evidence carries
+		// something new since the last attempt; `force` (the operator asked) bypasses it, and
+		// `cadence` mode skips the gate entirely and behaves exactly as the old clock did.
+		let firedReasons: TriggerReason[] = [];
+		if (!force && state.config.trigger === "signals") {
+			const evaluated = evaluateTriggers(
+				{ signals, history },
+				state.triggerBaseline,
+				state.config.triggerThresholds,
+			);
+			if (!evaluated.fire) {
+				state.appraisalsSkipped += 1;
+				return { ran: false, reason: "no_trigger" };
+			}
+			firedReasons = evaluated.reasons;
+			state.lastTriggerReasons = firedReasons;
+		}
+
+		// Counted before the call, and the cadence restarts here: both are about *attempts*.
+		state.appraisalsThisSession += 1;
+		state.turnsSinceAppraisal = 0;
+		// Baseline on EVERY attempt (a forced one included), so the evidence that caused this
+		// appraisal cannot cause the next one.
+		state.triggerBaseline = snapshotTriggers({ signals, history });
+
 		// The environment lines join the SESSION block, not the LIVE one: they describe the
 		// machine the session ran on, not the window that just elapsed, and mixing the two
 		// would let the model read a stale flag as a fresh observation.
@@ -141,17 +166,23 @@ export async function maybeAppraise(
 			...history.evidence,
 			...(state.config.envFacts ? environmentEvidence({ cwd: ctx.cwd }) : []),
 		];
+		// One LIVE line naming what fired, so the reason for the appraisal is itself citable
+		// evidence. It is added to the live block, so it reaches both the prompt and enforcement.
+		const liveLines = [
+			...signals.evidence,
+			...(firedReasons.length > 0 ? [`appraisal triggered by: ${firedReasons.join(", ")}`] : []),
+		];
 		// `allowedEvidence` is what enforcement matches citations against, so the environment
 		// lines must be in BOTH: offered to the model and admissible as proof. Adding them to
 		// only one of the two produces the worst possible failure — a verdict the model was
 		// told to make and is then punished for making.
-		const lines = allowedEvidence(signals.evidence, sessionLines);
+		const lines = allowedEvidence(liveLines, sessionLines);
 		const modelRef = state.config.model;
 
 		const result = await deps.callModel(ctx.modelRegistry, {
 			modelRef,
 			systemPrompt: SYSTEM_PROMPT,
-			userText: buildUserText(signals.evidence, sessionLines),
+			userText: buildUserText(liveLines, sessionLines),
 			maxTokens: APPRAISAL_MAX_TOKENS,
 			// No temperature and no reasoning overrides: an observer must not request sampling
 			// settings a provider may reject. The call's job is to be boringly repeatable.

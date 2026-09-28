@@ -12,6 +12,7 @@
 
 import { DEFAULT_CONFIG, GLOBAL_CONFIG_FILE, loadConfig, type DevsPsychologistConfig } from "./config.js";
 import { DEFAULT_SIGNAL_OPTIONS, type Observation } from "./signals.js";
+import { EMPTY_TRIGGER_BASELINE, type TriggerBaseline, type TriggerReason } from "./triggers.js";
 import type { Appraisal } from "./appraisal.js";
 import type { UsageSummary } from "./model-call.js";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -84,6 +85,15 @@ export interface DevsPsychologistState {
 	/** Last appraisal's enforcement notes. */
 	lastAppraisalNotes: AppraisalNotes | undefined;
 	/**
+	 * Counters captured at the last appraisal ATTEMPT (including a forced one). Every trigger is a
+	 * delta against this, so the evidence that ran one appraisal cannot run the next.
+	 */
+	triggerBaseline: TriggerBaseline;
+	/** Appraisals skipped because no trigger fired — the measured saving the report shows. */
+	appraisalsSkipped: number;
+	/** Reasons that fired the last appraisal, for the report. Empty until one fires. */
+	lastTriggerReasons: TriggerReason[];
+	/**
 	 * Token and cost figures for the last appraisal.
 	 *
 	 * Kept here because the engine cannot be told about the call: extensions get a
@@ -131,6 +141,9 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		lastAppraisalFailure: undefined,
 		lastAppraisalNotes: undefined,
 		lastAppraisalUsage: undefined,
+		triggerBaseline: { ...EMPTY_TRIGGER_BASELINE },
+		appraisalsSkipped: 0,
+		lastTriggerReasons: [],
 		ifLive,
 		observe(observation) {
 			state.observations.push(observation);
@@ -148,6 +161,9 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 			state.lastAppraisalFailure = undefined;
 			state.lastAppraisalNotes = undefined;
 			state.lastAppraisalUsage = undefined;
+			state.triggerBaseline = { ...EMPTY_TRIGGER_BASELINE };
+			state.appraisalsSkipped = 0;
+			state.lastTriggerReasons = [];
 		},
 		budgetAvailable() {
 			const cap = state.config.maxAppraisalsPerSession;

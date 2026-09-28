@@ -100,6 +100,31 @@ test("an unknown language is a typo, and English wins", () => {
   assert.equal(normalizeConfig({ lang: "cs" }).lang, "cs");
 });
 
+test("the trigger mode defaults to signals and junk falls back to it", () => {
+  assert.equal(DEFAULT_CONFIG.trigger, "signals");
+  assert.equal(DEFAULT_CONFIG.cadenceTurns, 3, "under signals the cadence is a floor, lowered to 3");
+  assert.equal(normalizeConfig({ trigger: "cadence" }).trigger, "cadence");
+  assert.equal(normalizeConfig({ trigger: "signals" }).trigger, "signals");
+  for (const junk of ["clock", "", null, 42, {}]) {
+    assert.equal(normalizeConfig({ trigger: junk }).trigger, "signals", `junk trigger ${JSON.stringify(junk)}`);
+  }
+});
+
+test("trigger thresholds normalise per key, so one bad value cannot lose the rest", () => {
+  const partial = normalizeConfig({ triggerThresholds: { failureStreak: 5 } });
+  assert.equal(partial.triggerThresholds.failureStreak, 5);
+  assert.equal(partial.triggerThresholds.recurringFailure, 2, "the untouched keys keep their defaults");
+  assert.equal(partial.triggerThresholds.staleProgress, 6);
+
+  const junk = normalizeConfig({ triggerThresholds: { failureStreak: -1, staleProgress: "abc", delivered: 0 } });
+  assert.equal(junk.triggerThresholds.failureStreak, 3, "negative → default");
+  assert.equal(junk.triggerThresholds.staleProgress, 6, "non-number → default");
+  assert.equal(junk.triggerThresholds.delivered, 1, "below the floor of 1 → default");
+
+  const notAnObject = normalizeConfig({ triggerThresholds: "nonsense" });
+  assert.deepEqual(notAnObject.triggerThresholds, DEFAULT_CONFIG.triggerThresholds);
+});
+
 test("a partial save merges into the target layer and does not freeze inherited values", () => {
   const ws = workspace();
   try {
