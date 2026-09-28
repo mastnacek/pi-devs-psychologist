@@ -111,6 +111,12 @@ export interface Strings {
 	/** `/psych now` while another appraisal is already running. */
 	busy: string;
 	labels: Labels;
+	/**
+	 * The names of the three verdict ROWS. Distinct from `labels.progressStates` etc., which
+	 * name the values inside them: using a state word as a row label renders `high high` and
+	 * `advancing blocked`, which reads as nonsense.
+	 */
+	fields: { progress: string; load: string; flow: string };
 }
 
 const EN: Strings = {
@@ -196,6 +202,7 @@ const EN: Strings = {
 			stop: "stop",
 		},
 	},
+	fields: { progress: "Progress", load: "Load", flow: "Flow" },
 };
 
 const CS: Strings = {
@@ -281,6 +288,7 @@ const CS: Strings = {
 			stop: "skonči",
 		},
 	},
+	fields: { progress: "Postup", load: "Zátěž", flow: "Tok" },
 };
 
 /**

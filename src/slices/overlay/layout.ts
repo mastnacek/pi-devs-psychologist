@@ -115,9 +115,9 @@ function verdictLine(
 /** Label column width across every verdict row, recomputed per locale. */
 export function labelCol(s: Strings): number {
 	const widths = [
-		visibleWidth(`${ICONS.progress} ${s.labels.progressStates.advanced}`),
-		visibleWidth(`${ICONS.load} ${s.labels.loadLevels.high}`),
-		visibleWidth(`${ICONS.flow} ${s.labels.flowStates.in_flow}`),
+		visibleWidth(`${ICONS.progress} ${s.fields.progress}`),
+		visibleWidth(`${ICONS.load} ${s.fields.load}`),
+		visibleWidth(`${ICONS.flow} ${s.fields.flow}`),
 		...NEEDS.map((need) => visibleWidth(`${NEED_ICONS[need]} ${s.labels.needs[need]}`)),
 	];
 	return Math.max(...widths) + 2;
@@ -144,7 +144,7 @@ export function layoutCard(input: CardInput, s: Strings, width: number, paint: P
 
 	row(
 		ICONS.progress,
-		s.labels.progressStates.advanced,
+		s.fields.progress,
 		s.labels.progressStates[input.appraisal.progress.state],
 		input.appraisal.progress.cited,
 		"accent",
@@ -155,14 +155,14 @@ export function layoutCard(input: CardInput, s: Strings, width: number, paint: P
 	}
 	row(
 		ICONS.load,
-		s.labels.loadLevels.high,
+		s.fields.load,
 		s.labels.loadLevels[input.appraisal.load.level],
 		input.appraisal.load.cited,
 		"warning",
 	);
 	row(
 		ICONS.flow,
-		s.labels.flowStates.in_flow,
+		s.fields.flow,
 		s.labels.flowStates[input.appraisal.flow.state],
 		input.appraisal.flow.cited,
 		"borderAccent",

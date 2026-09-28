@@ -162,6 +162,28 @@ test("keys that close are exactly the keys the footer advertises", () => {
   void footer;
 });
 
+test("a verdict row reads as a field name and a value, never a state word twice", () => {
+  // What running the card for real caught that 179 tests did not: the row labels were being
+  // taken from the STATE tables, so the card rendered `advancing blocked`, `high high` and
+  // `in flow broken`. Every test asserted that the values appeared; none asserted that the row
+  // reads. This one does, and it fails on a repeated word.
+  const s = stringsFor("en");
+  const text = view(input(), makePi().plain, { maxHeight: 80 }).render(76).join("\n");
+  for (const field of [s.fields.progress, s.fields.load, s.fields.flow]) {
+    assert.ok(text.includes(field), `the row for ${field} must name the field`);
+  }
+  // No row may put the same word in both columns.
+  for (const line of text.split("\n")) {
+    const words = line.trim().split(/\s+/);
+    const label = words[1];
+    const value = words[words.length - 1];
+    if (label === undefined || value === undefined) continue;
+    if (["Progress", "Load", "Flow"].includes(label)) {
+      assert.notEqual(label.toLowerCase(), value.toLowerCase(), "row reads '" + line.trim() + "'");
+    }
+  }
+});
+
 test("every need in the contract appears on the card", () => {
   const text = view(input(), makePi().plain, { maxHeight: 60 }).render(76).join("\n");
   const s = stringsFor("en");
