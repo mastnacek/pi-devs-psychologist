@@ -21,7 +21,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { isSilent } from "../../shared/appraisal-enforce.js";
 import type { Appraisal } from "../../shared/appraisal.js";
 import type { Intervention } from "../../shared/appraisal.js";
-import { stringsFor } from "../../shared/i18n.js";
+import { stringsFor, type Locale } from "../../shared/i18n.js";
 import { steerText } from "../../shared/prompt.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
 
@@ -126,4 +126,13 @@ export function defaultInterventionDeps(
 			else pi.sendUserMessage(body, { deliverAs: "followUp" });
 		},
 	};
+}
+
+/**
+ * Deliver the delivery-boundary notification (T15). One line, to the human only — never a card,
+ * never steering into the working agent's context (D8). Ui copy from the locale table.
+ */
+export function notifyUnverifiedCommit(ctx: ExtensionContext, lang: Locale, count: number): void {
+	if (!ctx.hasUI) return;
+	ctx.ui.notify(stringsFor(lang).commitUnverified(count), "info");
 }

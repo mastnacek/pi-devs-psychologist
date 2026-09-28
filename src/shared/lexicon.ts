@@ -38,6 +38,24 @@ export const VERIFICATION_PATTERNS: RegExp[] = [
 ];
 
 /**
+ * Commands that ship work to the world — the delivery boundary (T15). Readable like every other
+ * list here: `git commit`, `git push`, `gh pr create`, `npm publish`. Deliberately NOT
+ * `pi update`, which publishes nothing — and a dry run (`--help`) is fine to ignore.
+ */
+export const COMMIT_COMMANDS: RegExp[] = [
+	/\bgit\s+commit\b/i,
+	/\bgit\s+push\b/i,
+	/\bgh\s+pr\s+create\b/i,
+	/\bnpm\s+publish\b/i,
+];
+
+/** True when a shell command is one that delivers work. A match, not a judgement. */
+export function isCommitCommand(command: string | undefined): boolean {
+	if (!command) return false;
+	return COMMIT_COMMANDS.some((pattern) => pattern.test(command));
+}
+
+/**
  * Correction markers, English and Czech, because the operator writes both.
  * A count of matches, not a verdict: "again" in "let's try again" is a
  * correction, "again" in "again, that's the third file" is not.

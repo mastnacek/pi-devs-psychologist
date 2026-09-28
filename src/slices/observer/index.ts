@@ -18,9 +18,10 @@
  *   neither, which the fold treats as "no verification evidence".
  */
 
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { MUTATION_TOOLS, classifyFailure, errorTextFromResult } from "../../shared/lexicon.js";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { MUTATION_TOOLS, classifyFailure, errorTextFromResult, isCommitCommand } from "../../shared/lexicon.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
+import { mutationsSinceVerified } from "../../shared/signals.js";
 
 /** Argument spellings seen across the engine's built-in tools. */
 const COMMAND_KEYS = ["command", "cmd"] as const;
@@ -75,10 +76,22 @@ export function signatureFromResult(isError: boolean, result: unknown): string |
 }
 
 /**
+ * Cross-slice dependency the observer needs: delivering the commit-check text is a slice's job,
+ * so the composition root injects it rather than the observer importing another slice.
+ */
+export interface ObserverDeps {
+	/**
+	 * Deliver the delivery-boundary notification (T15). Injected by the composition root, which is
+	 * the only multi-slice importer — the observer records the fact, a slice delivers the text.
+	 */
+	notifyUnverifiedCommit?(ctx: ExtensionContext, count: number): void;
+}
+
+/**
  * Wire the observation events. Every subscription is tracked so
  * `session_shutdown` can drain it.
  */
-export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState): void {
+export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState, deps: ObserverDeps = {}): void {
 	state.track(
 		pi.on("input", (event, _ctx) => {
 			if (!state.config.enabled) return;
@@ -99,11 +112,12 @@ export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState)
 	);
 
 	state.track(
-		pi.on("tool_execution_end", (event, _ctx) => {
+		pi.on("tool_execution_end", (event, ctx) => {
 			if (!state.config.enabled) return;
 			const pending = state.pendingTools.get(event.toolCallId);
 			state.pendingTools.delete(event.toolCallId);
-			const signature = signatureFromResult(event.isError === true, event.result);
+			const ok = event.isError !== true;
+			const signature = signatureFromResult(ok === false, event.result);
 			// The key is added only when there is something to put in it: an `undefined`
 			// property would still occupy a slot in every observation, and the window holds up
 			// to `retainObservations` of them.
@@ -115,9 +129,18 @@ export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState)
 				path: pending?.path,
 				// `isError` is the engine's own verdict; `!event.isError` is not the
 				// same as "the command succeeded", and the fold only claims the former.
-				ok: event.isError !== true,
+				ok,
 				...(signature === undefined ? {} : { errorSignature: signature }),
 			});
+
+			// Delivery-boundary check (T15). Observe only — the command is never blocked or delayed
+			// (D8). A successful commit that ships unproven work is named for zero tokens; nothing
+			// else happens (a failure, a verified change set, or `commitCheck: false` are all silent).
+			if (!state.config.commitCheck || !ok) return;
+			if (!isCommitCommand(pending?.command)) return;
+			const mutations = mutationsSinceVerified(state.observations);
+			if (mutations === 0) return;
+			deps.notifyUnverifiedCommit?.(ctx, mutations);
 		}),
 	);
 

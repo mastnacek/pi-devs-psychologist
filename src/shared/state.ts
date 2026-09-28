@@ -242,11 +242,13 @@ export function signalOptions(state: DevsPsychologistState): {
 	unscopedWordFloor: number;
 	idleGapMs: number;
 	maxObservations: number;
+	commitCheck: boolean;
 } {
 	return {
 		restatementThreshold: state.config.restatementThreshold,
 		unscopedWordFloor: state.config.unscopedWordFloor,
 		idleGapMs: state.config.idleGapMs,
 		maxObservations: DEFAULT_SIGNAL_OPTIONS.maxObservations,
+		commitCheck: state.config.commitCheck,
 	};
 }

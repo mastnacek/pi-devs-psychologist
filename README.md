@@ -127,8 +127,10 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
     "staleProgress": 6,
     "compaction": 1,
     "thinkingRaised": 1,
-    "delivered": 1
+    "delivered": 1,
+    "commitUnverified": 1
   },
+  "commitCheck": true,
   "maxAppraisalsPerSession": 12,
   "steerAgent": false,
   "lang": "en",
@@ -151,6 +153,7 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `trigger` | `"signals"` | **Live.** `signals` \| `cadence`. `signals` appraises on new evidence; `cadence` is the old turn clock, kept for comparison |
 | `cadenceTurns` | `3` | **Live.** Under `trigger: "signals"` the minimum turns between attempts; under `trigger: "cadence"` the exact clock. An attempt restarts the count |
 | `triggerThresholds` | see JSON | **Live.** Per-reason trigger thresholds. Each key normalised independently; junk → default |
+| `commitCheck` | `true` | **Live.** On a successful commit (`git commit`, `git push`, `gh pr create`, `npm publish`) with unverified changes, name it in one notification and one evidence line. Observes only — never blocks; `false` silences it entirely |
 | `maxAppraisalsPerSession` | `12` | **Live.** Hard ceiling on *attempts* per session; `0` = unlimited |
 | `steerAgent` | `false` | **Live.** Whether an intervention may enter the working agent's context. Off by default: an observer is not an authority |
 | `restatementThreshold` | `0.6` | **Live.** Token overlap at which a prompt counts as a restatement |

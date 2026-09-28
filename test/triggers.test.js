@@ -24,6 +24,7 @@ function signals(over = {}) {
     restatedPrompts: 0,
     turnsSinceVerifiedProgress: 0,
     failureFingerprints: [],
+    unverifiedCommits: 0,
     ...over,
   };
 }
@@ -104,6 +105,20 @@ test("compaction and thinking_raised fire on new operator events", () => {
 test("delivered fires on a new closed loop", () => {
   assert.deepEqual(reasons({ deliveredRuns: 1 }), ["delivered"]);
   assert.deepEqual(reasons({ deliveredRuns: 1 }, {}, { ...EMPTY_TRIGGER_BASELINE, deliveredRuns: 1 }), []);
+});
+
+test("commit_unverified fires on a new unverified commit, and never twice for the same one", () => {
+  assert.deepEqual(reasons({ unverifiedCommits: 1 }), ["commit_unverified"]);
+  // The baseline already saw one commit: the same one must not fire again.
+  assert.deepEqual(
+    reasons({ unverifiedCommits: 1 }, {}, { ...EMPTY_TRIGGER_BASELINE, unverifiedCommits: 1 }),
+    [],
+  );
+  // A second unverified commit is new evidence.
+  assert.deepEqual(
+    reasons({ unverifiedCommits: 2 }, {}, { ...EMPTY_TRIGGER_BASELINE, unverifiedCommits: 1 }),
+    ["commit_unverified"],
+  );
 });
 
 test("several reasons can fire together, and all are named", () => {

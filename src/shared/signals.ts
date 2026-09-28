@@ -24,11 +24,13 @@ import {
 	DEFAULT_UNSCOPED_WORD_FLOOR,
 	MUTATION_TOOLS,
 	hasCorrectionMarker,
+	isCommitCommand,
 	isUnscoped,
 	isVerificationCommand,
 	overlap,
 	tokenize,
 } from "./lexicon.js";
+import { describeSignals } from "./signals-evidence.js";
 
 /** One tool invocation, paired from its start (args) and end (ok) events. */
 export interface ToolObservation {
@@ -71,6 +73,8 @@ export interface SignalOptions {
 	idleGapMs: number;
 	/** How many observations are retained. Bounds memory on a long session. */
 	maxObservations: number;
+	/** Whether the delivery-boundary fold runs at all (`config.commitCheck`, T15). */
+	commitCheck: boolean;
 }
 
 export const DEFAULT_SIGNAL_OPTIONS: SignalOptions = {
@@ -78,6 +82,7 @@ export const DEFAULT_SIGNAL_OPTIONS: SignalOptions = {
 	unscopedWordFloor: DEFAULT_UNSCOPED_WORD_FLOOR,
 	idleGapMs: 10 * 60 * 1000,
 	maxObservations: 600,
+	commitCheck: true,
 };
 
 export interface SessionSignals {
@@ -110,6 +115,13 @@ export interface SessionSignals {
 	churnedFiles: string[];
 	/** Successful runs of a verification command (test / lint / typecheck / build). */
 	verificationRuns: number;
+	/**
+	 * Commits (`git commit` etc.) made while a change set was still unverified. Counted for the
+	 * `commit_unverified` trigger (T15); 0 when `commitCheck` is off.
+	 */
+	unverifiedCommits: number;
+	/** File changes pending at the most recent of those commits — the evidence line's N. */
+	unverifiedCommitChanges: number;
 	/**
 	 * Consecutive failed tool calls at the tail of the window, ignoring non-tool entries between
 	 * them. The trigger rule for `failure_streak` reads this against a baseline snapshot.
@@ -208,6 +220,46 @@ function trailingFailureStreak(log: readonly Observation[]): number {
 }
 
 /**
+ * Successful mutation-tool calls since the last successful verification run.
+ *
+ * This is the number a delivery boundary reports: how much unproven work a commit is shipping.
+ * A commit does not reset it (the change set is still unproven) — only a successful verification
+ * does. Shared by the signal fold and the observer's commit check so the two can never disagree.
+ */
+export function mutationsSinceVerified(log: readonly Observation[]): number {
+	let count = 0;
+	for (const item of log) {
+		if (item.kind !== "tool") continue;
+		if (isVerificationCommand(item.command)) {
+			if (item.ok) count = 0;
+			continue;
+		}
+		if (item.ok && MUTATION_TOOLS.has(item.toolName)) count += 1;
+	}
+	return count;
+}
+
+/**
+ * Count commits made with an unverified change set, and the change count of the most recent one.
+ *
+ * Reuses `mutationsSinceVerified` per commit index rather than a parallel accumulator, so the
+ * evidence line can never disagree with the helper the observer notifies from. O(n²) over a
+ * bounded window (≤ `maxObservations`) — deliberately simple, cheap at these sizes.
+ */
+function scanUnverifiedCommits(log: readonly Observation[]): { commits: number; changes: number } {
+	let commits = 0;
+	let changes = 0;
+	log.forEach((item, index) => {
+		if (item.kind !== "tool" || !item.ok || !isCommitCommand(item.command)) return;
+		const pending = mutationsSinceVerified(log.slice(0, index + 1));
+		if (pending === 0) return;
+		commits += 1;
+		changes = pending;
+	});
+	return { commits, changes };
+}
+
+/**
  * Count successful verification runs that closed a real change set (≥ 4 mutations since the
  * previous one). The mutation counter resets on every successful verification, pass or not: a
  * run that proved nothing still ends the change set it was run against.
@@ -258,6 +310,9 @@ export function extractSignals(
 
 	const failures = tools.filter((tool) => !tool.ok);
 	const mutatedPaths = mutationPaths(log);
+	// The delivery-boundary fold is opt-out: `commitCheck: false` means it does not run at all, so
+	// no line, no counter and no trigger — the same switch that silences the observer notification.
+	const commitScan = opts.commitCheck ? scanUnverifiedCommits(log) : { commits: 0, changes: 0 };
 
 	// The last successful verification splits the window: everything after it is
 	// work whose result is still unproven.
@@ -304,6 +359,8 @@ export function extractSignals(
 		filesTouched: new Set(mutatedPaths).size,
 		churnedFiles: repeatedByFrequency(mutatedPaths),
 		verificationRuns,
+		unverifiedCommits: commitScan.commits,
+		unverifiedCommitChanges: commitScan.changes,
 		failureStreak: trailingFailureStreak(log),
 		deliveredRuns: countDeliveredRuns(log),
 		turnsSinceVerifiedProgress,
@@ -314,72 +371,4 @@ export function extractSignals(
 	};
 	signals.evidence = describeSignals(signals, opts.idleGapMs);
 	return signals;
-}
-
-/** Minutes, rounded — the only unit a tired reader parses reliably. */
-function minutes(ms: number): number {
-	return Math.round(ms / 60000);
-}
-
-/**
- * The evidence lines. These are what the psychologist model reads, so they state
- * counts and never conclusions: "6/9 tool calls failed", not "the agent is
- * struggling". Only non-zero facts are emitted, plus one always-present window
- * line, so absence of a line is itself information the model is told to read as
- * absence.
- */
-export function describeSignals(signals: SessionSignals, idleGapMs: number): string[] {
-	const lines: string[] = [
-		`window: ${signals.promptCount} prompt(s), ${signals.toolCalls} tool call(s), ${minutes(signals.windowMs)} min`,
-	];
-	if (signals.toolFailures > 0) {
-		lines.push(
-			`tool failures: ${signals.toolFailures}/${signals.toolCalls} (${Math.round(signals.toolFailureRate * 100)}%)` +
-				(signals.failingTools.length > 0 ? `, repeated: ${signals.failingTools.join(", ")}` : ""),
-		);
-	}
-	// One line per signature, however many times it happened. Four `edit` failures that share
-	// a cause are one fact, and printing them four times would make a single problem look like
-	// four — which is how an observer talks a programmer out of fixing the real one.
-	for (const fingerprint of signals.failureFingerprints.slice(0, 5)) {
-		lines.push(
-			`${fingerprint.toolName} failed ${fingerprint.count}x — ${fingerprint.signature}`,
-		);
-	}
-	// Recurrence, promoted to its own kind of line: "the same thing keeps failing" is a different
-	// fact from "a thing failed N times", and it is the one worth naming. Highest count first, at
-	// most three, so a noisy session cannot bury the rest of the evidence.
-	for (const fingerprint of signals.failureFingerprints.filter((f) => f.count >= 2).slice(0, 3)) {
-		lines.push(
-			`recurring failure: ${fingerprint.toolName} · ${fingerprint.signature} ×${fingerprint.count}`,
-		);
-	}
-	if (signals.turns === 0) {
-		// Nothing ran. 'No verification succeeded' would be a claim about work
-		// that does not exist, which is exactly the fabrication this plugin refuses.
-		return lines;
-	}
-	lines.push(
-		signals.verificationRuns === 0
-			? "verified progress: none — no test, lint, typecheck or build succeeded in this window"
-			: `verified progress: ${signals.verificationRuns} successful run(s); ${signals.turnsSinceVerifiedProgress} turn(s) since the last one`,
-	);
-	if (signals.restatedPrompts > 0) {
-		lines.push(`prompts restating an earlier prompt: ${signals.restatedPrompts}`);
-	}
-	if (signals.promptsWithCorrectionMarkers > 0) {
-		lines.push(`prompts containing a correction marker: ${signals.promptsWithCorrectionMarkers}`);
-	}
-	if (signals.unscopedPrompts > 0) {
-		lines.push(`long prompts with no file, path, command or identifier: ${signals.unscopedPrompts}`);
-	}
-	if (signals.churnedFiles.length > 0) {
-		lines.push(`files mutated more than once: ${signals.churnedFiles.slice(0, 5).join(", ")}`);
-	}
-	if (signals.idleGaps > 0) {
-		lines.push(
-			`pauses over ${minutes(idleGapMs)} min: ${signals.idleGaps} (longest ${minutes(signals.longestIdleGapMs)} min)`,
-		);
-	}
-	return lines;
 }

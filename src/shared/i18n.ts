@@ -102,6 +102,11 @@ export interface Strings {
 	reportTriggered: string;
 	/** `appraisals skipped: N (no new evidence)` — the measured saving of the trigger rule. */
 	reportSkipped: (n: number) => string;
+	/**
+	 * The delivery-boundary notification (T15): a commit shipped a change set no run ever proved.
+	 * English mirrors the evidence line exactly; the count is the number of file changes.
+	 */
+	commitUnverified: (count: number) => string;
 
 	/** Command surface. */
 	commandDescription: string;
@@ -170,6 +175,7 @@ const EN: Strings = {
 	reportTrigger: "trigger  ",
 	reportTriggered: "triggered by",
 	reportSkipped: (n) => `appraisals skipped: ${n} (no new evidence)`,
+	commitUnverified: (count) => `commit after ${count} file change(s) with no verified run since`,
 
 	commandDescription: "Developer psychologist: appraisal now, state, and settings",
 	cmdStatus: "show the report",
@@ -266,6 +272,7 @@ const CS: Strings = {
 	reportTrigger: "spouštěč ",
 	reportTriggered: "spuštěno:",
 	reportSkipped: (n) => `posouzení přeskočeno: ${n} (žádný nový důkaz)`,
+	commitUnverified: (count) => `commit po ${count} změnách bez ověřeného běhu`,
 
 	commandDescription: "Vývojářský psycholog: posouzení teď, stav a nastavení",
 	cmdStatus: "zobrazit report",

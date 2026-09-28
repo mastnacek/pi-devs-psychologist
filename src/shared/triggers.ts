@@ -22,8 +22,9 @@ import type { SessionSignals } from "./signals.js";
 import type { SessionHistory } from "./history.js";
 
 /**
- * The reason vocabulary. Kept as a list rather than a union literal so a later task (T15's
- * `commit_unverified`) can extend it in one place; `evaluateTriggers` stays the only decider.
+ * The reason vocabulary. Kept as a list rather than a union literal so a new reason is added in
+ * one place — `failure_streak` … `delivered`, plus T15's `commit_unverified`; `evaluateTriggers`
+ * stays the only decider.
  */
 export const TRIGGER_REASONS = [
 	"failure_streak",
@@ -34,6 +35,7 @@ export const TRIGGER_REASONS = [
 	"compaction",
 	"thinking_raised",
 	"delivered",
+	"commit_unverified",
 ] as const;
 
 export type TriggerReason = (typeof TRIGGER_REASONS)[number];
@@ -56,6 +58,8 @@ export interface TriggerThresholds {
 	thinkingRaised: number;
 	/** New deliveries (a verified run after a real change set) since baseline. */
 	delivered: number;
+	/** New commits made with an unverified change set since baseline (T15). */
+	commitUnverified: number;
 }
 
 export const DEFAULT_TRIGGER_THRESHOLDS: TriggerThresholds = {
@@ -67,6 +71,7 @@ export const DEFAULT_TRIGGER_THRESHOLDS: TriggerThresholds = {
 	compaction: 1,
 	thinkingRaised: 1,
 	delivered: 1,
+	commitUnverified: 1,
 };
 
 /** The two folds a trigger reads: the live window and the session record. */
@@ -89,6 +94,8 @@ export interface TriggerBaseline {
 	compactions: number;
 	thinkingRaises: number;
 	deliveredRuns: number;
+	/** Commits made with an unverified change set (T15). */
+	unverifiedCommits: number;
 }
 
 /** One spelling of the fingerprint key, shared by the snapshot and the comparison. */
@@ -106,6 +113,7 @@ export const EMPTY_TRIGGER_BASELINE: TriggerBaseline = {
 	compactions: 0,
 	thinkingRaises: 0,
 	deliveredRuns: 0,
+	unverifiedCommits: 0,
 };
 
 /**
@@ -128,6 +136,7 @@ export function snapshotTriggers(current: TriggerInput): TriggerBaseline {
 		compactions: current.history.compactions,
 		thinkingRaises: current.history.thinkingRaises,
 		deliveredRuns: current.signals.deliveredRuns,
+		unverifiedCommits: current.signals.unverifiedCommits,
 	};
 }
 
@@ -182,6 +191,10 @@ export function evaluateTriggers(
 	}
 	if (signals.deliveredRuns - baseline.deliveredRuns >= thresholds.delivered) {
 		reasons.push("delivered");
+	}
+	// A new unverified commit is a delivery-boundary event worth naming: work shipped unproven.
+	if (signals.unverifiedCommits - baseline.unverifiedCommits >= thresholds.commitUnverified) {
+		reasons.push("commit_unverified");
 	}
 
 	return { fire: reasons.length > 0, reasons };

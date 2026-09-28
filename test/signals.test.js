@@ -9,9 +9,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   DEFAULT_SIGNAL_OPTIONS,
-  describeSignals,
   extractSignals,
+  mutationsSinceVerified,
 } from "../src/shared/signals.js";
+import { describeSignals } from "../src/shared/signals-evidence.js";
 import {
   classifyFailure,
   errorTextFromResult,
@@ -322,4 +323,52 @@ test("deliveredRuns counts a verified run only after a real change set", () => {
   // Three mutations, not four: activity that proved itself is not a delivery.
   assert.equal(extractSignals([...edits.slice(0, 3), verified]).deliveredRuns, 0);
   assert.equal(extractSignals([verified]).deliveredRuns, 0);
+});
+
+// --- the delivery boundary (T15) -----------------------------------------
+// The number a commit reports: how much unproven work it is shipping. A commit does not reset it —
+// only a successful verification does — and a failed verification resets nothing.
+
+test("mutationsSinceVerified counts mutations since the last successful verification", () => {
+  const edit = (ok = true) => ({ kind: "tool", at: 0, toolName: "edit", path: "a.ts", ok });
+  const verified = { kind: "tool", at: 9, toolName: "bash", command: "npm test", ok: true };
+  const failedRun = { kind: "tool", at: 9, toolName: "bash", command: "npm test", ok: false };
+
+  assert.equal(mutationsSinceVerified([]), 0);
+  assert.equal(mutationsSinceVerified([edit(), edit()]), 2);
+  assert.equal(mutationsSinceVerified([edit(), edit(), verified]), 0, "a successful run clears the set");
+  assert.equal(mutationsSinceVerified([edit(), edit(), verified, edit()]), 1);
+  assert.equal(
+    mutationsSinceVerified([edit(), edit(false), failedRun]),
+    1,
+    "a failed mutation and a failed run reset nothing",
+  );
+});
+
+test("an unverified commit adds one evidence line carrying the pending change count", () => {
+  const signals = extractSignals([
+    { kind: "tool", at: 1, toolName: "edit", path: "a.ts", ok: true },
+    { kind: "tool", at: 2, toolName: "edit", path: "b.ts", ok: true },
+    { kind: "tool", at: 3, toolName: "bash", command: "git commit -m x", ok: true },
+  ]);
+  assert.equal(signals.unverifiedCommits, 1);
+  assert.equal(signals.unverifiedCommitChanges, 2);
+  assert.ok(signals.evidence.includes("commit after 2 file change(s) with no verified run since"));
+});
+
+test("a verified change set or commitCheck:false produces no line and no counter", () => {
+  const verified = [
+    { kind: "tool", at: 1, toolName: "edit", path: "a.ts", ok: true },
+    { kind: "tool", at: 2, toolName: "bash", command: "npm test", ok: true },
+    { kind: "tool", at: 3, toolName: "bash", command: "git commit", ok: true },
+  ];
+  assert.equal(extractSignals(verified).unverifiedCommits, 0);
+
+  const unverified = [
+    { kind: "tool", at: 1, toolName: "edit", path: "a.ts", ok: true },
+    { kind: "tool", at: 2, toolName: "bash", command: "git commit", ok: true },
+  ];
+  const off = extractSignals(unverified, { commitCheck: false });
+  assert.equal(off.unverifiedCommits, 0, "the switch turns the whole fold off");
+  assert.ok(!off.evidence.some((line) => line.startsWith("commit after")), "and there is no line");
 });

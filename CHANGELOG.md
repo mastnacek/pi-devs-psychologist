@@ -2,7 +2,8 @@
 
 ## 0.4.0 (unreleased)
 
-T14 and T18. The appraiser stops running on a clock and starts running on evidence.
+T14, T15 and T18. The appraiser stops running on a clock and starts running on evidence, and a
+commit no run ever verified is named for zero tokens.
 
 ### Added
 
@@ -10,8 +11,7 @@ T14 and T18. The appraiser stops running on a clock and starts running on eviden
   `evaluateTriggers(current, baseline, thresholds)` and `snapshotTriggers`. A trigger is a delta
   against a baseline snapshot taken at the last attempt, so the same old failure never fires twice.
   Reasons: `failure_streak`, `recurring_failure`, `restatement`, `operator_abort`, `stale_progress`,
-  `compaction`, `thinking_raised`, `delivered`. (`commit_unverified` is left to T15; the reason list
-  is the single extension point.)
+  `compaction`, `thinking_raised`, `delivered`, `commit_unverified`.
 - **Config `trigger: "signals" | "cadence"` (default `"signals"`) and `triggerThresholds`.**
   `signals` appraises on new evidence with `cadenceTurns` as a floor; `cadence` is exactly the old
   clock. New default `cadenceTurns` is **3** (it is now a floor). Thresholds normalise per key;
@@ -23,6 +23,17 @@ T14 and T18. The appraiser stops running on a clock and starts running on eviden
   becomes its own evidence line, highest count first, capped at three.
 - **`/psych` shows the trigger rule**: the mode, the reasons that last fired, and
   `appraisals skipped: N (no new evidence)` — the measured saving.
+- **Delivery-boundary check (T15).** On a successful `bash` command matching `COMMIT_COMMANDS`
+  (`git commit`, `git push`, `gh pr create`, `npm publish` — never `pi update`), if there are
+  successful mutations since the last verified run, the plugin delivers ONE notification (from
+  `i18n.ts`, `en` + `cs`) and adds one LIVE evidence line
+  `commit after N file change(s) with no verified run since`, and raises trigger
+  `commit_unverified`. `N` comes from the pure `mutationsSinceVerified` helper in `signals.ts`,
+  shared with the observer so the line and the notification can never disagree. Nothing on the
+  success path, a failed command, or `commitCheck: false`. **Observes only** — never blocks or
+  delays the command (D8).
+- **Config `commitCheck: boolean` (default `true`).** Normalised opt-out; the same switch silences
+  the notification, the evidence line and the trigger.
 
 ### Changed
 
@@ -31,13 +42,17 @@ T14 and T18. The appraiser stops running on a clock and starts running on eviden
 - State gains `triggerBaseline`, `appraisalsSkipped` and `lastTriggerReasons`; all reset on session
   start alongside the window.
 - `SessionSignals` gains `failureStreak` and `deliveredRuns`, the two counters the trigger rule
-  needed that the fold did not expose.
+  needed that the fold did not expose — plus `unverifiedCommits` / `unverifiedCommitChanges` (T15).
+- `signals.ts` was split by concept: the evidence renderer moved to `signals-evidence.ts`, the
+  same way `history.ts` / `history-evidence.ts` already are.
 
 ### Verification
 
 `trigger-appraisal.test.js` asserts 30 healthy turns cost zero calls, a 3-failure streak spends
 once and not again, and the trigger line is citable. `triggers.test.js` asserts each reason in
-isolation and against a baseline that already saw it.
+isolation and against a baseline that already saw it. `commit-check.test.js` asserts the delivery
+boundary: two edits then a commit fires one notification and one line with N=2; a verified set, a
+failed command, `commitCheck: false` and a headless context all stay silent.
 
 ## 0.3.1 — README truth pass
 

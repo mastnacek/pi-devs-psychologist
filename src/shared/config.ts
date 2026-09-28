@@ -51,6 +51,11 @@ export interface DevsPsychologistConfig {
 	cadenceTurns: number;
 	/** Per-reason trigger thresholds. Each normalised independently; junk → default. */
 	triggerThresholds: TriggerThresholds;
+	/**
+	 * Whether a successful commit (`git commit`, `git push`, `gh pr create`, `npm publish`) made
+	 * with unverified changes is named (T15). ON by default: it observes only, never blocks.
+	 */
+	commitCheck: boolean;
 	/** Hard ceiling on appraisals per session. 0 = unlimited (not recommended). */
 	maxAppraisalsPerSession: number;
 	/** Token-overlap ratio at which a prompt counts as a restatement. */
@@ -88,6 +93,7 @@ export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	trigger: "signals",
 	cadenceTurns: 3,
 	triggerThresholds: { ...DEFAULT_TRIGGER_THRESHOLDS },
+	commitCheck: true,
 	maxAppraisalsPerSession: 12,
 	restatementThreshold: DEFAULT_SIGNAL_OPTIONS.restatementThreshold,
 	unscopedWordFloor: DEFAULT_SIGNAL_OPTIONS.unscopedWordFloor,
@@ -155,6 +161,7 @@ function normalizeThresholds(value: unknown): TriggerThresholds {
 		compaction: positiveInt(raw.compaction, fallback.compaction, 1),
 		thinkingRaised: positiveInt(raw.thinkingRaised, fallback.thinkingRaised, 1),
 		delivered: positiveInt(raw.delivered, fallback.delivered, 1),
+		commitUnverified: positiveInt(raw.commitUnverified, fallback.commitUnverified, 1),
 	};
 }
 
@@ -170,6 +177,9 @@ export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsych
 		trigger: triggerMode(cfg.trigger),
 		cadenceTurns: positiveInt(cfg.cadenceTurns, DEFAULT_CONFIG.cadenceTurns, 1),
 		triggerThresholds: normalizeThresholds(cfg.triggerThresholds),
+		// Default on, opt-out: `false` is the only value that disables it, so a hand-written config
+		// with a missing or nonsense key keeps the better behaviour.
+		commitCheck: cfg.commitCheck !== false,
 		// 0 is meaningful here (unlimited), so the floor is 0 and the default is a
 		// real cap.
 		maxAppraisalsPerSession: positiveInt(

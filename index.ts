@@ -32,7 +32,7 @@ import { refreshModelCatalog, createDevsPsychologistState, reloadConfig, signalO
 import { clearChip, paintChip } from "./src/shared/status.js";
 import { maybeAppraise, registerAppraiser, defaultDeps } from "./src/slices/appraiser/index.js";
 import { registerPsychCommand } from "./src/slices/commands/index.js";
-import { defaultInterventionDeps, deliverIntervention } from "./src/slices/interventions/index.js";
+import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
 import { registerObserver } from "./src/slices/observer/index.js";
 import { presentAppraisal } from "./src/slices/overlay/index.js";
 import { renderReport } from "./src/slices/report/index.js";
@@ -96,7 +96,11 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal, opt
 		}),
 	);
 
-	registerObserver(pi, state);
+	registerObserver(pi, state, {
+		// The commit check's notification text comes from the delivery slice; the observer only
+		// records the fact. The composition root is the only place that knows both.
+		notifyUnverifiedCommit: (ctx, count) => notifyUnverifiedCommit(ctx, state.config.lang, count),
+	});
 	registerAppraiser(pi, state, appraiserDeps);
 
 	registerPsychCommand(pi, state, {
