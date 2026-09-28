@@ -124,7 +124,8 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
   "restatementThreshold": 0.6,
   "unscopedWordFloor": 25,
   "idleGapMs": 600000,
-  "retainObservations": 600
+  "retainObservations": 600,
+  "envFacts": true
 }
 ```
 
@@ -133,30 +134,22 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | Key | Default | Effect today |
 |---|---|---|
 | `enabled` | `true` | **Live.** Master switch. Off observes nothing and spends nothing |
-| `model` | `""` | **Chip only until T4.** `provider/modelId`. Empty means observation at zero model spend, and the chip reads `psych: signals` |
+| `model` | `""` | **Live.** `provider/modelId`. Empty means observation at zero model spend, and the chip reads `psych: signals` |
 | `lang` | `"en"` | **Live.** `en` \| `cs` — the chip's own text. Model-facing text stays English in every locale |
 | `retainObservations` | `600` | **Live.** Bounds the observation window held in memory |
 | `cadenceTurns` | `8` | **Live.** Turns between appraisals; an attempt restarts the count |
 | `maxAppraisalsPerSession` | `12` | **Live.** Hard ceiling on *attempts* per session; `0` = unlimited |
 | `steerAgent` | `false` | **Live.** Whether an intervention may enter the working agent's context. Off by default: an observer is not an authority |
-| `restatementThreshold` | `0.6` | Pending T3/T4. Token overlap at which a prompt counts as a restatement |
-| `unscopedWordFloor` | `25` | Pending T3/T4. Word count above which an anchor-less prompt is reported unscoped |
-| `idleGapMs` | `600000` | Pending T3/T4. Gap between prompts counted as an interruption (10 min) |
-
-**"Pending" keys are validated and persisted now but do nothing yet** — the slice that
-reads them has not landed, so nothing invokes the fold or the appraiser they configure.
-Setting them early is harmless and they start working when their slice ships. They are
-listed rather than hidden because a config key that silently does nothing is worse than
-no key at all: you would set it, see no change, and stop believing the file.
+| `restatementThreshold` | `0.6` | **Live.** Token overlap at which a prompt counts as a restatement |
+| `unscopedWordFloor` | `25` | **Live.** Word count above which an anchor-less prompt is reported unscoped |
+| `idleGapMs` | `600000` | **Live.** Gap between prompts counted as an interruption (10 min) |
+| `envFacts` | `true` | **Live.** Include the parent-computed environment lines (pi version, pi-lens LSP/format/guard state) among the citable evidence |
 
 Coercion, so a typo degrades instead of breaking the session: junk numbers fall back to
 the default; `model` must be a string, and an unparsable one becomes `""` rather than a
 guess at which model you meant; an unknown `lang` becomes `en`; `0` is a real value for
 the budget (unlimited). The two layers merge **per key**, so a project patch never freezes
 the values it inherits.
-
-Today the model is set in the config file; the `/psych` command below is **not built yet**
-(T2–T6).
 
 **Pick a model the working agent is not.** An observer that shares the worker's blind
 spots is not an observer. A different *account* is not automatically a different
@@ -210,8 +203,8 @@ and the invariants are in [`docs/adr/0001-two-roles-one-observer.md`](docs/adr/0
 
 ## Status
 
-`0.2.0` — **complete.** It observes, appraises on a cadence, shows the appraisal as a card, and
-answers `/psych`. 169 tests.
+`0.3.1` — **complete.** It observes, appraises on a cadence, shows the appraisal as a card, and
+answers `/psych`. 200 tests.
 
 Live today: the observation window, the session-history fold, the appraiser with its budget, the
 appraisal card, the delivery policy (card → notification → steering, off by default), the

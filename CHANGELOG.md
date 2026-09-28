@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 0.3.1 — README truth pass
+
+### Fixed
+
+- **The README contradicted the code.** The Status section claimed `0.2.0` and a stale test count;
+  the key table marked `model` "Chip only until T4" and `restatementThreshold` / `unscopedWordFloor`
+  / `idleGapMs` "Pending T3/T4" even though the appraiser has shipped and every one of them is read
+  at runtime (the three signal keys via `signalOptions` → `extractSignals`); a sentence claimed the
+  `/psych` command "is not built yet" when `src/slices/commands` has shipped; and `envFacts` was
+  missing from both the JSON example and the key table.
+- Every row is now **Live**, matching a grep of each `DEFAULT_CONFIG` key for its consumer, and the
+  stale "Pending keys" paragraph is gone.
+
+### Added
+
+- **`test/readme.test.js`** asserts a markdown table row for each `DEFAULT_CONFIG` key, so the README
+  cannot silently drop a key again.
+
 ## 0.3.0 — the model picker asks the registry
 
 ### Added
