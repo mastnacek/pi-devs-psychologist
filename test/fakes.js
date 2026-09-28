@@ -20,16 +20,21 @@ export function makePi() {
   const commands = new Map();
   const handlers = new Map();
   const entries = [];
+  const unsubscribed = [];
   return {
     tools,
     commands,
     handlers,
     entries,
+    /** Events whose unsubscribe function was invoked — proves the drain happened. */
+    unsubscribed,
     on(event, handler) {
       const list = handlers.get(event) ?? [];
       list.push(handler);
       handlers.set(event, list);
-      return () => {};
+      return () => {
+        unsubscribed.push(event);
+      };
     },
     registerTool(def) {
       tools.set(def.name, def);
