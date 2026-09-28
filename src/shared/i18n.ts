@@ -9,7 +9,8 @@
  *   locale, because they are instructions to a model, not copy for a human. A
  *   translated evidence line would change the model's reading of the numbers.
  *
- * English stays the default: the plugin is installed from a public repo.
+ * English stays the default regardless of the repository's visibility: it is the fallback
+ * when no language is configured, and the model-facing text is English in every locale.
  *
  * Hard invariant, enforced by `test/i18n.test.js`: every key exists in every
  * locale, recursively. A missing key would not crash — it would silently render

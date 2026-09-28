@@ -9,6 +9,8 @@ against the published research on developer psychology**, and names **at most on
 intervention**. Every claim it makes is traceable to a number it was given.
 
 ```bash
+# The repository is private, so cloning requires stored GitHub credentials
+# (`gh auth setup-git` if git cannot authenticate).
 pi install git:github.com/mastnacek/pi-devs-psychologist
 
 # try without installing
