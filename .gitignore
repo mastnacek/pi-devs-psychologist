@@ -5,3 +5,6 @@ node_modules
 # Raw NotebookLM research exports (large, machine-specific, re-fetchable with
 # `nlm source content <id>`). The distilled digest is tracked in docs/.
 .research/
+# Machine-local state written by other plugins (decision gate, ADR indexer)
+/.pi/
+docs/adr/.index.json
