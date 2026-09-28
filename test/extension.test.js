@@ -81,11 +81,19 @@ test("every subscription is tracked, and session_shutdown drains the tracked one
 
     await pi.emit("session_shutdown", { type: "session_shutdown" }, ctx);
 
-    // session_start plus the four observer subscriptions: the shutdown handler
+    // session_start, the observer's four, and the appraiser's one. The shutdown handler
     // itself is not tracked, because it is the drainer.
     assert.deepEqual(
       [...pi.unsubscribed].sort(),
-      ["input", "session_start", "tool_execution_end", "tool_execution_start", "turn_end"],
+      [
+        "input",
+        "session_start",
+        "tool_execution_end",
+        "tool_execution_start",
+        // turn_end twice: the observer records the turn, the appraiser reacts to it.
+        "turn_end",
+        "turn_end",
+      ],
     );
     // Draining twice must not throw: cancellation, reload and exit all converge here.
     await pi.emit("session_shutdown", { type: "session_shutdown" }, ctx);

@@ -1,5 +1,62 @@
 # CHANGELOG
 
+## 0.1.0 — the appraiser works
+
+The plugin now does what it was built for: it reads the objective evidence, asks a second
+model what it means for the person, and refuses to pass on anything that model cannot
+cite. This is T2, T3 and T4.
+
+### Added
+
+- **The model call** (`src/shared/model-call.ts`) — the one place the plugin talks to a
+  model. Resolves `provider/modelId` through the registry, resolves auth per request, and
+  returns a typed result naming the stage that failed (`config` / `resolve` / `auth` /
+  `request` / `response`) instead of throwing into the session. The reference splits on the
+  FIRST slash only, because OpenRouter model ids contain slashes.
+- **The prompt** (`src/shared/prompt.ts`) — model-facing English, rule-shaped rather than
+  a psychology lecture. Evidence lines are presented verbatim and unnumbered so a copied
+  citation is byte-identical and matches on the first attempt.
+- **The contract** (`src/shared/appraisal.ts`) — the appraisal schema built from
+  `StringEnum`, with `unassessed` / `unproven` as first-class abstentions. The model
+  **classifies and cites; it never enumerates facts**, which is why there is no free-text
+  "what got done" field for an invented achievement to appear in.
+- **Citation enforcement** (`src/shared/appraisal-enforce.ts`) — every verdict must cite a
+  line the plugin actually supplied. An uncited verdict is downgraded to its neutral value;
+  an uncited intervention is removed; two interventions are refused as a batch rather than
+  truncated, because taking the first would reward ignoring the contract. A fully fabricated
+  response parses to silence.
+- **The appraiser** (`src/slices/appraiser`) — cadence, budget, single-flight, and a typed
+  outcome naming why it did or did not run (`disabled`, `headless`, `no_model`, `in_flight`,
+  `cadence`, `budget`). Budget and cadence are **attempts**-based, because a failed call may
+  still be billed and a failure retried every turn is a spend loop. Headless sessions spend
+  nothing at all.
+- The chip reports a configuration failure (`psych: check model`) persistently, because
+  only the operator can fix it — while a transient provider error stays quiet.
+
+### Fixed
+
+- **A `load` verdict could never be anything but `unassessed`.** The field is `level`, the
+  enforcement helper read `state`, so the cognitive-load reading silently fell back to
+  neutral forever. The schema test could not catch it (the schema has `level`); the
+  enforcement test did. The reader now takes the field name, and `load` is covered
+  specifically.
+
+### Measured, and worth knowing
+
+- **The engine cannot be told about these calls.** Extensions receive a
+  `ReadonlySessionManager` — a `Pick<…>` of read-only methods with no `appendUsage` — so the
+  session's own token and cost meter does **not** include appraisals. The skill's "include
+  usage in the tool result" rule has no equivalent for a background call: a tool can report
+  usage because the engine is waiting on its result. The plugin reports its own spend
+  itself (`state.lastAppraisalUsage`) rather than implying the engine counted it.
+
+### Verification
+
+119 tests. The headline one is the cost model: forty turns, cadence 8, budget 3 — exactly
+three calls, and the fourth refused. Also pinned: a failed attempt consumes budget and
+restarts the cadence, a slow appraisal is not asked twice, a fabricated response reaches
+nobody, and the schema contains no `anyOf`/`const` so Google's API accepts it.
+
 ## 0.0.6 — the config file now exists, and history is split by concept
 
 ### Fixed

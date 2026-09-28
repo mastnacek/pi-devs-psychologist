@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-09-28 18:24:08",
+  "lastUpdated": "2026-09-28 20:06:35",
   "records": [
     {
       "id": "SPAI-001",
@@ -124,6 +124,21 @@
       "project": "pi-devs-psychologist",
       "projectPath": "D:/01_programovani/pi/plugins/pi-devs-psychologist",
       "file": "2026-09-28-SPAI-008-model-plan-for-this-project-it-will-run-multiple-o.md"
+    },
+    {
+      "id": "SPAI-009",
+      "title": "Land the appraiser (T2-T4): one model call with stage-typed failures, the English rule-shaped prompt, the StringEnum appraisal contract with citation enforcement, and cadence/budget/single-flight policy. Found and fixed a silent bug: the load verdict uses field 'level' but the enforcement reader read 'state', so cognitive load could never be anything but unassessed forever; the schema test could not catch it, the enforcement test did. Also measured: extensions get ReadonlySessionManager with no appendUsage, so a background model call cannot be booked into session token/cost totals - the plugin reports its own spend instead. 119 tests, tsc clean",
+      "type": "Todo",
+      "status": "done",
+      "symbol": "x",
+      "timestamp": "2026-09-28 20:06:35",
+      "tags": [
+        "done",
+        "appraiser"
+      ],
+      "project": "pi-devs-psychologist",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-devs-psychologist",
+      "file": "2026-09-28-SPAI-009-land-the-appraiser-t2-t4-one-model-call-with-stage.md"
     }
   ]
 }

@@ -29,6 +29,11 @@ export interface Strings {
 	/** Shown when no model is configured: observation is live, the spend is zero. */
 	chipSignals: string;
 	/**
+	 * Shown when the configured model cannot be resolved or has no credentials. Persistent
+	 * rather than a notification: only the operator can fix it, and a nag would be worse.
+	 */
+	chipConfigError: string;
+	/**
 	 * `psych 3t · 0/12`.
 	 * `waiting` is turns since the last appraisal, `budget` is `used` or `used/cap`.
 	 * A function rather than a template string so a locale can reorder the parts.
@@ -62,6 +67,7 @@ const STRINGS = {
 	en: {
 		chipOff: "psych: off",
 		chipSignals: "psych: signals",
+		chipConfigError: "psych: check model",
 		chipAppraisal: (waiting, budget) => `psych ${waiting} · ${budget}`,
 		reportTitle: "DEVELOPER PSYCHOLOGIST",
 		reportSignals: "Observed signals",
@@ -81,6 +87,7 @@ const STRINGS = {
 	cs: {
 		chipOff: "psych: vyp",
 		chipSignals: "psych: signály",
+		chipConfigError: "psych: zkontroluj model",
 		chipAppraisal: (waiting, budget) => `psych ${waiting} · ${budget}`,
 		reportTitle: "VÝVOJÁŘSKÝ PSYCHOLOG",
 		reportSignals: "Zjištěné signály",

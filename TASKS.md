@@ -46,7 +46,7 @@ the wait clock.
 
 ---
 
-## . T2 — Nested model call
+## x T2 — Nested model call
 
 `src/shared/model-call.ts`: resolve the configured `provider/modelId` against
 `ctx.modelRegistry`, take auth via `getApiKeyAndHeaders`, call
@@ -59,7 +59,7 @@ the session; usage is propagated.
 
 ---
 
-## . T3 — The psychologist prompt + structured appraisal schema
+## x T3 — The psychologist prompt + structured appraisal schema
 
 `src/shared/prompt.ts` (English, model-facing) and `src/shared/appraisal.ts`:
 the system prompt and a TypeBox schema (`StringEnum`, never `Type.Union`) for the
@@ -80,7 +80,7 @@ asserted to contain the no-score and cite-or-silence rules.
 
 ---
 
-## . T4 — Cadence, budget and single-flight policy
+## x T4 — Cadence, budget and single-flight policy
 
 `src/slices/appraiser/index.ts`: an appraisal fires on `turn_end` when
 `turnsSinceAppraisal >= cadenceTurns`, only while `budgetAvailable()`, never while

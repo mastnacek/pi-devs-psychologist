@@ -163,8 +163,18 @@ than it gives is a net loss to the session it is watching.
 | Research/design docs | Not in the prompt; loaded only when developing the plugin |
 | Idle | No timers, no watchers, no polling |
 
-Hard caps: `cadenceTurns` (default 8), `maxAppraisalsPerSession` (default 12),
+Hard caps: `cadenceTurns` (default 8), `maxAppraisalsPerSession` (default 12, on
+**attempts** rather than successes because a failed call may still be billed), and
 single-flight so a slow appraisal never doubles the spend.
+
+**Measured gap, worth knowing:** the engine cannot be told about these calls.
+Extensions receive a `ReadonlySessionManager`, a `Pick<…>` of read-only methods with no
+`appendUsage`, so the session's own token and cost meter does **not** include appraisals.
+The skill's "include usage in the tool result" rule has no equivalent here — a tool can
+report usage because the engine is waiting on its result, and a slice called from
+`turn_end` has no such seam. The plugin therefore reports its own spend itself
+(`state.lastAppraisalUsage`, surfaced by `/psych`) instead of implying the engine counted
+it. On a free-tier account this costs nothing; on a paid one, budget for a second meter.
 
 ## 8. Merge with `pi-quick-win`? — recommendation: **no**
 

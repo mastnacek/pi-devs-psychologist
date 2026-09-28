@@ -134,8 +134,8 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `model` | `""` | **Chip only until T4.** `provider/modelId`. Empty means observation at zero model spend, and the chip reads `psych: signals` |
 | `lang` | `"en"` | **Live.** `en` \| `cs` — the chip's own text. Model-facing text stays English in every locale |
 | `retainObservations` | `600` | **Live.** Bounds the observation window held in memory |
-| `cadenceTurns` | `8` | Pending T4. Turns between appraisals |
-| `maxAppraisalsPerSession` | `12` | Pending T4. Hard ceiling per session; `0` = unlimited |
+| `cadenceTurns` | `8` | **Live.** Turns between appraisals; an attempt restarts the count |
+| `maxAppraisalsPerSession` | `12` | **Live.** Hard ceiling on *attempts* per session; `0` = unlimited |
 | `steerAgent` | `false` | Pending T5. Whether an intervention may enter the working agent's context. Off by default: an observer is not an authority |
 | `restatementThreshold` | `0.6` | Pending T3/T4. Token overlap at which a prompt counts as a restatement |
 | `unscopedWordFloor` | `25` | Pending T3/T4. Word count above which an anchor-less prompt is reported unscoped |
@@ -202,9 +202,17 @@ and the invariants are in [`docs/adr/0001-two-roles-one-observer.md`](docs/adr/0
 
 ## Status
 
-`0.0.3` — the observation kernel, the session-history fold and its data boundary are
-landed and tested (57 tests). The appraiser (T2–T4), the intervention policy and
-`/psych` are next; the reviewer role is designed and deliberately unbuilt (T12).
-See `TASKS.md`.
+`0.1.0` — **the appraiser works.** It reads the two evidence sets, asks the configured
+model on a cadence, enforces that every verdict cites a line the plugin actually supplied,
+and reports at most one intervention. 119 tests.
+
+Live today: the observation window, the session-history fold, the appraiser and its
+budget, and the statusline chip. Next: the intervention policy proper (T5), `/psych` and
+its report (T6), persistence (T7). The reviewer role is designed and deliberately unbuilt
+(T12). See `TASKS.md`.
+
+Not yet built, so not yet in the README as if it were: `/psych` (T6). Today the appraisal
+reaches you as a single notification when it has an intervention, and otherwise as
+silence — which is the designed behaviour, not a failure.
 
 MIT.

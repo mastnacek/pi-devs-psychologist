@@ -31,6 +31,9 @@ export function setStatus(ctx: ExtensionContext, text: string | undefined): void
  * Every string comes from the locale table (`config.lang`). Hardcoding them here was
  * a defect: `lang` was validated, persisted and then ignored.
  */
+/** Failure stages only the operator can fix. A transient one must not light up the chip. */
+const CONFIG_STAGES = new Set(["config", "resolve", "auth"]);
+
 export function paintChip(state: DevsPsychologistState, ctx: ExtensionContext): void {
 	const strings = stringsFor(state.config.lang);
 	if (!state.config.enabled) {
@@ -39,6 +42,14 @@ export function paintChip(state: DevsPsychologistState, ctx: ExtensionContext): 
 	}
 	if (state.config.model.length === 0) {
 		setStatus(ctx, strings.chipSignals);
+		return;
+	}
+
+	// A model that cannot be resolved or has no credentials is a configuration problem only
+	// the operator can fix, so it earns a persistent chip. Transient failures — a provider
+	// error, a timeout — must not shout: they are not actionable and they pass.
+	if (state.lastAppraisalFailure && CONFIG_STAGES.has(state.lastAppraisalFailure.stage)) {
+		setStatus(ctx, strings.chipConfigError);
 		return;
 	}
 	const cap = state.config.maxAppraisalsPerSession;

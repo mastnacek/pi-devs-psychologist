@@ -1,18 +1,19 @@
 /**
- * DevsPsychologistState — session-scoped kernel shared by the composition root
- * and every slice. One instance per session; nothing module-global, so
- * concurrent or mocked registrations stay isolated (and tests need no reset
- * hook).
+ * DevsPsychologistState — session-scoped kernel shared by the composition root and
+ * every slice. One instance per session; nothing module-global, so concurrent or
+ * mocked registrations stay isolated (and tests need no reset hook).
  *
- * The state holds the observation window and nothing about the programmer. That
- * is intentional and load-bearing: the plugin's only durable memory of the
- * session is a bounded list of *events*, never a stored judgement about a
- * person. A judgement recomputed from events can be corrected by new evidence;
- * a judgement written down becomes a label.
+ * The state holds the observation window and the last appraisal, and nothing about the
+ * programmer. That is intentional and load-bearing: the plugin's only durable memory is a
+ * bounded list of *events* plus a judgement that is always recomputed from them. A
+ * judgement recomputed from evidence can be corrected by new evidence; a judgement written
+ * down becomes a label.
  */
 
 import { DEFAULT_CONFIG, GLOBAL_CONFIG_FILE, loadConfig, type DevsPsychologistConfig } from "./config.js";
 import { DEFAULT_SIGNAL_OPTIONS, type Observation } from "./signals.js";
+import type { Appraisal } from "./appraisal.js";
+import type { UsageSummary } from "./model-call.js";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 /** Tool call metadata captured at start, paired with its outcome at end. */
@@ -20,6 +21,14 @@ export interface PendingTool {
 	toolName: string;
 	command?: string;
 	path?: string;
+}
+
+/** What enforcement did to the last appraisal, kept so the report can show its own doubts. */
+export interface AppraisalNotes {
+	/** Citations the model gave that matched no supplied evidence line. */
+	unmatched: string[];
+	/** Claims downgraded to neutral because nothing supported them. */
+	downgraded: string[];
 }
 
 export interface DevsPsychologistState {
@@ -40,22 +49,45 @@ export interface DevsPsychologistState {
 	pendingTools: Map<string, PendingTool>;
 
 	// --- appraisal budget ---
-	/** Appraisals formed this session; compared with config.maxAppraisalsPerSession. */
+	/**
+	 * Appraisal ATTEMPTS this session, compared with config.maxAppraisalsPerSession.
+	 * Attempts rather than successes: a call that fails may still have been billed, so
+	 * counting only successes would let a broken model spend without limit.
+	 */
 	appraisalsThisSession: number;
-	/** Completed turns since the last appraisal, drives `config.cadenceTurns`. */
+	/** Completed turns since the last appraisal attempt, drives `config.cadenceTurns`. */
 	turnsSinceAppraisal: number;
 	/** True while an appraisal is in flight, so a slow model is not called twice. */
 	appraisalInFlight: boolean;
-	/** Last appraisal text, for the report. Never fed back into the observation log. */
-	lastAppraisal: string | undefined;
+	/** Last enforced appraisal, for the report. Never fed back into the observation log. */
+	lastAppraisal: Appraisal | undefined;
+	/** When the last attempt finished, ms epoch. */
+	lastAppraisalAt: number | undefined;
+	/** Last attempt's failure, when it failed — so silence is never unexplained. */
+	/**
+	 * Last attempt's failure, when it failed — so silence is never unexplained.
+	 * `stage` decides whether the chip shouts: a configuration problem is worth showing
+	 * persistently (only the operator can fix it), a transient one is not.
+	 */
+	lastAppraisalFailure: { stage: string; error: string } | undefined;
+	/** Last appraisal's enforcement notes. */
+	lastAppraisalNotes: AppraisalNotes | undefined;
+	/**
+	 * Token and cost figures for the last appraisal.
+	 *
+	 * Kept here because the engine cannot be told about the call: extensions get a
+	 * `ReadonlySessionManager`, which has no `appendUsage`. The session's own cost meter
+	 * therefore does NOT include appraisals, so the plugin reports its own spend itself.
+	 */
+	lastAppraisalUsage: UsageSummary | undefined;
 
 	// --- helpers ---
 	ifLive(cb: () => void): void;
 	/** Append an observation, evicting the oldest beyond the retention bound. */
 	observe(observation: Observation): void;
-	/** Drop the window. Called on session start so a new session reads clean. */
+	/** Drop the window and the appraisal. Called on session start so a new session reads clean. */
 	resetWindow(): void;
-	/** True when another appraisal is allowed by the session budget. */
+	/** True when another appraisal attempt is allowed by the session budget. */
 	budgetAvailable(): boolean;
 }
 
@@ -82,11 +114,15 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		turnsSinceAppraisal: 0,
 		appraisalInFlight: false,
 		lastAppraisal: undefined,
+		lastAppraisalAt: undefined,
+		lastAppraisalFailure: undefined,
+		lastAppraisalNotes: undefined,
+		lastAppraisalUsage: undefined,
 		ifLive,
 		observe(observation) {
 			state.observations.push(observation);
-			// A `while` rather than an `if`: a misconfigured bound must not be able
-			// to leave the window over its limit.
+			// A `while` rather than an `if`: a misconfigured bound must not be able to leave
+			// the window over its limit.
 			const limit = Math.max(1, state.config.retainObservations);
 			while (state.observations.length > limit) state.observations.shift();
 		},
@@ -95,6 +131,10 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 			state.pendingTools.clear();
 			state.turnsSinceAppraisal = 0;
 			state.lastAppraisal = undefined;
+			state.lastAppraisalAt = undefined;
+			state.lastAppraisalFailure = undefined;
+			state.lastAppraisalNotes = undefined;
+			state.lastAppraisalUsage = undefined;
 		},
 		budgetAvailable() {
 			const cap = state.config.maxAppraisalsPerSession;

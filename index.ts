@@ -22,6 +22,8 @@ import { stringsFor } from "./src/shared/i18n.js";
 import { createDevsPsychologistState, reloadConfig } from "./src/shared/state.js";
 import { registerObserver } from "./src/slices/observer/index.js";
 import { clearChip, paintChip } from "./src/shared/status.js";
+import { readHistory } from "./src/shared/history.js";
+import { defaultDeps, registerAppraiser } from "./src/slices/appraiser/index.js";
 
 export interface DevsPsychologistOptions {
 	/**
@@ -64,6 +66,10 @@ export default function devsPsychologistExtension(
 	);
 
 	registerObserver(pi, state);
+
+	// The composition root is the only place allowed to cross a slice boundary: the appraiser
+	// gets the history reader injected here rather than importing it itself.
+	registerAppraiser(pi, state, defaultDeps(readHistory));
 
 	// Cleanup: drain listeners and release the statusline slot. Idempotent,
 	// because cancellation, reload and exit can all converge here.
