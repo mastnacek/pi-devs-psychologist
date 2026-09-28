@@ -160,3 +160,34 @@ export function saveConfig(
 	}
 	return target;
 }
+
+/**
+ * Create the global config file with the defaults if it is not there yet.
+ *
+ * An installed plugin whose config exists nowhere on disk has no answer to "where do
+ * I configure this?" — the settings are real, documented and readable, but
+ * undiscoverable, so the only way to change one is to already know. Seeding the file
+ * makes the plugin self-describing, which is the convention the sibling
+ * `pi-openrouter-accounts` plugin established.
+ *
+ * NEVER overwrites: an existing file, even a hand-broken one, is left alone. Returns
+ * true only when it actually created the file, so the caller can say so exactly once.
+ * An unwritable path is not an error — a read-only environment falls back to defaults.
+ */
+export function seedGlobalConfig(globalFile: string = GLOBAL_CONFIG_FILE): boolean {
+	try {
+		if (existsSync(globalFile)) return false;
+		mkdirSync(dirname(globalFile), { recursive: true });
+		const tmp = `${globalFile}.tmp`;
+		writeFileSync(tmp, `${JSON.stringify(DEFAULT_CONFIG, null, 2)}\n`, "utf8");
+		renameSync(tmp, globalFile);
+		return true;
+	} catch {
+		try {
+			rmSync(`${globalFile}.tmp`, { force: true });
+		} catch {
+			// Nothing to clean up.
+		}
+		return false;
+	}
+}

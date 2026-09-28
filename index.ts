@@ -6,6 +6,7 @@
  * events, and injects each slice's cross-slice dependency. No business logic
  * lives here:
  * - objective session signals  → src/shared/signals + src/shared/lexicon
+ * - the session's own record   → src/shared/history
  * - config cascade             → src/shared/config
  * - statusline ownership       → src/shared/status
  * - event → observation window → src/slices/observer
@@ -16,26 +17,49 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { seedGlobalConfig } from "./src/shared/config.js";
+import { stringsFor } from "./src/shared/i18n.js";
 import { createDevsPsychologistState, reloadConfig } from "./src/shared/state.js";
 import { registerObserver } from "./src/slices/observer/index.js";
 import { clearChip, paintChip } from "./src/shared/status.js";
 
-export default function devsPsychologistExtension(pi: ExtensionAPI): void {
+export interface DevsPsychologistOptions {
+	/**
+	 * Override the global config path. The only consumer is the test suite, which
+	 * must never write the operator's real `~/.pi/agent` file — the same reason
+	 * `state.globalFile` exists.
+	 */
+	globalFile?: string;
+}
+
+export default function devsPsychologistExtension(
+	pi: ExtensionAPI,
+	options: DevsPsychologistOptions = {},
+): void {
 	// Subagent and child sessions load every global extension. An observer that
 	// watched its own children would fold its own prompts into the programmer's
 	// signals and spend the session's appraisal budget on noise (skill §8).
 	if (process.env.PI_SUBAGENT === "true" || Boolean(process.env.PI_CHILD_SESSION)) return;
 
 	const state = createDevsPsychologistState(pi);
+	if (options.globalFile) state.globalFile = options.globalFile;
 
-	// Session init: reload the cascading config (which needs a cwd that does not
-	// exist at extension-load time) and start from an empty observation window, so
-	// a new session is never appraised using an old session's events.
+	// Session init: seed the config file if it is missing (so the plugin is
+	// self-describing and there is something to edit), reload the cascade — which
+	// needs a cwd that does not exist at extension-load time — and start from an
+	// empty observation window, so a new session is never appraised using an old
+	// session's events.
 	state.track(
 		pi.on("session_start", async (_event, ctx) => {
+			const created = seedGlobalConfig(state.globalFile);
 			reloadConfig(state, ctx.cwd);
 			state.resetWindow();
 			paintChip(state, ctx);
+			// Say it exactly once, on the run that created it. Silent seeding would
+			// leave the file just as undiscoverable as no file at all.
+			if (created && ctx.hasUI) {
+				state.ifLive(() => ctx.ui.notify(stringsFor(state.config.lang).configSeeded(state.globalFile), "info"));
+			}
 		}),
 	);
 

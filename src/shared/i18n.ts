@@ -47,6 +47,8 @@ export interface Strings {
 	usage: string;
 	unknownOption: string;
 	configWritten: (path: string) => string;
+	/** Said once, on the run that created the file. Silent seeding is undiscoverable. */
+	configSeeded: (path: string) => string;
 	modelSet: (model: string) => string;
 	notTui: string;
 }
@@ -72,6 +74,7 @@ const STRINGS = {
 		usage: "Usage: /psych [status|now|on|off|model <provider/id>|budget <n>|lang <en|cs>|global]",
 		unknownOption: "Unknown option",
 		configWritten: (path) => `Config written to ${path}`,
+		configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
 		modelSet: (model) => `Psychologist model set to ${model}`,
 		notTui: "This view needs a terminal UI.",
 	},
@@ -90,6 +93,7 @@ const STRINGS = {
 		usage: "Použití: /psych [status|now|on|off|model <provider/id>|budget <n>|lang <en|cs>|global]",
 		unknownOption: "Neznámá volba",
 		configWritten: (path) => `Konfigurace zapsána do ${path}`,
+		configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,
 		modelSet: (model) => `Model psychologa nastaven na ${model}`,
 		notTui: "Toto zobrazení potřebuje terminálové UI.",
 	},

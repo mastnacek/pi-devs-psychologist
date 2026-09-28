@@ -1,5 +1,39 @@
 # CHANGELOG
 
+## 0.0.6 — the config file now exists, and history is split by concept
+
+### Fixed
+
+- **An installed plugin whose config existed nowhere on disk.** `saveConfig` was only
+  ever called from tests, so no config file was ever created: the settings were real,
+  documented and readable, but there was nothing to edit and no answer to "where do I
+  configure this?". The first session now seeds `~/.pi/agent/pi-devs-psychologist.json`
+  with the defaults and says so once in a notification — silent seeding would leave the
+  file exactly as undiscoverable as no file at all.
+  - Never overwrites. An existing file is left alone even when it is unparsable,
+    because replacing a hand-written config with defaults would destroy a real edit.
+  - An unwritable path is not an error: the session falls back to defaults and
+    continues.
+
+### Changed
+
+- **`history.ts` split by concept** into `history.ts` (read entries → numbers, 285
+  lines) and `history-evidence.ts` (numbers → the lines a model may read, 77). It was
+  350 lines, past the skill's 300-line soft target, and the split is conceptual rather
+  than numeric: a new entry type touches the fold, a wording change touches the
+  evidence.
+- The extension factory takes an options object (`{ globalFile }`). It is the seam
+  that lets the test suite point at a temp config home, so no test can seed the
+  operator's real `~/.pi/agent` — the same reason `state.globalFile` exists.
+
+### Added
+
+- Five more tests (74 total): the file is created with the defaults and announced
+  once; an existing file — including a corrupt one — is never overwritten; seeding is
+  announced on exactly one session out of three; an unwritable path degrades instead
+  of throwing; and the seeded file is the file the plugin subsequently reads, so it
+  cannot be a decoy.
+
 ## 0.0.5 — config that works, and config that is honest about not working yet
 
 ### Fixed

@@ -11,10 +11,11 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { makeCtx, makePi } from "./fakes.js";
+import { DEFAULT_CONFIG } from "../src/shared/config.js";
 import devsPsychologistExtension from "../index.js";
 
 /** Events the extension is expected to subscribe to. */
@@ -27,8 +28,20 @@ const EXPECTED_EVENTS = [
   "session_shutdown",
 ];
 
+
+/**
+ * One temp config home for the whole suite, removed at exit. Pointing the extension at
+ * it is what keeps these tests from creating the operator's real
+ * ~/.pi/agent/pi-devs-psychologist.json — the extension seeds that file on the first
+ * session, so a test without this would write into the developer's home.
+ */
+const CONFIG_HOME = mkdtempSync(join(tmpdir(), "psych-ext-home-"));
+process.on("exit", () => rmSync(CONFIG_HOME, { recursive: true, force: true }));
+let loadCount = 0;
 function load(env = {}) {
   const pi = makePi();
+  loadCount += 1;
+  const globalFile = join(CONFIG_HOME, `pi-devs-psychologist-${loadCount}.json`);
   const saved = {};
   for (const [key, value] of Object.entries(env)) {
     saved[key] = process.env[key];
@@ -41,8 +54,8 @@ function load(env = {}) {
       else process.env[key] = value;
     }
   };
-  devsPsychologistExtension(pi);
-  return { pi, restore };
+  devsPsychologistExtension(pi, { globalFile });
+  return { pi, globalFile, restore };
 }
 
 function sandbox() {
@@ -141,6 +154,104 @@ test("after shutdown the plugin is inert: a late event is not a crash", async ()
 
     // Only the shutdown clear was added; nothing after it painted or observed.
     assert.equal(ctx.statusCalls.length, painted + 1);
+  } finally {
+    world.cleanup();
+    restore();
+  }
+});
+
+test("the config file is created on the first session, with the defaults", async () => {
+  // An installed plugin whose config exists nowhere on disk has no answer to "where do
+  // I configure this?". Nothing used to create it — saveConfig was only ever called
+  // from tests — so the settings were readable, documented and undiscoverable.
+  const { pi, globalFile, restore } = load();
+  const world = sandbox();
+  try {
+    assert.equal(existsSync(globalFile), false, "nothing exists before the first session");
+    const ctx = makeCtx({ cwd: world.cwd });
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+
+    assert.equal(existsSync(globalFile), true);
+    assert.deepEqual(JSON.parse(readFileSync(globalFile, "utf8")), DEFAULT_CONFIG);
+    // Silent seeding would leave the file exactly as undiscoverable as no file.
+    assert.match(ctx.notes.at(-1).message, /config created at/);
+  } finally {
+    world.cleanup();
+    restore();
+  }
+});
+
+test("an existing config file is never overwritten, not even a broken one", async () => {
+  const { pi, globalFile, restore } = load();
+  const world = sandbox();
+  try {
+    const handWritten = '{ "model": "openrouter-soukr/chosen/model", "lang": "cs" }';
+    writeFileSync(globalFile, handWritten, "utf8");
+
+    const ctx = makeCtx({ cwd: world.cwd });
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+
+    assert.equal(readFileSync(globalFile, "utf8"), handWritten, "the operator's file wins");
+    assert.equal(ctx.notes.length, 0, "nothing was created, so nothing is announced");
+
+    // And a file that cannot be parsed is still left alone: corrupt input must not
+    // be silently replaced with defaults, because that would destroy a real edit.
+    writeFileSync(globalFile, "{ not json", "utf8");
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    assert.equal(readFileSync(globalFile, "utf8"), "{ not json");
+  } finally {
+    world.cleanup();
+    restore();
+  }
+});
+
+test("seeding is announced once, not on every session", async () => {
+  const { pi, globalFile, restore } = load();
+  const world = sandbox();
+  try {
+    const ctx = makeCtx({ cwd: world.cwd });
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    assert.equal(ctx.notes.filter((n) => /config created/.test(n.message)).length, 1);
+    assert.equal(existsSync(globalFile), true);
+  } finally {
+    world.cleanup();
+    restore();
+  }
+});
+
+test("an unwritable config path is not an error", async () => {
+  // A read-only or nonsense path must degrade to defaults, not break the session.
+  const { pi, restore } = load();
+  const world = sandbox();
+  try {
+    const blocker = join(world.cwd, "blocker");
+    writeFileSync(blocker, "i am a file, not a directory", "utf8");
+    const pi2 = makePi();
+    devsPsychologistExtension(pi2, { globalFile: join(blocker, "config.json") });
+
+    const ctx = makeCtx({ cwd: world.cwd });
+    await pi2.emit("session_start", { type: "session_start" }, ctx);
+    assert.equal(ctx.notes.length, 0, "nothing was created, so nothing is announced");
+    // The session still works: the chip painted from the defaults.
+    assert.equal(ctx.statusCalls.at(-1).text, "psych: signals");
+  } finally {
+    world.cleanup();
+    restore();
+  }
+});
+
+test("the seeded file is the file the plugin then reads", async () => {
+  // Seeding and reading must agree, or the file would be a decoy.
+  const { pi, globalFile, restore } = load();
+  const world = sandbox();
+  try {
+    const ctx = makeCtx({ cwd: world.cwd });
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    writeFileSync(globalFile, JSON.stringify({ ...DEFAULT_CONFIG, model: "a/b" }), "utf8");
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    assert.equal(ctx.statusCalls.at(-1).text, "psych 0t · 0/12", "the model set in the file took effect");
   } finally {
     world.cleanup();
     restore();

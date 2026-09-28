@@ -11,7 +11,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { THINKING_ORDER, describeHistory, foldHistory, readHistory } from "../src/shared/history.js";
+import { THINKING_ORDER, foldHistory, readHistory } from "../src/shared/history.js";
+import { describeHistory } from "../src/shared/history-evidence.js";
 
 const T0 = 1_700_000_000_000;
 const iso = (offset) => new Date(T0 + offset).toISOString();
