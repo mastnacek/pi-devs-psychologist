@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-09-28 17:27:24",
+  "lastUpdated": "2026-09-28 18:14:33",
   "records": [
     {
       "id": "SPAI-001",
@@ -77,6 +77,21 @@
       "project": "pi-devs-psychologist",
       "projectPath": "D:/01_programovani/pi/plugins/pi-devs-psychologist",
       "file": "2026-09-28-SPAI-005-land-the-pi-devs-psychologist-observation-kernel-g.md"
+    },
+    {
+      "id": "SPAI-006",
+      "title": "Fold the engine's own session entries into the psychologist's context: src/shared/history.ts reads sessionManager.getBranch() for operator cancellations (stopReason aborted), provider errors, output-limit cutoffs, model switches, thinking-level raises, compactions with the largest context that forced one, abandoned /tree branches, context removals vs rewrites, live /label bookmarks, declared session name, human wait times and prompt-cache read share. Refusals documented with reasons in docs/session-data.md and PRD 4.1: no message bodies, no system/skill sections, no reasoning text, no peer plugin custom entries, no cost totals, no cross-session history. 51/51 tests, tsc clean",
+      "type": "Todo",
+      "status": "done",
+      "symbol": "x",
+      "timestamp": "2026-09-28 18:14:33",
+      "tags": [
+        "done",
+        "session-data"
+      ],
+      "project": "pi-devs-psychologist",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-devs-psychologist",
+      "file": "2026-09-28-SPAI-006-fold-the-engines-own-session-entries-into-the-psyc.md"
     }
   ]
 }

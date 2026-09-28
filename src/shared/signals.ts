@@ -112,7 +112,8 @@ export interface SessionSignals {
 	evidence: string[];
 }
 
-function median(values: readonly number[]): number {
+/** Median of a numeric list; 0 for an empty list. Shared with `history.ts`. */
+export function median(values: readonly number[]): number {
 	if (values.length === 0) return 0;
 	const sorted = [...values].sort((a, b) => a - b);
 	const mid = Math.floor(sorted.length / 2);

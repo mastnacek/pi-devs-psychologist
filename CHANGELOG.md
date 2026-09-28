@@ -1,5 +1,41 @@
 # CHANGELOG
 
+## 0.0.2 — session history: the whole record, and its boundary
+
+The live window sees minutes; a session is hours. This adds the structural fold
+over the engine's own session entries, plus a written study of what may and may
+not be read. Still no model is called.
+
+### Added
+
+- **Session history fold** (`src/shared/history.ts`) over
+  `sessionManager.getBranch()`: operator cancellations (`stopReason: "aborted"`),
+  provider errors, output-limit cutoffs, model switches, thinking-level raises and
+  lowers, compactions with the largest context that forced one (engine vs extension),
+  abandoned `/tree` branches, context removals vs rewrites, still-live `/label`
+  bookmarks, the declared session name, human wait times, and the prompt-cache read
+  share.
+- **`docs/session-data.md`** — the study: every entry type and what it yields, the
+  full list of refusals with reasons (message bodies, system/skill sections,
+  reasoning text, peer plugin state, cost totals, cross-session history), and how
+  existing workshop plugins already read the same record.
+- **PRD §4.1** — the data boundary stated as a design rule rather than a habit.
+- 14 more tests, including exact element-for-element assertion of the evidence
+  array, so a history line that starts interpreting fails the suite.
+
+### Fixed
+
+- The session span is now scanned across all entry timestamps instead of read from
+  the first and last entry. A single malformed timestamp in the tail used to
+  collapse the span to zero and quietly under-report the session's length.
+
+### Notes
+
+- `getBranch()` is used deliberately; a test asserts `getEntries()` is never called,
+  because after `/tree` it would count abandoned work as session progress.
+- Unknown entry types are ignored rather than rejected, so a future engine version
+  adds a type instead of breaking the appraiser.
+
 ## 0.0.1 — observation kernel
 
 First increment. The plugin exists as a repo and the layer everything else will

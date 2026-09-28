@@ -59,6 +59,28 @@ these numbers. They come from the engine's own events, folded by arithmetic:
 disagree with the plugin's notion of "progress" by editing one screen of
 patterns.
 
+### From the session's own record
+
+The live window cannot see a session's *history*. The engine's own session entries can,
+so a second fold reads `sessionManager.getBranch()` (`src/shared/history.ts`):
+
+| Signal | Entry | Why it is the strongest evidence available |
+|---|---|---|
+| Operator cancelled a turn | `message.stopReason === "aborted"` | The human pressed stop. A literal engine field, not a sentiment score |
+| Operator bookmarks | `label` (`/label`) | The only place the human states where the value was |
+| Operator raised thinking level | `thinking_level_change` | Their own difficulty calibration — no guessing needed |
+| Session declared purpose | `session_info.name` (`/name`) | Lets the appraisal compare intent against what actually happened |
+| Model switched | `model_change` | The operator rejected the model they were on |
+| Approaches abandoned | `branch_summary` (`/tree`) | Paths walked away from, counted without judging them |
+| Context pressure | `compaction.tokensBefore`, `engine` vs `hook` | How much context had to be thrown away, and by whom |
+| Context erased vs rewritten | `context_edit.replacement` | What was removed from the model's view |
+| Wait for the agent | user → assistant message timestamps | A broken flow, measured in seconds |
+| Prompt-cache read share | assistant / toolResult `usage` | A real, measurable friction in the loop |
+
+The full study — including what was **refused** (message bodies, system and skill
+sections, cost totals, other plugins' state, cross-session history) and why — is in
+`docs/session-data.md`.
+
 ---
 
 ## Hard rules (these are the product)

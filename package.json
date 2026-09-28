@@ -1,7 +1,7 @@
 {
   "name": "pi-devs-psychologist",
-  "version": "0.0.1",
-  "description": "A second model watches the session as an engineering psychologist: it reads objective signals, appraises motivation, cognitive load and progress, and names at most one intervention",
+  "version": "0.0.2",
+  "description": "A second model watches the session as an engineering psychologist: it reads objective signals and the session's own structural record, appraises motivation, cognitive load and progress, and names at most one intervention",
   "type": "module",
   "main": "index.ts",
   "keywords": [

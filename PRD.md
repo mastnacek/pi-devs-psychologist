@@ -78,6 +78,29 @@ Together this makes the appraisal **auditable**: disagree with a conclusion and
 you can read the events that produced it. `pi appendEntry` persistence (T7) stores
 the appraisal, never a derived judgement about the person.
 
+### 4.1 Data boundary
+
+The session record contains the prompt's own sections, skill manifests, tool
+declarations and every message body. **None of it may reach the second model.** The
+appraiser receives the evidence lines — counts and names — plus a bounded tail of the
+conversation, and nothing else. A psychological reading of a session is not a licence
+to read the session.
+
+Two refusals are load-bearing enough to name here; the rest are enumerated with
+reasons in `docs/session-data.md`:
+
+- **No cost or token-spend totals.** Money pressure is a different conversation from
+  cognitive load, and it would turn "how are you doing" into "you cost me X" — a
+  meter rather than a colleague. Cost reporting is `pi-model-pricing`'s job.
+- **No other plugin's `custom` entries.** A peer's private state is not evidence
+  about a person, and reading it would couple two repos for no signal. This is the
+  same reason the `pi-quick-win` integration is prompt-level (§8).
+
+Reading the session is also scoped to the current branch: `getBranch()`, never
+`getEntries()`. After `/tree` the latter would fold in work the operator *abandoned*,
+and reporting abandoned work as progress is precisely the invention this design
+exists to prevent.
+
 ## 5. Hard prohibitions
 
 Each is required by a specific finding, not by taste:

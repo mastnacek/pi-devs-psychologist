@@ -17,9 +17,32 @@ signals.
 `src/slices/observer/index.ts`, `index.ts` composition root with the subagent
 recursion guard and an idempotent `session_shutdown` drain.
 
-**Validation:** `npm test` — 37/37, including a hand-counted fixture asserting
-3 tool failures out of 8, 1 restatement, 1 churn file, 1 verified run, 3 turns
-since verified progress. `npx tsc --noEmit` exits 0.
+**Validation:** `npm test`, including a hand-counted fixture asserting 3 tool
+failures out of 8, 1 restatement, 1 churn file, 1 verified run, 3 turns since
+verified progress. `npx tsc --noEmit` exits 0.
+
+---
+
+## x T1b — Session history fold
+
+The whole session as a structural record, from `sessionManager.getBranch()`:
+operator cancellations (`stopReason: "aborted"`), provider errors, output-limit
+cutoffs, model switches, thinking-level raises, compactions and the largest context
+that forced one, abandoned `/tree` branches, context removals vs rewrites, live
+`/label` bookmarks, the declared session name, human wait times, and the
+prompt-cache read share.
+
+**Delivered:** `src/shared/history.ts`. The study and its refusals are in
+`docs/session-data.md`; the data boundary is a design rule in PRD §4.1 (no message
+bodies, no system or skill sections, no reasoning text, no peer plugin state, no
+cost totals, no cross-session history).
+
+**Validation:** `npm test` — 51/51. The fixture asserts exact counts and the
+evidence array is asserted element-for-element, so a line that starts interpreting
+fails the suite. Tests pin that `getBranch()` is used and `getEntries()` is not,
+that cleared labels are excluded, that cache-warm usage does not move the ratio,
+that unknown entry types are ignored, and that a burst of prompts does not restart
+the wait clock.
 
 ---
 
@@ -43,6 +66,13 @@ the system prompt and a TypeBox schema (`StringEnum`, never `Type.Union`) for th
 appraisal — needs (autonomy / competence / relatedness) each with cited evidence,
 cognitive-load drivers, progress, flow breaks, open loops, and **`interventions`
 of length 0 or 1**.
+
+The appraiser's input is **two** evidence sets, and the prompt must say so: the
+live window (`signals.evidence`, what just happened) and the session history
+(`history.evidence`, the whole record). A citation may come from either, but every
+citation must match a supplied line verbatim — the schema cannot be satisfied by
+paraphrasing one. `readHistory(ctx)` is read at appraisal time rather than cached,
+so the branch is always the one the operator is actually on.
 
 **Validation:** schema rejects an appraisal carrying two interventions, one with
 no citation, or one citing an evidence line that was not supplied. Prompt is
