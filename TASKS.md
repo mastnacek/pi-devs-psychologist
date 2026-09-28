@@ -227,7 +227,7 @@ Full specifications (goal, files, behaviour, acceptance, non-goals) live in
 - `x T16` Intervention outcome ledger — measures the plugin, never the person
 - `x T17` Anti-nag cooldown — per-kind cooldown, mute after two no-change repeats
 - `x T18` Recurring friction line from existing `FailureFingerprint`
-- `. T19` Spike: child `pi` launch facts on this machine (10 questions)
+- `. T19` Spike: child `pi` launch facts on this machine (10 questions) — results in [`docs/agent-runtime-spike.md`](docs/agent-runtime-spike.md)
 - `. T20` ADR 0002 — agent runtime and the data boundary
 - `. T21` Config + `--psych-runtime` flag + `/psych runtime|context|agent-model`
 - `. T22` Child mode: `psych_submit` tool + read-only `tool_call` guard
