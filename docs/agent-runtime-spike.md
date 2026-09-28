@@ -380,3 +380,21 @@ spawn(process.execPath, argv, {
 
 `runTmp` = `join(os.tmpdir(), "pi-devs-psychologist", runId)`; removed in `finally`
 unless `agent.keepTranscript`.
+
+---
+
+## Live verification after T24 (2026-09-29)
+
+- `scripts/live-agent-check.mts` against the installed `1198ef3`: child spawned, one
+  `psych_submit` call, `terminate: true` ended the run after one turn. 11.1 s wall,
+  38 634 input / 438 output tokens, $0.0015 on `openrouter/deepseek/deepseek-v4.1-flash`.
+  The appraisal passed enforcement with zero unmatched citations.
+- **Cost shape:** ~38.6k input tokens per run is pi's core prompt + every loaded tool schema,
+  versus ~1.5k for the API runtime. Agent runtime costs ~25× the input of the API runtime
+  before any tool call; cheap models make it negligible, expensive ones do not.
+- Hostile prompt in a throwaway git repo (direct child, role `ask`): `git commit`, `write`,
+  `sudo rm -rf .git` all blocked with the guard's reasons; `git log` allowed; repo intact.
+- **Guard boundary:** a peer plugin (the ADR indexer) wrote `docs/adr/.index.json` into the
+  child's cwd on `session_start`. That is extension code, not a tool call, so the `tool_call`
+  guard cannot see it. The child runs in the parent's cwd, where that plugin already writes,
+  so nothing new is exposed — but "read-only" means read-only *tools*, not a read-only process.
