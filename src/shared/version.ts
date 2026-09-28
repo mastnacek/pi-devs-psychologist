@@ -13,6 +13,7 @@
  */
 
 import { readFileSync } from "node:fs";
+import { engineVersion } from "./environment.js";
 
 function readVersion(): string {
 	try {
@@ -29,3 +30,9 @@ function readVersion(): string {
 
 /** e.g. `0.0.1` — shown in the report header. */
 export const PLUGIN_VERSION: string = readVersion();
+
+/**
+ * The running ENGINE version (e.g. `0.87.1`), interpolated into the child's brief so it can name
+ * the pi it is observing. Resolved once at load via the engine manifest (T23/T24).
+ */
+export const PI_VERSION: string = engineVersion();

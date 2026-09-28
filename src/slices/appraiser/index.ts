@@ -27,6 +27,7 @@ import type { Appraisal } from "../../shared/appraisal.js";
 import {
 	callModel,
 	summarizeUsage,
+	type AgentCallStage,
 	type ModelCallResult,
 	type ModelCallStage,
 } from "../../shared/model-call.js";
@@ -73,7 +74,7 @@ export type AppraiseOutcome =
 			/** How the intervention reached the operator, and whether the agent was told. */
 			delivery: DeliveryOutcome;
 	  }
-	| { ran: true; ok: false; stage: ModelCallStage | "parse"; error: string };
+	| { ran: true; ok: false; stage: ModelCallStage | AgentCallStage | "parse"; error: string };
 
 export interface AppraiserDeps {
 	/** Read the current session branch. Injected so the slice imports no other slice. */
@@ -97,15 +98,12 @@ export interface AppraiserDeps {
 export function defaultDeps(
 	readHistory: AppraiserDeps["readHistory"],
 	deliver: AppraiserDeps["deliver"],
+	/** The runtime choice, injected by the composition root (T24). Defaults to today's API call. */
+	callModelImpl: AppraiserDeps["callModel"] = (registry, req) => callModel(registry, req),
 ): AppraiserDeps {
-	return {
-		readHistory,
-		// T24 swaps this for the agent runtime by branching on `state.config.runtime` in the
-		// composition root: `callModel` is the seam, so the appraiser never learns which runtime ran and
-		// the API call stays the default until then.
-		callModel: (registry, req) => callModel(registry, req),
-		deliver,
-	};
+	// `callModel` is the seam: the appraiser never learns which runtime ran, and the API call is the
+	// default (D1). The composition root swaps in the agent runner and branches on `state.config.runtime`.
+	return { readHistory, callModel: callModelImpl, deliver };
 }
 
 function describe(error: unknown): string {
@@ -204,6 +202,10 @@ export async function maybeAppraise(
 			// No temperature and no reasoning overrides: an observer must not request sampling
 			// settings a provider may reject. The call's job is to be boringly repeatable.
 			signal: ctx.signal,
+			// The agent runtime (T24) needs the evidence lines apart from `userText` to rebuild the
+			// child's message via `buildAgentBrief` (D2). The API path ignores this field entirely, so
+			// the bytes it sends are unchanged: `userText` remains authoritative there.
+			evidence: { liveLines, sessionLines },
 		});
 
 		// `=== false` rather than `!result.ok`: truthiness narrowing is not reliable under

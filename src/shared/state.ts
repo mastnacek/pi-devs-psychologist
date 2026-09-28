@@ -116,6 +116,22 @@ export interface DevsPsychologistState {
 	 */
 	lastAppraisalUsage: UsageSummary | undefined;
 
+	// --- agent runtime (T24) ---
+	/**
+	 * Facts about the live session the agent runtime needs to launch a child, captured at
+	 * `session_start` where a real context exists. The appraiser's call seam is `(registry, req)`, so
+	 * these cannot be re-read at call time without widening that seam.
+	 */
+	sessionCwd: string;
+	/** `ctx.isProjectTrusted()` at session start; mirrored as `--approve`/`--no-approve`. */
+	agentTrusted: boolean;
+	/** `ctx.sessionManager.getSessionFile()`; required for `context: "fork"`. */
+	agentSessionFile: string | undefined;
+	/** Summed cost (USD) of agent-runtime runs this session, compared with `agent.maxCostUsdPerSession`. */
+	agentSessionCostUsd: number;
+	/** Kills the currently running child, or `undefined` when none is running. Idempotent. */
+	agentChildKill: (() => void) | undefined;
+
 	// --- helpers ---
 	ifLive(cb: () => void): void;
 	/** Append an observation, evicting the oldest beyond the retention bound. */
@@ -157,6 +173,11 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		lastAppraisalFailure: undefined,
 		lastAppraisalNotes: undefined,
 		lastAppraisalUsage: undefined,
+		sessionCwd: process.cwd(),
+		agentTrusted: false,
+		agentSessionFile: undefined,
+		agentSessionCostUsd: 0,
+		agentChildKill: undefined,
 		outcomes: [],
 		triggerBaseline: { ...EMPTY_TRIGGER_BASELINE },
 		appraisalsSkipped: 0,
@@ -183,6 +204,9 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 			state.triggerBaseline = { ...EMPTY_TRIGGER_BASELINE };
 			state.appraisalsSkipped = 0;
 			state.lastTriggerReasons = [];
+			// The agent-runtime cost is per session; the run itself is owned by the child handle, which
+			// `session_shutdown` kills before it drains.
+			state.agentSessionCostUsd = 0;
 		},
 		budgetAvailable() {
 			const cap = state.config.maxAppraisalsPerSession;

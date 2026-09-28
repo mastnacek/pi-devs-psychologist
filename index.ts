@@ -26,8 +26,15 @@
  * shows the evidence it used.
  */
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { saveConfig, seedGlobalConfig } from "./src/shared/config.js";
+import { effectiveAgentModel } from "./src/shared/agent-config.js";
+import { defaultAgentRunIo, runAgent, type AgentRunIo } from "./src/shared/agent-runner.js";
+import { callModel, parseModelRef, resolveModel, type ModelCallResult } from "./src/shared/model-call.js";
+import { resolvePiDocsDir } from "./src/shared/pi-paths.js";
+import { PI_VERSION } from "./src/shared/version.js";
 import { readHistory } from "./src/shared/history.js";
 import { noteFollowed, noteQuickWin, restoreOutcomes } from "./src/shared/outcome.js";
 import { stringsFor } from "./src/shared/i18n.js";
@@ -35,7 +42,7 @@ import { extractSignals } from "./src/shared/signals.js";
 import { refreshModelCatalog, createDevsPsychologistState, reloadConfig, restoreAppraisal, signalOptions } from "./src/shared/state.js";
 import { clearChip, paintChip } from "./src/shared/status.js";
 import { parseChildLimits, parseChildRole } from "./src/shared/child-limits.js";
-import { maybeAppraise, registerAppraiser, defaultDeps } from "./src/slices/appraiser/index.js";
+import { maybeAppraise, registerAppraiser, defaultDeps, type AppraiserDeps } from "./src/slices/appraiser/index.js";
 import { registerChildSlice } from "./src/slices/child/index.js";
 import { registerPsychCommand } from "./src/slices/commands/index.js";
 import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
@@ -49,6 +56,12 @@ export interface DevsPsychologistOptions {
 	 * the operator's real `~/.pi/agent` file — the same reason `state.globalFile` exists.
 	 */
 	globalFile?: string;
+	/**
+	 * Test seam for the agent runtime (T24): the process surface `runAgent` uses. The suite must never
+	 * spawn a real child pi, so it injects a fake whose "child" is scripted; production leaves it
+	 * unset and `defaultAgentRunIo()` is used. The rest of the agent path (cost cap, state) stays real.
+	 */
+	agentIo?: AgentRunIo;
 }
 
 export default function devsPsychologistExtension(
@@ -85,21 +98,107 @@ export default function devsPsychologistExtension(
 
 	// The one place a slice boundary is crossed: the appraiser is given the delivery policy, and
 	// the delivery policy is given the card. Neither slice knows the other exists.
-const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal, options) =>
-	deliverIntervention(
-		api,
-		target,
-		ctx,
-		appraisal,
-		defaultInterventionDeps((c, a, unmatched) =>
-			// The card takes one object; the delivery policy hands over the piece separately.
-			presentAppraisal(c, { appraisal: a, unmatched }, target.config.lang),
-		),
-		// The delivery options are the LAST argument: an explicit request shows the analysis even
-		// when it has no advice to give.
-		options,
-	),
-);
+	const deliver: AppraiserDeps["deliver"] = (api, target, ctx, appraisal, options) =>
+		deliverIntervention(
+			api,
+			target,
+			ctx,
+			appraisal,
+			defaultInterventionDeps((c, a, unmatched) =>
+				// The card takes one object; the delivery policy hands over the piece separately.
+				presentAppraisal(c, { appraisal: a, unmatched }, target.config.lang),
+			),
+			// The delivery options are the LAST argument: an explicit request shows the analysis even
+			// when it has no advice to give.
+			options,
+		);
+
+	// The runtime switch (T24). `callModel` is the seam the appraiser was built around (D1): the API
+	// call by default, the child-pi runner when `runtime: "agent"` (effective, including the
+	// `--psych-runtime` override, which is applied to the in-memory config at session_start). The
+	// branch is read at CALL time so a `/psych runtime` switch takes effect without a reload.
+	const apiCallModel: AppraiserDeps["callModel"] = (registry, req) => callModel(registry, req);
+
+	// The child's engine entry and docs dir, resolved once (T24). Never a shell, never `pi.cmd`: the
+	// node binary runs the engine's own cli.js (spike Q1).
+	const cliPath =
+		process.argv[1] ??
+		(process.env.PI_PACKAGE_DIR
+			? join(process.env.PI_PACKAGE_DIR, "dist", "bundle", "cli.js")
+			: "");
+	const docsDir = resolvePiDocsDir({
+		argv1: process.argv[1],
+		packageDir: process.env.PI_PACKAGE_DIR,
+		exists: existsSync,
+	});
+
+	// The agent-runtime call (T24): same shape as `callModel`, so the appraiser never learns which
+	// runtime ran (D1). It owns the session cost cap and keeps the running child's kill handle in
+	// state so `session_shutdown` can end it.
+	const agentCallModel: AppraiserDeps["callModel"] = async (registry, req) => {
+		const cfg = state.config.agent;
+		const cap = cfg.maxCostUsdPerSession;
+		if (cap > 0 && state.agentSessionCostUsd >= cap) {
+			return {
+				ok: false,
+				stage: "budget",
+				error: `session cost cap reached ($${state.agentSessionCostUsd.toFixed(2)} of $${cap.toFixed(2)})`,
+			};
+		}
+		const modelRef = effectiveAgentModel(state.config);
+		// A registry may be absent (headless fakes); the run does not need it, only the label does.
+		const resolved = registry && parseModelRef(modelRef) ? resolveModel(registry, modelRef) : undefined;
+		const result = await runAgent(
+			{
+				modelRef,
+				evidence: req.evidence ?? { liveLines: [], sessionLines: [] },
+				signal: req.signal,
+			},
+			{
+				cliPath,
+				execPath: process.execPath,
+				role: "psychologist",
+				context: cfg.context,
+				parentSessionFile: state.agentSessionFile,
+				piVersion: PI_VERSION,
+				docsDir,
+				thinking: cfg.thinking,
+				trusted: state.agentTrusted,
+				cwd: state.sessionCwd,
+				timeoutMs: cfg.timeoutMs,
+				maxCostUsd: cfg.maxCostUsd,
+				maxToolCalls: cfg.maxToolCalls,
+				allowWeb: cfg.allowWeb,
+				allowMcp: cfg.allowMcp,
+				allowNlm: cfg.allowNlm,
+				nlmNotebooks: cfg.nlmNotebooks,
+				extraArgs: cfg.extraArgs,
+				keepTranscript: cfg.keepTranscript,
+				onChild: (handle) => {
+					state.agentChildKill = handle ? handle.kill : undefined;
+				},
+			},
+			options.agentIo ?? defaultAgentRunIo(),
+		);
+		// Attribute the run to the resolved model, so the report names the model that actually ran.
+		if (result.ok === true && resolved) {
+			const attributed: ModelCallResult = {
+				...result,
+				provider: resolved.model.provider,
+				modelId: resolved.model.id,
+				label: resolved.label,
+			};
+			if (result.run) state.agentSessionCostUsd += result.run.costUsd;
+			return attributed;
+		}
+		if (result.run) state.agentSessionCostUsd += result.run.costUsd;
+		return result;
+	};
+
+	const callModelDep: AppraiserDeps["callModel"] = (registry, req) =>
+		state.config.runtime !== "agent" ? apiCallModel(registry, req) : agentCallModel(registry, req);
+
+	const appraiserDeps = defaultDeps(readHistory, deliver, callModelDep);
 
 	// Session init: seed the config file if it is missing (so the plugin is self-describing and
 	// there is something to edit), reload the cascade — which needs a cwd that does not exist at
@@ -123,6 +222,12 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal, opt
 			// The catalog must be cached here: the completion callback receives only the argument
 			// prefix, so it cannot ask the registry itself.
 			refreshModelCatalog(state, ctx.modelRegistry);
+			// Facts the agent runtime needs at spawn time, captured here where a real context exists: the
+			// call seam is `(registry, req)`, so a later turn has no context to read them from (T24).
+			state.sessionCwd = ctx.cwd;
+			state.agentTrusted =
+				typeof ctx.isProjectTrusted === "function" ? ctx.isProjectTrusted() : false;
+			state.agentSessionFile = ctx.sessionManager?.getSessionFile?.();
 			state.resetWindow();
 			// Restore the TUI-only ledger and the last appraisal (T7/T16). `getEntries` returns the whole
 			// session, so a reload - or a branch switch - brings back the outcome numbers and the report
@@ -226,6 +331,10 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal, opt
 	// Cleanup: drain listeners and release the statusline slot. Idempotent, because
 	// cancellation, reload and exit can all converge here.
 	pi.on("session_shutdown", async (_event, ctx) => {
+		// Kill a running child first: the tree must not outlive the session (T24). The kill is
+		// idempotent, so a run that already finished leaves this a no-op.
+		state.agentChildKill?.();
+		state.agentChildKill = undefined;
 		while (state.unsubscribers.length > 0) {
 			try {
 				state.unsubscribers.pop()?.();

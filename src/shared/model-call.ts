@@ -26,6 +26,33 @@ export type ModelRegistry = ExtensionContext["modelRegistry"];
 
 export type ModelCallStage = "config" | "resolve" | "auth" | "request" | "response";
 
+/**
+ * Stages only the agent runtime (T24) can reach. Named here, next to the API stages, because the
+ * appraiser stores and reports ONE `ModelCallStage` regardless of which runtime produced it.
+ *
+ * `spawn` is the child process itself; `timeout`/`budget`/`aborted` are the three ways the parent
+ * kills it; `exit` is the child ending without submitting; `no_submission` is a settled run whose
+ * `psych_submit` never arrived.
+ */
+export type AgentCallStage = "spawn" | "timeout" | "budget" | "aborted" | "exit" | "no_submission";
+
+/**
+ * Run metadata only the agent runtime can fill, kept for T27's accounting. Optional everywhere so
+ * the API result is unchanged (D1: one `ModelCallResult`, whichever runtime formed it).
+ */
+export interface AgentRunMeta {
+	/** Wall-clock duration of the run, ms. */
+	durationMs: number;
+	/** Tool calls executed by the child, by tool name. */
+	toolCounts: Record<string, number>;
+	/** This run's reported cost, USD. */
+	costUsd: number;
+	/** True when `context: "fork"` had no parent session file and fell back to `--no-session`. */
+	fallback: boolean;
+	/** Path to the kept `events.jsonl`, only when `agent.keepTranscript` was on. */
+	transcriptPath?: string;
+}
+
 export interface ModelCallSuccess {
 	ok: true;
 	text: string;
@@ -34,13 +61,17 @@ export interface ModelCallSuccess {
 	modelId: string;
 	label: string;
 	usage: Usage | undefined;
+	/** Present only for the agent runtime (T24). */
+	run?: AgentRunMeta;
 }
 
 export interface ModelCallFailure {
 	ok: false;
-	stage: ModelCallStage;
+	stage: ModelCallStage | AgentCallStage;
 	/** Human-readable, safe to show and to store. Never contains credentials. */
 	error: string;
+	/** Present only for the agent runtime: the run happened (or was attempted) and has figures. */
+	run?: AgentRunMeta;
 }
 
 export type ModelCallResult = ModelCallSuccess | ModelCallFailure;
@@ -53,6 +84,12 @@ export interface ModelCallRequest {
 	maxTokens: number;
 	temperature?: number;
 	signal?: AbortSignal;
+	/**
+	 * The evidence lines behind `userText`, handed over only so the agent runtime (T24) can rebuild
+	 * the child's message via `buildAgentBrief` without re-deriving them. The API path IGNORES this:
+	 * `userText` is authoritative there, so the API request stays byte-identical (D2).
+	 */
+	evidence?: { liveLines: readonly string[]; sessionLines: readonly string[] };
 }
 
 /** Split `provider/modelId` on the first slash only. */

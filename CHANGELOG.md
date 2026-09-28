@@ -62,7 +62,25 @@ report and the statusline chip; the appraiser still uses the API call.
   “Appraise the session now. Submit with psych_submit.” and accepts an optional `DIGEST — …` block.
   Companion impure helper `src/shared/pi-paths.ts` (`resolvePiDocsDir({ argv1, packageDir, exists })`)
   resolves the engine docs dir from `dist/bundle/cli.js` or `PI_PACKAGE_DIR`, returning it only when
-  `docs/docs.json` exists. Nothing spawns yet; the appraiser is untouched.
+  `docs/docs.json` exists.
+- **The runner (T24).** New pure `src/shared/agent-argv.ts` (`buildChildLaunch` → `{ command, args,
+  env, fallback }`) and `src/shared/agent-stream.ts` (the JSONL reducer: `psych_submit` args + a
+  matching, non-error `tool_execution_end`; summed usage; a tool census; the capped last assistant
+  text), wrapped by `src/shared/agent-runner.ts` (`runAgent(request, options, io)`, io injectable).
+  The child is spawned as `process.execPath` + the engine's own `cli.js`, `shell: false`,
+  `stdio: ["ignore","pipe","pipe"]` (stdin closed — the message travels as its own `@<file>` token),
+  `--append-system-prompt <briefFile>`, `--no-session` or `--fork <file> --session-dir <tmp>/session`
+  (a fork without a session file falls back to `--no-session` and reports it), trust mirrored as
+  `--approve`/`--no-approve`, and `PI_DEVS_PSYCH_CHILD/RUN/ROLE/LIMITS` set while `PI_SUBAGENT` and
+  `PI_CHILD_SESSION` are removed (D5). A submitted run returns `{ ok: true, text: JSON.stringify(args) }`
+  so `parseAppraisal` runs unchanged; otherwise a typed stage (`no_submission | exit | spawn |
+  timeout | budget | aborted`) with the last assistant text or an 8 KB-capped stderr tail. A
+  wall-clock timeout, a per-run cost cap and the session abort signal each kill the whole tree
+  (idempotent: `taskkill /PID <pid> /T /F` on Windows, `process.kill(-pid)` on POSIX) and the run
+  directory is removed on every path unless `agent.keepTranscript`. The composition root swaps
+  `deps.callModel` for the runner when the effective `runtime` is `agent`, tracks session cost and
+  refuses a run once `agent.maxCostUsdPerSession` is reached, and `session_shutdown` kills a running
+  child. The appraiser's gate is unchanged; only the call is.
 
 ## 0.4.0
 
