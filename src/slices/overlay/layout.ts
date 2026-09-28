@@ -186,7 +186,16 @@ export function layoutCard(input: CardInput, s: Strings, width: number, paint: P
 		}
 		tail.push(...citationLines(intervention.cited, 2, bodyWidth, paint));
 	} else {
-		tail.push({ text: `  ${paint.fg("dim", s.cardNothingToAct)}` });
+		// No intervention is one thing; no citation anywhere is another. If nothing was cited, the
+		// appraisal holds no verdict, and "that is a normal outcome" would be a claim the model
+		// never made.
+		const cited = [
+			input.appraisal.progress,
+			input.appraisal.load,
+			input.appraisal.flow,
+			...NEEDS.map((need) => input.appraisal.needs[need]),
+		].some((verdict) => verdict.cited.length > 0);
+		tail.push({ text: `  ${paint.fg("dim", cited ? s.cardNothingToAct : s.cardNoObservation)}` });
 	}
 	tail.push({ text: paint.fg("border", rule(width)) });
 

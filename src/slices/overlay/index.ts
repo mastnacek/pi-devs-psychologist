@@ -66,8 +66,12 @@ export async function presentAppraisal(
 
 	try {
 		await ctx.ui.custom<void>(
-			(_tui, theme, _keybindings, done) =>
-				new AppraisalView(input, theme, () => done(), { locale: lang, maxHeight }),
+			(tui, theme, _keybindings, done) =>
+				new AppraisalView(input, theme, () => done(), {
+					locale: lang,
+					maxHeight,
+					requestRender: () => tui.requestRender(),
+				}),
 			{ overlay: true, overlayOptions: { anchor: "center", width, maxHeight } },
 		);
 		return true;

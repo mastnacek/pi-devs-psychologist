@@ -41,12 +41,19 @@ export interface AppraisalViewOptions {
 	 * than being clipped.
 	 */
 	maxHeight?: number;
+	/**
+	 * Repaint after the component changes its own state. The skill requires this: `pi-tui` does
+	 * not re-render on input, so a scroll that mutates `this.scroll` without asking for a repaint
+	 * looks like a dead key.
+	 */
+	requestRender?: () => void;
 }
 
 export class AppraisalView implements Component {
 	private scroll = 0;
 	private readonly strings: Strings;
 	private readonly maxHeight: number | undefined;
+	private readonly requestRender: (() => void) | undefined;
 
 	constructor(
 		private readonly input: CardInput,
@@ -56,6 +63,7 @@ export class AppraisalView implements Component {
 	) {
 		this.strings = stringsFor(options.locale ?? DEFAULT_LOCALE);
 		this.maxHeight = options.maxHeight;
+		this.requestRender = options.requestRender;
 	}
 
 	invalidate(): void {
@@ -70,20 +78,27 @@ export class AppraisalView implements Component {
 			return;
 		}
 		if (matchesKey(data, "pageUp")) {
-			this.scroll = Math.max(0, this.scroll - this.page());
+			this.scrollTo(Math.max(0, this.scroll - this.page()));
 			return;
 		}
 		if (matchesKey(data, "pageDown")) {
-			this.scroll += this.page();
+			this.scrollTo(this.scroll + this.page());
 			return;
 		}
 		if (matchesKey(data, "up")) {
-			this.scroll = Math.max(0, this.scroll - 1);
+			this.scrollTo(Math.max(0, this.scroll - 1));
 			return;
 		}
 		if (matchesKey(data, "down")) {
-			this.scroll += 1;
+			this.scrollTo(this.scroll + 1);
 		}
+	}
+
+	/** Scroll and repaint. A no-op move does not repaint: the key was dead, not the screen stale. */
+	private scrollTo(next: number): void {
+		if (next === this.scroll) return;
+		this.scroll = next;
+		this.requestRender?.();
 	}
 
 	private page(): number {

@@ -17,6 +17,9 @@ import { neutralAppraisal, NEEDS } from "../src/shared/appraisal.js";
 import { stringsFor } from "../src/shared/i18n.js";
 import { makePi } from "./fakes.js";
 
+/** Identity theme: text assertions need the characters, not the escapes. */
+const PLAIN = { fg: (_c, t) => t, bold: (t) => t, bg: (_c, t) => t };
+
 const LINE = "window: 3 prompt(s), 8 tool call(s), 21 min";
 const LONG = "verified progress: none — no test, lint, typecheck or build succeeded in this window";
 
@@ -46,6 +49,59 @@ function view(cardInput, theme, options = {}) {
   void pi;
   return new AppraisalView(cardInput, theme, () => {}, options);
 }
+
+test("scrolling repaints, because pi-tui does not re-render on input", () => {
+  // The skill requires requestRender() on every state change. Without it the card scrolls in
+  // memory and never on screen, so PgDn looks like a dead key.
+  const repaints = [];
+  const s = stringsFor("en");
+  const { head, tail } = layoutCard(input(), s, 60, { fg: (_c, t) => t, bold: (t) => t });
+  const v = view(input(), PLAIN, {
+    requestRender: () => repaints.push(1),
+    // A window smaller than the head, so scrolling is actually possible.
+    maxHeight: FRAME_LINES + tail.length + 2,
+  });
+  assert.ok(head.length > 2, "the head must be longer than the window for this to mean anything");
+
+  v.handleInput("[6~"); // PgDn
+  assert.equal(repaints.length, 1, "PgDn asked for a repaint");
+
+  v.handleInput("[B"); // Down
+  assert.equal(repaints.length, 2, "Down asked for a repaint");
+
+  // A move that cannot change anything must NOT repaint: nothing happened, so nothing is stale.
+  v.render(60);
+  // Walk up until a press stops repainting: that press found the top. (Comparing against a
+  // fixed baseline loops forever — the repaint count only ever grows.)
+  let before;
+  do {
+    before = repaints.length;
+    v.handleInput("[A");
+  } while (repaints.length > before);
+  const atTop = repaints.length;
+  v.handleInput("[A"); // already at 0
+  assert.equal(repaints.length, atTop, "a no-op move does not repaint");
+
+  // Closing still works and takes no repaint.
+  v.handleInput("");
+  assert.equal(repaints.length, atTop, "closing is not a repaint");
+});
+
+test("a card whose every verdict is uncited does not claim a normal outcome", () => {
+  // The screenshot that prompted this: every field read "not assessed", the load and flow "not
+  // assessed", and the card said "Nothing to act on. That is a normal outcome." — a clean bill of
+  // health the model never gave. No citation anywhere means no verdict was reached.
+  const unjudged = neutralAppraisal();
+  const rendered = view({ appraisal: unjudged, unmatched: [] }, PLAIN).render(76).join("\n");
+  assert.match(rendered, /cited nothing, so no verdict was reached/);
+  assert.doesNotMatch(rendered, /normal outcome/, "the calm line must not be reused here");
+
+  // But a card that DID reach verdicts keeps the calm line.
+  const judged = { ...neutralAppraisal(), progress: { state: "unproven", cited: [LINE] } };
+  const other = view({ appraisal: judged, unmatched: [] }, PLAIN).render(76).join("\n");
+  assert.match(other, /normal outcome/);
+  assert.doesNotMatch(other, /cited nothing/);
+});
 
 test("measureCard counts exactly the lines the view will draw", () => {
   // The presenter sizes the overlay from this. If it disagrees, content is clipped.
@@ -98,7 +154,9 @@ test("neutral verdicts still render, so 'nothing to say' differs from 'did not l
     assert.match(text, new RegExp(s.labels.needStates.unassessed), "an unassessed need is shown as unassessed");
   }
   assert.match(text, /not assessed/);
-  assert.match(text, /Nothing to act on/, "and the absence of an intervention is stated, not implied");
+  // Fully neutral = nothing cited anywhere, so the card must say no verdict was reached rather
+  // than the calm "nothing to act on" line (see the uncited-card test below).
+  assert.match(text, /cited nothing, so no verdict was reached/, "and the absence of a verdict is stated, not implied");
 });
 
 test("unsupported claims are surfaced, not hidden", () => {

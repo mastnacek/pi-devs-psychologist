@@ -72,6 +72,12 @@ export interface Strings {
 	cardVerdicts: string;
 	cardIntervention: string;
 	cardNothingToAct: string;
+	/**
+	 * Shown when no field carries a single citation, so the card reached no verdict at all.
+	 * Distinct from `cardNothingToAct`: that one says "appraised, nothing to do", this one says
+	 * "nothing was appraised". Presenting the second as the first reads as a clean bill of health.
+	 */
+	cardNoObservation: string;
 	cardCited: string;
 	cardUnmatched: (count: number) => string;
 	cardFooter: { close: string; scroll: string };
@@ -137,6 +143,7 @@ const EN: Strings = {
 	cardVerdicts: "What the session shows",
 	cardIntervention: "One thing, if it helps",
 	cardNothingToAct: "Nothing to act on. That is a normal outcome.",
+	cardNoObservation: "The model cited nothing, so no verdict was reached. Not a statement about the session.",
 	cardCited: "from",
 	cardUnmatched: (count) => `${count} unsupported claim(s) dropped`,
 	cardFooter: { close: "close", scroll: "scroll" },
@@ -229,6 +236,7 @@ const CS: Strings = {
 	cardVerdicts: "Co relace ukazuje",
 	cardIntervention: "Jedna věc, pokud pomůže",
 	cardNothingToAct: "Není co dělat. To je normální výsledek.",
+	cardNoObservation: "Model nic nedoložil, žádný výrok nepadl. Není to tvrzení o relaci.",
 	cardCited: "z",
 	cardUnmatched: (count) => `${count} nepodložených tvrzení zahozeno`,
 	cardFooter: { close: "zavřít", scroll: "posun" },
