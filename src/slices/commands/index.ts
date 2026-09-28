@@ -35,6 +35,8 @@ export interface CommandDeps {
 	now(ctx: ExtensionCommandContext): Promise<string>;
 	/** Show the report through whatever surface is available. */
 	report(ctx: ExtensionCommandContext): void;
+	/** Show the intervention-effect table (T16). Injected so this slice knows no other slice. */
+	effect(ctx: ExtensionCommandContext): void;
 	/** Persist a patch to the chosen layer; returns the path written. */
 	save(patch: Record<string, unknown>, isGlobal: boolean, ctx: ExtensionCommandContext): string;
 	/** Re-read the config cascade after a write, so the effect is immediate. */
@@ -73,6 +75,8 @@ function subcommands(state: DevsPsychologistState): Completion[] {
 	return [
 		leaf("status", "status", s.cmdStatus),
 		leaf("now", "now", s.cmdNow),
+		// A terminal leaf: no trailing space, because Tab confirms it as final (T16).
+		leaf("effect", "effect", s.cmdEffect),
 		// The marker goes in `label` (display-only, the primary column) as well as the description:
 		// a settings menu that does not show which choice is in effect makes the user run `status`
 		// first to find out. `value` stays a clean token because it is inserted verbatim.
@@ -325,6 +329,10 @@ export function registerPsychCommand(
 
 				case "now":
 					notify(await deps.now(ctx));
+					return;
+
+				case "effect":
+					deps.effect(ctx);
 					return;
 
 				case "on":

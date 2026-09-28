@@ -16,6 +16,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { DEFAULT_SIGNAL_OPTIONS } from "./signals.js";
+import { DEFAULT_COOLDOWN_TURNS, DEFAULT_OUTCOME_WINDOW_TURNS } from "./outcome.js";
 import { DEFAULT_TRIGGER_THRESHOLDS, type TriggerThresholds } from "./triggers.js";
 import { normalizeLocale, type Locale } from "./i18n.js";
 
@@ -58,6 +59,13 @@ export interface DevsPsychologistConfig {
 	commitCheck: boolean;
 	/** Hard ceiling on appraisals per session. 0 = unlimited (not recommended). */
 	maxAppraisalsPerSession: number;
+	/**
+	 * Turns an intervention is given to prove itself before its outcome is judged (T16).
+	 * See `src/shared/outcome.ts` for the per-metric comparison rule.
+	 */
+	outcomeWindowTurns: number;
+	/** Turns a delivered kind stays "cooling" and the model is warned off it (T17). */
+	cooldownTurns: number;
 	/** Token-overlap ratio at which a prompt counts as a restatement. */
 	restatementThreshold: number;
 	/** Word count above which an anchor-less prompt is reported unscoped. */
@@ -95,6 +103,8 @@ export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	triggerThresholds: { ...DEFAULT_TRIGGER_THRESHOLDS },
 	commitCheck: true,
 	maxAppraisalsPerSession: 12,
+	outcomeWindowTurns: DEFAULT_OUTCOME_WINDOW_TURNS,
+	cooldownTurns: DEFAULT_COOLDOWN_TURNS,
 	restatementThreshold: DEFAULT_SIGNAL_OPTIONS.restatementThreshold,
 	unscopedWordFloor: DEFAULT_SIGNAL_OPTIONS.unscopedWordFloor,
 	idleGapMs: DEFAULT_SIGNAL_OPTIONS.idleGapMs,
@@ -187,6 +197,14 @@ export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsych
 			DEFAULT_CONFIG.maxAppraisalsPerSession,
 			0,
 		),
+		// Floor of 1: a zero-turn window or cooldown would resolve/expire before any evidence could
+		// form, so it is a typo rather than a policy. Junk → default.
+		outcomeWindowTurns: positiveInt(
+			cfg.outcomeWindowTurns,
+			DEFAULT_CONFIG.outcomeWindowTurns,
+			1,
+		),
+		cooldownTurns: positiveInt(cfg.cooldownTurns, DEFAULT_CONFIG.cooldownTurns, 1),
 		restatementThreshold: ratio(cfg.restatementThreshold, DEFAULT_CONFIG.restatementThreshold),
 		unscopedWordFloor: positiveInt(cfg.unscopedWordFloor, DEFAULT_CONFIG.unscopedWordFloor, 1),
 		idleGapMs: positiveInt(cfg.idleGapMs, DEFAULT_CONFIG.idleGapMs, 1000),

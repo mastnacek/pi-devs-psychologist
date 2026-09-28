@@ -20,39 +20,13 @@
  * unreliable in containers. The persisted `lang` setting is the only source of truth.
  */
 
-import {
-	FLOW_STATES,
-	INTERVENTION_KINDS,
-	LOAD_LEVELS,
-	NEED_STATES,
-	NEEDS,
-	PROGRESS_STATES,
-	type InterventionKind,
-	type NeedKey,
-} from "./appraisal.js";
+import { CS_LABELS, EN_LABELS, type Labels } from "./i18n-labels.js";
+
+export { LABEL_GROUPS, LABEL_SOURCES, type Labels } from "./i18n-labels.js";
 
 export const LOCALES = ["en", "cs"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
-
-type NeedState = (typeof NEED_STATES)[number];
-type LoadLevel = (typeof LOAD_LEVELS)[number];
-type ProgressState = (typeof PROGRESS_STATES)[number];
-type FlowState = (typeof FLOW_STATES)[number];
-
-/**
- * Human names for the appraisal's vocabulary. Complete by construction: each map is
- * typed against the enum it names, so adding a state to the contract without naming it
- * in both locales is a compile error rather than a raw token on screen.
- */
-export interface Labels {
-	needs: Record<NeedKey, string>;
-	needStates: Record<NeedState, string>;
-	loadLevels: Record<LoadLevel, string>;
-	progressStates: Record<ProgressState, string>;
-	flowStates: Record<FlowState, string>;
-	interventionKinds: Record<InterventionKind, string>;
-}
 
 export interface Strings {
 	/** Statusline. The product name (`psych`) is identical across locales; the state is not. */
@@ -102,6 +76,12 @@ export interface Strings {
 	reportTriggered: string;
 	/** `appraisals skipped: N (no new evidence)` — the measured saving of the trigger rule. */
 	reportSkipped: (n: number) => string;
+	/** `/psych effect` — whether the delivered interventions helped (T16). */
+	effectTitle: string;
+	/** Shown when nothing was delivered this session, so an empty table is never a silent one. */
+	effectEmpty: string;
+	/** Column headings for the per-kind effect table. */
+	effectColumns: { kind: string; delivered: string; improved: string; unchanged: string; worse: string; followed: string };
 	/**
 	 * The delivery-boundary notification (T15): a commit shipped a change set no run ever proved.
 	 * English mirrors the evidence line exactly; the count is the number of file changes.
@@ -117,6 +97,7 @@ export interface Strings {
 	/** What each subcommand does, for the picker's description column. */
 	cmdStatus: string;
 	cmdNow: string;
+	cmdEffect: string;
 	/** An unset setting, shown in a parent row rather than a bare dash. */
 	notSet: string;
 	/** `(now: 12)` — a parent row's value, labelled. */
@@ -175,16 +156,27 @@ const EN: Strings = {
 	reportTrigger: "trigger  ",
 	reportTriggered: "triggered by",
 	reportSkipped: (n) => `appraisals skipped: ${n} (no new evidence)`,
+	effectTitle: "INTERVENTION EFFECT",
+	effectEmpty: "nothing delivered yet this session",
+	effectColumns: {
+		kind: "kind",
+		delivered: "delivered",
+		improved: "improved",
+		unchanged: "unchanged",
+		worse: "worse",
+		followed: "followed",
+	},
 	commitUnverified: (count) => `commit after ${count} file change(s) with no verified run since`,
 
 	commandDescription: "Developer psychologist: appraisal now, state, and settings",
 	cmdStatus: "show the report",
 	cmdNow: "run an appraisal now",
+	cmdEffect: "show whether the interventions helped",
 	notSet: "(not set)",
 	nowValue: (value) => `(now: ${value})`,
 	// The help must not advertise a `global` subcommand: it is a trailing flag, and a user who
 	// followed the old text got "Unknown option: global".
-	usage: "Usage: /psych [status|now|on|off|model <provider/id>|budget <n>|lang <en|cs>] [--global]",
+	usage: "Usage: /psych [status|now|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>] [--global]",
 	unknownOption: "Unknown option",
 	configWritten: (path) => `Config written to ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
@@ -200,44 +192,7 @@ const EN: Strings = {
 	done: "Appraisal complete.",
 	busy: "An appraisal is already running.",
 
-	labels: {
-		needs: {
-			autonomy: "Autonomy",
-			competence: "Competence",
-			relatedness: "Relatedness",
-		},
-		needStates: {
-			met: "met",
-			at_risk: "at risk",
-			unmet: "unmet",
-			unassessed: "not assessed",
-		},
-		loadLevels: {
-			low: "low",
-			moderate: "moderate",
-			high: "high",
-			unassessed: "not assessed",
-		},
-		progressStates: {
-			advanced: "advancing",
-			blocked: "blocked",
-			unproven: "unproven",
-		},
-		flowStates: {
-			in_flow: "in flow",
-			broken: "broken",
-			unassessed: "not assessed",
-		},
-		interventionKinds: {
-			name_next_win: "name the next win",
-			thin_slice: "cut it thinner",
-			reduce_load: "verify before writing more",
-			protect_flow: "protect the flow",
-			close_loop: "close the loop",
-			return_autonomy: "hand the decision back",
-			stop: "stop",
-		},
-	},
+	labels: EN_LABELS,
 	fields: { progress: "Progress", load: "Load", flow: "Flow" },
 };
 
@@ -272,14 +227,25 @@ const CS: Strings = {
 	reportTrigger: "spouštěč ",
 	reportTriggered: "spuštěno:",
 	reportSkipped: (n) => `posouzení přeskočeno: ${n} (žádný nový důkaz)`,
+	effectTitle: "ÚČINEK ZÁSAHŮ",
+	effectEmpty: "v této relaci zatím nic předáno",
+	effectColumns: {
+		kind: "druh",
+		delivered: "předáno",
+		improved: "zlepšeno",
+		unchanged: "beze změny",
+		worse: "horší",
+		followed: "následováno",
+	},
 	commitUnverified: (count) => `commit po ${count} změnách bez ověřeného běhu`,
 
 	commandDescription: "Vývojářský psycholog: posouzení teď, stav a nastavení",
 	cmdStatus: "zobrazit report",
 	cmdNow: "spustit posouzení teď",
+	cmdEffect: "zobrazit, zda zásahy pomohly",
 	notSet: "(nenastaveno)",
 	nowValue: (value) => `(nyní: ${value})`,
-	usage: "Použití: /psych [status|now|on|off|model <provider/id>|budget <n>|lang <en|cs>] [--global]",
+	usage: "Použití: /psych [status|now|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>] [--global]",
 	unknownOption: "Neznámá volba",
 	configWritten: (path) => `Konfigurace zapsána do ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,
@@ -295,44 +261,7 @@ const CS: Strings = {
 	done: "Posouzení dokončeno.",
 	busy: "Posouzení už běží.",
 
-	labels: {
-		needs: {
-			autonomy: "Autonomie",
-			competence: "Kompetence",
-			relatedness: "Sounáležitost",
-		},
-		needStates: {
-			met: "naplněno",
-			at_risk: "ohroženo",
-			unmet: "nenaplněno",
-			unassessed: "nevyhodnoceno",
-		},
-		loadLevels: {
-			low: "nízká",
-			moderate: "přiměřená",
-			high: "vysoká",
-			unassessed: "nevyhodnoceno",
-		},
-		progressStates: {
-			advanced: "postupuje",
-			blocked: "zablokováno",
-			unproven: "neprokázáno",
-		},
-		flowStates: {
-			in_flow: "v toku",
-			broken: "přerušený",
-			unassessed: "nevyhodnoceno",
-		},
-		interventionKinds: {
-			name_next_win: "pojmenuj nejbližší výhru",
-			thin_slice: "nakrájej to tenčeji",
-			reduce_load: "ověř, než napíšeš další kód",
-			protect_flow: "chraň tok",
-			close_loop: "uzavři smyčku",
-			return_autonomy: "vrať rozhodnutí člověku",
-			stop: "skonči",
-		},
-	},
+	labels: CS_LABELS,
 	fields: { progress: "Postup", load: "Zátěž", flow: "Tok" },
 };
 
@@ -356,23 +285,3 @@ export function normalizeLocale(value: string | null | undefined): Locale {
 		? (value as Locale)
 		: DEFAULT_LOCALE;
 }
-
-/** Every label key, for the completeness test and for the command's `lang` help. */
-export const LABEL_GROUPS = [
-	"needs",
-	"needStates",
-	"loadLevels",
-	"progressStates",
-	"flowStates",
-	"interventionKinds",
-] as const;
-
-/** Compile-time proof that the label maps name every enum member. Unused at runtime. */
-export const LABEL_SOURCES = {
-	needs: NEEDS,
-	needStates: NEED_STATES,
-	loadLevels: LOAD_LEVELS,
-	progressStates: PROGRESS_STATES,
-	flowStates: FLOW_STATES,
-	interventionKinds: INTERVENTION_KINDS,
-} as const;

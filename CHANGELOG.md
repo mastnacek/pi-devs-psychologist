@@ -3,7 +3,8 @@
 ## 0.4.0 (unreleased)
 
 T14, T15 and T18. The appraiser stops running on a clock and starts running on evidence, and a
-commit no run ever verified is named for zero tokens.
+commit no run ever verified is named for zero tokens. T16 and T17 add a ledger that measures
+whether the interventions help, and stop repeating the ones that do not.
 
 ### Added
 
@@ -34,8 +35,31 @@ commit no run ever verified is named for zero tokens.
   delays the command (D8).
 - **Config `commitCheck: boolean` (default `true`).** Normalised opt-out; the same switch silences
   the notification, the evidence line and the trigger.
+- **Intervention outcome ledger (T16).** New pure `src/shared/outcome.ts`. Every delivered
+  intervention opens a record `{ id, kind, deliveredAtTurn, channel, before }` with a `before`
+  snapshot of `{ failureRate, turnsSinceVerifiedProgress, restatements, aborts }`. After
+  `outcomeWindowTurns` turns an `after` snapshot yields a verdict per metric
+  (`improved | unchanged | worse`) by plain comparison — documented thresholds, no weighting and
+  **no single aggregate score**. Reactions are recorded when observable: `closedCardMs` (measured
+  around `presentAppraisal`), `quickWinCalled` (a `quick_win` run inside a `name_next_win` window)
+  and `followed` (the next operator prompt shares ≥ 40 % of its tokens with the advice, via the
+  restatement overlap helper). Records are persisted as TUI-only `custom` entries and rebuilt from
+  `getEntries()` on session start.
+- **`/psych effect`.** New terminal-leaf subcommand: a per-kind table of delivered, improved,
+  unchanged, worse and followed. Session-scoped, width-safe (`truncateToWidth`), `en` + `cs`.
+- **Anti-nag cooldown (T17).** Per-kind `cooldownTurns`. A cooling/muted kind adds one LIVE line
+  `do not repeat: <kind> (named N times, no change)` to *both* the prompt and `allowedEvidence`.
+  A kind delivered twice whose windows fail to improve is muted, and a repeat the model still picks
+  is dropped — verdicts kept, `downgraded: "cooldown"` recorded for `/psych`. `stop` is exempt from
+  cooldown but not from muting.
+- **Config `outcomeWindowTurns` (default `5`) and `cooldownTurns` (default `6`).** Both normalised
+  with a floor of 1; junk → default.
 
 ### Changed
+
+- **Minimal T7.** The last appraisal is persisted as a `custom` entry (`psych-appraisal`) and
+  restored on `session_start`, so `/psych` survives `/reload` and compaction. Restoring contributes
+  zero observations — the judgement never re-enters the window.
 
 - `maybeAppraise` keeps the floor and the budget, and adds a `no_trigger` skip between them.
   `force` (`/psych now`) bypasses the trigger and the floor, never the budget.
@@ -52,7 +76,12 @@ commit no run ever verified is named for zero tokens.
 once and not again, and the trigger line is citable. `triggers.test.js` asserts each reason in
 isolation and against a baseline that already saw it. `commit-check.test.js` asserts the delivery
 boundary: two edits then a commit fires one notification and one line with N=2; a verified set, a
-failed command, `commitCheck: false` and a headless context all stay silent.
+failed command, `commitCheck: false` and a headless context all stay silent. `outcome.test.js`
+asserts the verdict arithmetic and the precise muting rule; `outcome-cooldown.test.js` drives a
+fake model that picks `thin_slice` three times with no improvement and asserts delivered twice,
+third dropped, the warning present from the second call, and `stop` exemption; `effect.test.js`
+asserts the table is width-safe to a mocked width; `persistence.test.js` asserts the appraisal and
+ledger survive a reload from `getEntries()` as `custom` (never `message`) entries.
 
 ## 0.3.1 — README truth pass
 

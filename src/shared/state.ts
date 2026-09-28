@@ -14,6 +14,7 @@ import { DEFAULT_CONFIG, GLOBAL_CONFIG_FILE, loadConfig, type DevsPsychologistCo
 import { DEFAULT_SIGNAL_OPTIONS, type Observation } from "./signals.js";
 import { EMPTY_TRIGGER_BASELINE, type TriggerBaseline, type TriggerReason } from "./triggers.js";
 import type { Appraisal } from "./appraisal.js";
+import type { OutcomeRecord } from "./outcome.js";
 import type { UsageSummary } from "./model-call.js";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
@@ -69,6 +70,8 @@ export interface DevsPsychologistState {
 	appraisalsThisSession: number;
 	/** Completed turns since the last appraisal attempt, drives `config.cadenceTurns`. */
 	turnsSinceAppraisal: number;
+	/** Turns completed this session. The clock the outcome ledger measures its window against. */
+	turnCount: number;
 	/** True while an appraisal is in flight, so a slow model is not called twice. */
 	appraisalInFlight: boolean;
 	/** Last enforced appraisal, for the report. Never fed back into the observation log. */
@@ -84,6 +87,11 @@ export interface DevsPsychologistState {
 	lastAppraisalFailure: { stage: string; error: string } | undefined;
 	/** Last appraisal's enforcement notes. */
 	lastAppraisalNotes: AppraisalNotes | undefined;
+	/**
+	 * Intervention outcome ledger (T16). Restored from session entries on start; the reports read it,
+	 * the anti-nag rule (T17) reads it, and it is the only memory of what was DELIVERED this session.
+	 */
+	outcomes: OutcomeRecord[];
 	/**
 	 * Counters captured at the last appraisal ATTEMPT (including a forced one). Every trigger is a
 	 * delta against this, so the evidence that ran one appraisal cannot run the next.
@@ -135,12 +143,14 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		modelProviders: [],
 		appraisalsThisSession: 0,
 		turnsSinceAppraisal: 0,
+		turnCount: 0,
 		appraisalInFlight: false,
 		lastAppraisal: undefined,
 		lastAppraisalAt: undefined,
 		lastAppraisalFailure: undefined,
 		lastAppraisalNotes: undefined,
 		lastAppraisalUsage: undefined,
+		outcomes: [],
 		triggerBaseline: { ...EMPTY_TRIGGER_BASELINE },
 		appraisalsSkipped: 0,
 		lastTriggerReasons: [],
@@ -156,6 +166,8 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 			state.observations = [];
 			state.pendingTools.clear();
 			state.turnsSinceAppraisal = 0;
+			state.turnCount = 0;
+			state.outcomes = [];
 			state.lastAppraisal = undefined;
 			state.lastAppraisalAt = undefined;
 			state.lastAppraisalFailure = undefined;
@@ -234,6 +246,28 @@ export function refreshModelCatalog(
 /** Reload the cascading config for a session rooted at `cwd`. */
 export function reloadConfig(state: DevsPsychologistState, cwd?: string): void {
 	state.config = loadConfig(cwd, state.globalFile);
+}
+
+/**
+ * Restore the last appraisal from the session's TUI-only entries (T7, minimal slice).
+ *
+ * The appraisal is stored on a `custom` entry (`customType: "psych-appraisal"`), which the engine
+ * never folds into model context. Restoring it here means `/reload` and compaction keep `/psych`
+ * honest, and — deliberately — the restored text contributes ZERO observations: the appraisal is
+ * the plugin's own judgement, not a session event, and re-observing it would corrupt every signal
+ * that counts prompts.
+ */
+export function restoreAppraisal(
+	state: DevsPsychologistState,
+	entries: readonly { type?: string; customType?: string; data?: unknown }[] | undefined,
+): void {
+	let restored: Appraisal | undefined;
+	for (const entry of entries ?? []) {
+		if (entry?.type !== "custom" || entry.customType !== "psych-appraisal") continue;
+		if (entry.data === null || typeof entry.data !== "object") continue;
+		restored = entry.data as Appraisal;
+	}
+	if (restored) state.lastAppraisal = restored;
 }
 
 /** Effective signal options for the current config. */

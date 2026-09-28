@@ -115,11 +115,18 @@ render test asserts no line exceeds the mocked terminal width.
 
 ---
 
-## . T7 — Persistence
+## . T7 — Persistence **(partially done: appraisal restore shipped with T16)**
 
 Store the last appraisal as a TUI-only entry via `pi.appendEntry` and restore it
 on `session_start`, so `/reload` and compaction never lose a report — and never
 let an appraisal re-enter the observation window.
+
+**Done in 0.4.0 (T16):** the last appraisal is appended as a `psych-appraisal`
+`custom` entry and `restoreAppraisal` reads it back on `session_start`; the outcome
+ledger uses the same mechanism. `persistence.test.js` asserts restore returns the
+same appraisal and contributes zero observations.
+
+**Remaining:** none identified beyond the ledger, which also persists.
 
 **Validation:** test asserts restore-after-reload returns the same appraisal and
 that restored text contributes zero observations.

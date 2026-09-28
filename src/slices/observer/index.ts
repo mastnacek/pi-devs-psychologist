@@ -85,6 +85,15 @@ export interface ObserverDeps {
 	 * the only multi-slice importer — the observer records the fact, a slice delivers the text.
 	 */
 	notifyUnverifiedCommit?(ctx: ExtensionContext, count: number): void;
+	/**
+	 * Ledger reactions (T16). The observer is the only place that sees a raw prompt or tool name, so
+	 * it forwards exactly those two facts and lets the ledger decide what they mean — the observer
+	 * itself stays free of outcome logic.
+	 */
+	outcome?: {
+		notePrompt?(text: string): void;
+		noteToolCall?(toolName: string): void;
+	};
 }
 
 /**
@@ -96,7 +105,9 @@ export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState,
 		pi.on("input", (event, _ctx) => {
 			if (!state.config.enabled) return;
 			if (!isProgrammerPrompt(event.source)) return;
-			state.observe({ kind: "prompt", at: Date.now(), text: event.text ?? "" });
+			const text = event.text ?? "";
+			state.observe({ kind: "prompt", at: Date.now(), text });
+			deps.outcome?.notePrompt?.(text);
 		}),
 	);
 
@@ -133,6 +144,10 @@ export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState,
 				...(signature === undefined ? {} : { errorSignature: signature }),
 			});
 
+			// The `quick_win` reaction (T16): the observer is the only place that sees a tool name, so
+			// it forwards it and the ledger decides whether it follows a `name_next_win`.
+			deps.outcome?.noteToolCall?.(event.toolName);
+
 			// Delivery-boundary check (T15). Observe only — the command is never blocked or delayed
 			// (D8). A successful commit that ships unproven work is named for zero tokens; nothing
 			// else happens (a failure, a verified change set, or `commitCheck: false` are all silent).
@@ -149,6 +164,7 @@ export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState,
 			if (!state.config.enabled) return;
 			state.observe({ kind: "turn", at: Date.now() });
 			state.turnsSinceAppraisal += 1;
+			state.turnCount += 1;
 		}),
 	);
 }

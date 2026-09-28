@@ -26,16 +26,17 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { saveConfig, seedGlobalConfig } from "./src/shared/config.js";
 import { readHistory } from "./src/shared/history.js";
+import { noteFollowed, noteQuickWin, restoreOutcomes } from "./src/shared/outcome.js";
 import { stringsFor } from "./src/shared/i18n.js";
 import { extractSignals } from "./src/shared/signals.js";
-import { refreshModelCatalog, createDevsPsychologistState, reloadConfig, signalOptions } from "./src/shared/state.js";
+import { refreshModelCatalog, createDevsPsychologistState, reloadConfig, restoreAppraisal, signalOptions } from "./src/shared/state.js";
 import { clearChip, paintChip } from "./src/shared/status.js";
 import { maybeAppraise, registerAppraiser, defaultDeps } from "./src/slices/appraiser/index.js";
 import { registerPsychCommand } from "./src/slices/commands/index.js";
 import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
 import { registerObserver } from "./src/slices/observer/index.js";
 import { presentAppraisal } from "./src/slices/overlay/index.js";
-import { renderReport } from "./src/slices/report/index.js";
+import { renderReport, renderEffect } from "./src/slices/report/index.js";
 
 export interface DevsPsychologistOptions {
 	/**
@@ -87,6 +88,16 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal, opt
 			// prefix, so it cannot ask the registry itself.
 			refreshModelCatalog(state, ctx.modelRegistry);
 			state.resetWindow();
+			// Restore the TUI-only ledger and the last appraisal (T7/T16). `getEntries` returns the whole
+			// session, so a reload - or a branch switch - brings back the outcome numbers and the report
+			// instead of starting blind. Neither the entries nor their text ever enter the observation
+			// window: restoring a judgement as an event would corrupt every prompt-counting signal.
+			const entries = ctx.sessionManager.getEntries();
+			restoreAppraisal(state, entries);
+			state.outcomes = restoreOutcomes(entries);
+			// Keep the outcome clock sane across a reload: a restored delivery must not read as
+			// "negative turns ago", so the turn counter resumes at least where the ledger left it.
+			state.turnCount = state.outcomes.reduce((max, record) => Math.max(max, record.deliveredAtTurn), state.turnCount);
 			paintChip(state, ctx);
 			// Say it exactly once, on the run that created it. Silent seeding would leave the file
 			// just as undiscoverable as no file at all.
@@ -100,6 +111,12 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal, opt
 		// The commit check's notification text comes from the delivery slice; the observer only
 		// records the fact. The composition root is the only place that knows both.
 		notifyUnverifiedCommit: (ctx, count) => notifyUnverifiedCommit(ctx, state.config.lang, count),
+		// Ledger reactions (T16): the observer forwards the raw prompt and tool name, the pure ledger
+		// decides whether either follows an intervention. The observer stays outcome-free.
+		outcome: {
+			notePrompt: (text) => noteFollowed(state.outcomes, text),
+			noteToolCall: (toolName) => noteQuickWin(state.outcomes, toolName),
+		},
 	});
 	registerAppraiser(pi, state, appraiserDeps);
 
@@ -146,6 +163,16 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal, opt
 				signals: signals.evidence,
 				history: readHistory(ctx).evidence,
 				lang: state.config.lang,
+			});
+			if (ctx.hasUI) ctx.ui.notify(text, "info");
+		},
+		effect: (ctx) => {
+			// The outcome table is width-safe and session-scoped only (full cross-session ledger is T10).
+			const columns = ctx.hasUI ? (process.stdout?.columns ?? 0) : 0;
+			const text = renderEffect({
+				ledger: state.outcomes,
+				lang: state.config.lang,
+				width: columns > 0 ? columns : 100,
 			});
 			if (ctx.hasUI) ctx.ui.notify(text, "info");
 		},

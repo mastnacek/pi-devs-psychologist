@@ -132,6 +132,8 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
   },
   "commitCheck": true,
   "maxAppraisalsPerSession": 12,
+  "outcomeWindowTurns": 5,
+  "cooldownTurns": 6,
   "steerAgent": false,
   "lang": "en",
   "restatementThreshold": 0.6,
@@ -155,6 +157,8 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `triggerThresholds` | see JSON | **Live.** Per-reason trigger thresholds. Each key normalised independently; junk → default |
 | `commitCheck` | `true` | **Live.** On a successful commit (`git commit`, `git push`, `gh pr create`, `npm publish`) with unverified changes, name it in one notification and one evidence line. Observes only — never blocks; `false` silences it entirely |
 | `maxAppraisalsPerSession` | `12` | **Live.** Hard ceiling on *attempts* per session; `0` = unlimited |
+| `outcomeWindowTurns` | `5` | **Live.** Turns an intervention is given to prove itself before its outcome (per metric, no aggregate score) is judged. See `/psych effect` |
+| `cooldownTurns` | `6` | **Live.** Turns a delivered kind stays "cooling", so the model is warned `do not repeat` it. A kind whose outcomes fail to improve twice is muted outright |
 | `steerAgent` | `false` | **Live.** Whether an intervention may enter the working agent's context. Off by default: an observer is not an authority |
 | `restatementThreshold` | `0.6` | **Live.** Token overlap at which a prompt counts as a restatement |
 | `unscopedWordFloor` | `25` | **Live.** Word count above which an anchor-less prompt is reported unscoped |
@@ -179,6 +183,7 @@ spots is not an observer. A different *account* is not automatically a different
 |---|---|
 | `/psych` | Report: the observed signals and the last appraisal |
 | `/psych now` | Form an appraisal immediately, consuming budget |
+| `/psych effect` | Table of delivered interventions per kind: delivered, improved, unchanged, worse, followed. Session-scoped, width-safe |
 | `/psych on` / `off` | Master switch |
 | `/psych model <provider/id>` | Choose the psychologist. The value completes from the engine's registered models and providers (use `--global` to make it machine-wide) |
 | `/psych budget <n>` | Appraisals per session (`0` = unlimited) |

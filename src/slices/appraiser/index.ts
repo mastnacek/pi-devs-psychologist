@@ -32,7 +32,15 @@ import {
 } from "../../shared/model-call.js";
 import { allowedEvidence, buildUserText, SYSTEM_PROMPT } from "../../shared/prompt.js";
 import { environmentEvidence } from "../../shared/environment.js";
-import { extractSignals } from "../../shared/signals.js";
+import { extractSignals, type SessionSignals } from "../../shared/signals.js";
+import {
+	doNotRepeatLines,
+	mutedKinds,
+	resolveDueOutcomes,
+	snapshotOutcome,
+	type OutcomeChannel,
+	type OutcomeRecord,
+} from "../../shared/outcome.js";
 import { evaluateTriggers, snapshotTriggers, type TriggerReason } from "../../shared/triggers.js";
 import { signalOptions, type DevsPsychologistState } from "../../shared/state.js";
 import type { SessionHistory } from "../../shared/history.js";
@@ -166,11 +174,16 @@ export async function maybeAppraise(
 			...history.evidence,
 			...(state.config.envFacts ? environmentEvidence({ cwd: ctx.cwd }) : []),
 		];
+		// One LIVE line per cooling/muted kind (T17), so the model is never asked to repeat advice this
+		// session already proved useless. It joins `signals.evidence`, so it reaches the prompt AND
+		// `allowedEvidence` through the same `liveLines` list — the two must stay identical sets.
+		const coolingLines = doNotRepeatLines(state.outcomes, state.turnCount, state.config.cooldownTurns);
 		// One LIVE line naming what fired, so the reason for the appraisal is itself citable
 		// evidence. It is added to the live block, so it reaches both the prompt and enforcement.
 		const liveLines = [
 			...signals.evidence,
 			...(firedReasons.length > 0 ? [`appraisal triggered by: ${firedReasons.join(", ")}`] : []),
+			...coolingLines,
 		];
 		// `allowedEvidence` is what enforcement matches citations against, so the environment
 		// lines must be in BOTH: offered to the model and admissible as proof. Adding them to
@@ -206,16 +219,29 @@ export async function maybeAppraise(
 			return { ran: true, ok: false, stage: "parse", error: parsed.error };
 		}
 
+		// Anti-nag (T17): a kind this session already tried twice with no improvement is dropped
+		// before delivery. The VERDICTS are kept — only the repeat advice is refused — and the drop is
+		// recorded so `/psych` can show the plugin's own restraint.
+		const candidate = parsed.appraisal.interventions[0];
+		if (candidate && mutedKinds(state.outcomes).has(candidate.kind)) {
+			parsed.appraisal.interventions = [];
+			parsed.downgraded.push("cooldown");
+		}
+
 		state.lastAppraisal = parsed.appraisal;
 		state.lastAppraisalAt = Date.now();
 		state.lastAppraisalNotes = { unmatched: parsed.unmatched, downgraded: parsed.downgraded };
 		state.lastAppraisalFailure = undefined;
+		// Minimal T7: the appraisal is a TUI-only entry, so `/reload` keeps the report while the
+		// judgement never re-enters model context or the observation window.
+		pi.appendEntry("psych-appraisal", parsed.appraisal);
 
 		const silent = isSilent(parsed.appraisal);
 		// The slice itself never touches a surface. It hands the appraisal to the injected
 		// delivery policy, which decides between the card, a notification, steering the working
 		// agent, or nothing at all.
 		let delivery: DeliveryOutcome = { human: "none", agent: false, reason: "silent" };
+		const cardOpenedAt = Date.now();
 		try {
 			// `force` means the operator asked, so the analysis is shown even when it has no advice
 			// to give. An automatic appraisal keeps its silence.
@@ -223,6 +249,10 @@ export async function maybeAppraise(
 		} catch {
 			// A delivery failure must not fail the turn: the appraisal is already stored.
 		}
+		// Outcome ledger (T16): record only a delivery the operator actually saw. The window's
+		// `before` snapshot is the one computed for this turn, so the verdict cannot drift from the
+		// evidence the model read.
+		recordDelivery(pi, state, signals, history, parsed.appraisal.interventions[0], delivery, cardOpenedAt);
 
 		return {
 			ran: true,
@@ -244,6 +274,78 @@ export async function maybeAppraise(
 	}
 }
 
+/** A unique id for a ledger record. `randomUUID` where available; a time+counter fallback otherwise. */
+function nextOutcomeId(): string {
+	const api = globalThis.crypto as { randomUUID?: () => string } | undefined;
+	if (typeof api?.randomUUID === "function") return api.randomUUID();
+	return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * Record a delivered intervention in the ledger and persist it as a TUI-only entry (T16).
+ *
+ * Only a delivery the operator actually saw is recorded: a silent appraisal, or one whose
+ * intervention T17 dropped, wrote nothing to measure. The channel names the surface, and the
+ * card's open duration is measured around the `deliver` await the caller wrapped.
+ */
+function recordDelivery(
+	pi: ExtensionAPI,
+	state: DevsPsychologistState,
+	signals: SessionSignals,
+	history: SessionHistory,
+	intervention: Appraisal["interventions"][number] | undefined,
+	delivery: DeliveryOutcome,
+	cardOpenedAt: number,
+): void {
+	if (!intervention) return;
+	const channel: OutcomeChannel | undefined =
+		delivery.human === "card"
+			? "card"
+			: delivery.human === "notification"
+				? "notification"
+				: delivery.agent
+					? "steer"
+					: undefined;
+	if (!channel) return;
+	const record: OutcomeRecord = {
+		id: nextOutcomeId(),
+		kind: intervention.kind,
+		deliveredAtTurn: state.turnCount,
+		channel,
+		before: snapshotOutcome({ signals, history }),
+		text: intervention.text,
+		...(channel === "card" ? { closedCardMs: Math.max(0, Date.now() - cardOpenedAt) } : {}),
+	};
+	state.outcomes.push(record);
+	pi.appendEntry("psych-outcome", record);
+}
+
+/**
+ * Close every outcome window whose `outcomeWindowTurns` have elapsed (T16).
+ *
+ * Runs on every turn (regardless of whether an appraisal ran), recomputing the session snapshot
+ * once and applying it to every due record. A record that just closed is persisted as its own
+ * follow-up entry, so a reload reconstructs the verdict.
+ */
+export function settleOutcomes(
+	pi: ExtensionAPI,
+	state: DevsPsychologistState,
+	ctx: ExtensionContext,
+	deps: AppraiserDeps,
+): void {
+	if (state.outcomes.length === 0) return;
+	const signals = extractSignals(state.observations, signalOptions(state));
+	const snapshot = snapshotOutcome({ signals, history: deps.readHistory(ctx) });
+	for (const record of resolveDueOutcomes(
+		state.outcomes,
+		state.turnCount,
+		state.config.outcomeWindowTurns,
+		snapshot,
+	)) {
+		pi.appendEntry("psych-outcome", record);
+	}
+}
+
 /** Subscribe the appraiser. The subscription is tracked so shutdown can drain it. */
 export function registerAppraiser(
 	pi: ExtensionAPI,
@@ -253,6 +355,9 @@ export function registerAppraiser(
 	state.track(
 		pi.on("turn_end", async (_event, ctx) => {
 			await maybeAppraise(pi, state, ctx, deps);
+			// Outcome windows close on the same event, so a record proves itself even on a turn the
+			// trigger rule skipped the model entirely.
+			settleOutcomes(pi, state, ctx, deps);
 		}),
 	);
 }

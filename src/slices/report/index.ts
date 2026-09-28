@@ -13,8 +13,10 @@
 import { NEEDS } from "../../shared/appraisal.js";
 import { isSilent } from "../../shared/appraisal-enforce.js";
 import { stringsFor, type Locale } from "../../shared/i18n.js";
+import { effectByKind, type OutcomeRecord } from "../../shared/outcome.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
 import { PLUGIN_VERSION } from "../../shared/version.js";
+import { truncateToWidth } from "@earendil-works/pi-tui";
 
 export interface ReportInput {
 	state: DevsPsychologistState;
@@ -125,4 +127,58 @@ export function renderReport(input: ReportInput): string {
 	}
 
 	return lines.join("\n");
+}
+
+/** One table cell, padded to `width`, then the whole line clipped to the terminal. */
+function fit(line: string, width: number): string {
+	if (width <= 0) return line;
+	return truncateToWidth(line, width, "…");
+}
+
+/** Padded cell helper: text left-aligned, numbers right-aligned, plain ASCII so `width` is measured. */
+function column(value: string, width: number, right = false): string {
+	const clipped = value.length > width ? value.slice(0, width) : value;
+	return right ? clipped.padStart(width) : clipped.padEnd(width);
+}
+
+/**
+ * The `/psych effect` table (T16): per delivered kind, the outcome numbers and whether the advice
+ * was followed. Session-scoped only — a cross-session ledger is T10 and stays opt-in.
+ *
+ * Width-safe like the card: every line is clipped to `width` with `truncateToWidth`, so a narrow
+ * terminal truncates rather than crashing the host process.
+ */
+export function renderEffect(input: { ledger: readonly OutcomeRecord[]; lang: Locale; width: number }): string {
+	const s = stringsFor(input.lang);
+	const lines: string[] = [`${s.effectTitle}`];
+	const rows = effectByKind(input.ledger);
+	if (rows.length === 0) {
+		lines.push("", s.effectEmpty);
+		return lines.map((line) => fit(line, input.width)).join("\n");
+	}
+
+	const cols = s.effectColumns;
+	const kindWidth = 24;
+	const numWidth = 10;
+	const header =
+		column(cols.kind, kindWidth) +
+		column(cols.delivered, numWidth, true) +
+		column(cols.improved, numWidth, true) +
+		column(cols.unchanged, numWidth, true) +
+		column(cols.worse, numWidth, true) +
+		column(cols.followed, numWidth, true);
+	lines.push("", header.trimEnd());
+
+	for (const row of rows) {
+		const line =
+			column(s.labels.interventionKinds[row.kind], kindWidth) +
+			column(String(row.delivered), numWidth, true) +
+			column(String(row.improved), numWidth, true) +
+			column(String(row.unchanged), numWidth, true) +
+			column(String(row.worse), numWidth, true) +
+			column(String(row.followed), numWidth, true);
+		lines.push(line.trimEnd());
+	}
+
+	return lines.map((line) => fit(line, input.width)).join("\n");
 }
