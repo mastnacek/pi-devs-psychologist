@@ -45,6 +45,10 @@ prohibitions), `docs/adr/0001-two-roles-one-observer.md`, then this file.
   `PI_DEVS_PSYCH_CHILD=1`. It must **not** get `PI_SUBAGENT` / `PI_CHILD_SESSION`: those
   switch off `pi-secret-guard` (security) and other workshop plugins the operator wants
   the child to have.
+  **Spike amendment (T19 Q5):** on this machine `pi-secret-guard` is filtered off globally
+  (`"-index.ts"` in settings), so the child has no secret guard at all. The read-only guard
+  (T22) is therefore the only enforcement and must not assume any peer plugin. The marker
+  rule stands for the other plugins. Launch constraints for T22–T24: `docs/agent-runtime-spike.md`.
 - **D6 — Session context is a consent level, not a default.** `agent.context` is
   `"evidence"` (default, same data boundary as today) → `"digest"` (bounded, scrubbed
   transcript excerpt) → `"fork"` (the whole session). `digest` and `fork` amend PRD §4.1;
