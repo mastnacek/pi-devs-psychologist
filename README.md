@@ -121,8 +121,8 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 }
 ```
 
-Set it from the session instead: `/psych model <provider/id>`, `/psych budget 6`,
-`/psych on|off`, `/psych global`.
+Today the model is set in the config file; the `/psych` command below is **not built yet**
+(T2–T6).
 
 **Pick a model the working agent is not.** An observer that shares the worker's blind
 spots is not an observer. A different *account* is not automatically a different
@@ -130,7 +130,7 @@ spots is not an observer. A different *account* is not automatically a different
 
 ---
 
-## Command
+## Command (target interface — not built yet, T6)
 
 | Command | Effect |
 |---|---|

@@ -56,9 +56,22 @@ The mapping follows the cadence and the volume, not the prestige of the role.
 The psychologist on a free account and the work untouched is the cheapest possible
 arrangement that still delivers a second opinion. That is the intended default.
 
+**Today** the model is set in the config file — the `/psych` command is not built yet
+(T2–T6):
+
 ```bash
-/psych model openrouter-soukr/<your-chosen-model>
+# ~/.pi/agent/pi-devs-psychologist.json   (or <cwd>/.pi/pi-devs-psychologist.json)
+{ "model": "openrouter-soukr/<a :free model>" }
 ```
+
+**After T6** the same thing, from the session:
+
+```bash
+/psych model openrouter-soukr/<a :free model>
+```
+
+Until T4 lands, setting a model changes nothing except the chip: nothing calls it yet,
+so the configured model is never invoked and still costs nothing.
 
 ## 4. Rules that do not bend
 
@@ -84,8 +97,11 @@ arrangement that still delivers a second opinion. That is the intended default.
 ## 5. Verifying a setup
 
 1. `/model` — confirm the provider id you intend to use appears with the right badge.
-2. `/psych model <provider/modelId>` then `/psych status` — the chip switches from
-   `psych: signals` (no model configured, zero spend) to `psych <n>t · 0/12`.
+2. Write `model` into `~/.pi/agent/pi-devs-psychologist.json` (after T6:
+   `/psych model <provider/modelId>`). With no model configured the chip reads
+   `psych: signals` — observation is live and the spend is zero. Once a model is set
+   it becomes `psych <n>t · 0/12` — `<n>` is turns since the last appraisal and
+   `0/12` is the appraisal budget used, so the chip explains its own silence.
 3. `/openrouter-accounts status` — configured vs actually registered providers, which
    catches a config that is written but not loaded.
 
