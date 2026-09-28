@@ -1,0 +1,110 @@
+/**
+ * observer — turns engine events into the observation window. Nothing else.
+ *
+ * This slice never interprets and never calls a model. It records what happened,
+ * in order, and hands the log to the signal fold. Keeping it that narrow is what
+ * lets the whole psychological layer be *replayed*: the same window always folds
+ * to the same signals, so an appraisal the programmer disagrees with can be
+ * traced back to the events that produced it.
+ *
+ * Two engine facts shape the code:
+ *
+ * - Tool calls from one assistant message can run in parallel, so a start event
+ *   must never be assumed to precede its sibling's end. Starts are stored by
+ *   `toolCallId` and an end without a start is recorded honestly with no command
+ *   and no path rather than dropped.
+ * - Attribute names differ per tool (`command`, `path`, `file_path`, …), so the
+ *   extraction is a lookup over known spellings. An unknown tool simply records
+ *   neither, which the fold treats as "no verification evidence".
+ */
+
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { MUTATION_TOOLS } from "../../shared/lexicon.js";
+import type { DevsPsychologistState } from "../../shared/state.js";
+
+/** Argument spellings seen across the engine's built-in tools. */
+const COMMAND_KEYS = ["command", "cmd"] as const;
+const PATH_KEYS = ["path", "file_path", "filePath", "file", "target_file"] as const;
+
+function firstString(args: unknown, keys: readonly string[]): string | undefined {
+	if (args === null || typeof args !== "object") return undefined;
+	const record = args as Record<string, unknown>;
+	for (const key of keys) {
+		const value = record[key];
+		if (typeof value === "string" && value.length > 0) return value;
+	}
+	return undefined;
+}
+
+/** The shell command a tool carried, if any. */
+export function commandFromArgs(args: unknown): string | undefined {
+	return firstString(args, COMMAND_KEYS);
+}
+
+/**
+ * The file a tool targeted, if any. Only mutation tools count as touching a
+ * file: a `read` of the same path is not churn, and counting it would report
+ * every file the agent looked at.
+ */
+export function pathFromArgs(toolName: string, args: unknown): string | undefined {
+	if (!MUTATION_TOOLS.has(toolName)) return undefined;
+	return firstString(args, PATH_KEYS);
+}
+
+/** True when a prompt came from the programmer rather than from an extension. */
+export function isProgrammerPrompt(source: unknown): boolean {
+	// An extension-injected message is the plugin talking to itself. Counting it
+	// as a programmer prompt would corrupt every cadence and restatement signal.
+	return source !== "extension";
+}
+
+/**
+ * Wire the observation events. Every subscription is tracked so
+ * `session_shutdown` can drain it.
+ */
+export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState): void {
+	state.track(
+		pi.on("input", (event, _ctx) => {
+			if (!state.config.enabled) return;
+			if (!isProgrammerPrompt(event.source)) return;
+			state.observe({ kind: "prompt", at: Date.now(), text: event.text ?? "" });
+		}),
+	);
+
+	state.track(
+		pi.on("tool_execution_start", (event, _ctx) => {
+			if (!state.config.enabled) return;
+			state.pendingTools.set(event.toolCallId, {
+				toolName: event.toolName,
+				command: commandFromArgs(event.args),
+				path: pathFromArgs(event.toolName, event.args),
+			});
+		}),
+	);
+
+	state.track(
+		pi.on("tool_execution_end", (event, _ctx) => {
+			if (!state.config.enabled) return;
+			const pending = state.pendingTools.get(event.toolCallId);
+			state.pendingTools.delete(event.toolCallId);
+			state.observe({
+				kind: "tool",
+				at: Date.now(),
+				toolName: event.toolName,
+				command: pending?.command,
+				path: pending?.path,
+				// `isError` is the engine's own verdict; `!event.isError` is not the
+				// same as "the command succeeded", and the fold only claims the former.
+				ok: event.isError !== true,
+			});
+		}),
+	);
+
+	state.track(
+		pi.on("turn_end", (_event, _ctx) => {
+			if (!state.config.enabled) return;
+			state.observe({ kind: "turn", at: Date.now() });
+			state.turnsSinceAppraisal += 1;
+		}),
+	);
+}

@@ -1,0 +1,131 @@
+# pi-devs-psychologist
+
+**A second model watches the session as an engineering psychologist.**
+
+The working agent does the work. This plugin runs a *different* model alongside
+it that reads what actually happened — prompts, tool outcomes, churn, verified
+progress — appraises the programmer's **motivation, cognitive load and progress
+against the published research on developer psychology**, and names **at most one
+intervention**. Every claim it makes is traceable to a number it was given.
+
+```bash
+pi install git:github.com/mastnacek/pi-devs-psychologist
+
+# try without installing
+pi -e git:github.com/mastnacek/pi-devs-psychologist
+```
+
+---
+
+## The one-line difference from a coach
+
+A coach has opinions. This has **evidence and a budget**.
+
+Every observation enters the appraiser as a fixed list of factual lines, and the
+model is required to cite the lines it used. It cannot invent progress, cannot
+score the programmer, and cannot decide for them:
+
+```
+Observed signals                             ← arithmetic, no model
+  window: 3 prompt(s), 8 tool call(s), 21 min
+  tool failures: 3/8 (38%), repeated: bash
+  verified progress: none — no test, lint, typecheck or build succeeded in this window
+  prompts restating an earlier prompt: 1
+  prompts containing a correction marker: 1
+  files mutated more than once: src/shared/signals.ts
+
+Appraisal                                    ← second model, cited + budgeted
+  ...
+```
+
+---
+
+## What it observes
+
+Nothing is watched by a file watcher and nothing is read from disk to produce
+these numbers. They come from the engine's own events, folded by arithmetic:
+
+| Signal | Event source | Why it is in the model's prompt |
+|---|---|---|
+| Prompt text | `input`, excluding extension-injected messages | Only the programmer's own words count as theirs |
+| Tool outcome | `tool_execution_start` / `_end` paired by `toolCallId` | A failure is a failure, not "the agent is struggling" |
+| Verified progress | successful runs of a command that **can fail on the work** | The Progress Principle needs real progress, not activity |
+| Churn | mutation-tool `path` used more than once | Repeated work on one file is a thin-slice / block signal |
+| Restatements | token overlap between prompts | "I already asked this" is the strongest block evidence there is |
+| Idle gaps | time between prompts | Interruptions break flow and are worth naming |
+| Turns since verified progress | completed turns after the last proven run | The Amabile "worked but did not advance" day, made countable |
+
+`src/shared/lexicon.ts` holds **every** heuristic as a readable list, so you can
+disagree with the plugin's notion of "progress" by editing one screen of
+patterns.
+
+---
+
+## Hard rules (these are the product)
+
+1. **One intervention, maximum.** Never a list of advice.
+2. **Every claim cites an evidence line** the plugin supplied. No citation, no claim.
+3. **No scores, streaks, badges or productivity tracking.** Expected external
+   reward reduces intrinsic motivation — Deci, Koestner & Ryan (1999), the
+   overjustification effect. This plugin names real delivered work or says nothing.
+4. **Empty is a valid answer.** A window with nothing to report produces nothing.
+5. **Observer, not authority.** `steerAgent` is off by default: it cannot write
+   into the working agent's context unless you ask it to.
+6. **Bounded cost.** `model: ""` (the default) is *observation with zero model
+   spend*. With a model set, `cadenceTurns` and `maxAppraisalsPerSession` cap the
+   spend, and a slow appraisal is single-flighted so it never runs twice.
+
+---
+
+## Configuration
+
+Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-devs-psychologist.json` (project wins).
+
+```json
+{
+  "model": "openrouter/anthropic/claude-sonnet-4.5",
+  "cadenceTurns": 8,
+  "maxAppraisalsPerSession": 12,
+  "steerAgent": false,
+  "lang": "en"
+}
+```
+
+Set it from the session instead: `/psych model <provider/id>`, `/psych budget 6`,
+`/psych on|off`, `/psych global`.
+
+**Pick a model the working agent is not.** An observer that shares the worker's
+blind spots is not an observer.
+
+---
+
+## Command
+
+| Command | Effect |
+|---|---|
+| `/psych` | Report: the observed signals and the last appraisal |
+| `/psych now` | Form an appraisal immediately, consuming budget |
+| `/psych on` / `off` | Master switch |
+| `/psych model <provider/id>` | Choose the psychologist |
+| `/psych budget <n>` | Appraisals per session (`0` = unlimited) |
+| `/psych lang <en\|cs>` | UI language (model-facing text stays English) |
+| `/psych global` | Write settings to `~/.pi/agent` instead of the project |
+
+---
+
+## Token economy
+
+- **Zero tokens when `model` is empty.** Observation and `/psych` cost nothing.
+- An appraisal sends the config-selected model only the evidence lines plus a
+  bounded tail of the transcript — never the whole session.
+- Rendering is TUI-only; a report on screen costs no model tokens at all.
+- The psychology references ship in `docs/research-notes.md`, not in the prompt.
+
+---
+
+## Status
+
+`0.0.1` — the observation kernel and its tests are landed. The appraiser, the
+intervention policy and `/psych` are the next increments: see `TASKS.md`.
+
+MIT.

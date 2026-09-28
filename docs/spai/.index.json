@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-09-28 17:27:24",
+  "records": [
+    {
+      "id": "SPAI-001",
+      "title": "Land the pi-devs-psychologist appraiser: nested model call via ctx.modelRegistry.complete with completeSimple fallback, the English system prompt, the TypeBox appraisal schema (interventions max length 1, every claim cited to an evidence line), and the cadence/budget/single-flight policy",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-09-28 17:26:41",
+      "tags": [
+        "plugin",
+        "psychology",
+        "model"
+      ],
+      "project": "pi-devs-psychologist",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-devs-psychologist",
+      "file": "2026-09-28-SPAI-001-land-the-pi-devs-psychologist-appraiser-nested-mod.md"
+    },
+    {
+      "id": "SPAI-002",
+      "title": "Land intervention policy, /psych report and persistence: at most one intervention delivered as a TUI note, steerAgent false by default so it never writes into the working agent's context, width-safe report, Trailing Space Contract completions, appendEntry persistence",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-09-28 17:26:41",
+      "tags": [
+        "plugin",
+        "ux"
+      ],
+      "project": "pi-devs-psychologist",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-devs-psychologist",
+      "file": "2026-09-28-SPAI-002-land-intervention-policy-psych-report-and-persiste.md"
+    },
+    {
+      "id": "SPAI-003",
+      "title": "Add the no-LLM codebase mapper slice: objective structural map (file sizes, slice layout, longest files, test-to-source ratio) so the appraiser reads a factual complexity figure instead of guessing; node:fs only, never reads outside cwd",
+      "type": "Todo",
+      "status": "todo",
+      "symbol": ".",
+      "timestamp": "2026-09-28 17:26:41",
+      "tags": [
+        "plugin",
+        "mapper"
+      ],
+      "project": "pi-devs-psychologist",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-devs-psychologist",
+      "file": "2026-09-28-SPAI-003-add-the-no-llm-codebase-mapper-slice-objective-str.md"
+    },
+    {
+      "id": "SPAI-004",
+      "title": "Prior art for pi-devs-psychologist is dated in docs/inspiration.md: observer-model session summarisation exists (claude-mem, cognithor, engram, agent-memory-atlas) but only for memory; every 'developer psychologist' repo (reflog, gitblame-roast, coommitlore) is an offline git-stats persona roast. Live second-model appraisal of a working session against developer-psychology literature is uncovered",
+      "type": "Note",
+      "status": "note",
+      "symbol": "-",
+      "timestamp": "2026-09-28 17:26:41",
+      "tags": [
+        "note",
+        "research"
+      ],
+      "project": "pi-devs-psychologist",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-devs-psychologist",
+      "file": "2026-09-28-SPAI-004-prior-art-for-pi-devs-psychologist-is-dated-in-doc.md"
+    },
+    {
+      "id": "SPAI-005",
+      "title": "Land the pi-devs-psychologist observation kernel: git repo + VSA layout, session events to bounded observation window (prompts excluding extension-injected, tool calls paired by toolCallId, turns), arithmetic signal fold + evidence lines, heuristic lexicon, config cascade with model:'' as zero-spend default, statusline chip. 37/37 tests including a hand-counted fixture, tsc --noEmit exit 0",
+      "type": "Todo",
+      "status": "done",
+      "symbol": "x",
+      "timestamp": "2026-09-28 17:27:24",
+      "tags": [
+        "plugin",
+        "done"
+      ],
+      "project": "pi-devs-psychologist",
+      "projectPath": "D:/01_programovani/pi/plugins/pi-devs-psychologist",
+      "file": "2026-09-28-SPAI-005-land-the-pi-devs-psychologist-observation-kernel-g.md"
+    }
+  ]
+}

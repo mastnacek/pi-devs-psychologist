@@ -1,0 +1,44 @@
+{
+  "name": "pi-devs-psychologist",
+  "version": "0.0.1",
+  "description": "A second model watches the session as an engineering psychologist: it reads objective signals, appraises motivation, cognitive load and progress, and names at most one intervention",
+  "type": "module",
+  "main": "index.ts",
+  "keywords": [
+    "pi",
+    "pi-extension",
+    "developer-psychology",
+    "cognitive-load",
+    "progress-principle",
+    "self-determination",
+    "observer-model",
+    "devex"
+  ],
+  "author": "mastnacek",
+  "license": "MIT",
+  "peerDependencies": {
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "files": [
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "package.json",
+    "index.ts",
+    "src",
+    "docs",
+    "tsconfig.json"
+  ],
+  "scripts": {
+    "test": "npx tsx --test test/**/*.test.js"
+  }
+}

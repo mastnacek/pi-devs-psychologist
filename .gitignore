@@ -1,0 +1,7 @@
+node_modules
+.DS_Store
+*.log
+
+# Raw NotebookLM research exports (large, machine-specific, re-fetchable with
+# `nlm source content <id>`). The distilled digest is tracked in docs/.
+.research/
