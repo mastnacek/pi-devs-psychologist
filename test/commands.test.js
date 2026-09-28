@@ -73,8 +73,9 @@ test("lang filters by the partial value and marks the one in effect", () => {
 
 test("the settings menu shows the value actually in effect", () => {
   const items = completePsych(stateWith({ model: "a/b", maxAppraisalsPerSession: 5, enabled: false }), "");
-  assert.equal(find(items, "model").description, "a/b");
-  assert.equal(find(items, "budget").description, "5");
+  // Labelled, not bare: `5` alone does not say which setting it belongs to.
+  assert.equal(find(items, "model").description, "(now: a/b)");
+  assert.equal(find(items, "budget").description, "(now: 5)");
   // The marker sits in both columns: `✓` in the label to be visible at a glance, the text form
   // in the description. `value` stays clean, because it is inserted verbatim.
   assert.match(find(items, "off").description, /●/, "off is marked because it is the current state");
@@ -88,7 +89,7 @@ test("the settings menu shows the value actually in effect", () => {
 
 test("an unlimited budget is shown as infinity, not as 0", () => {
   const items = completePsych(stateWith({ maxAppraisalsPerSession: 0 }), "");
-  assert.equal(find(items, "budget").description, "∞");
+  assert.equal(find(items, "budget").description, "(now: ∞)");
 });
 
 test("the --global flag is offered after a settled value, with the whole prefix", () => {
@@ -233,6 +234,53 @@ test("a hand-typed model ref is accepted, because completion is a convenience no
   await def.handler("model some/provider/i-typed-myself", makeCtx());
   assert.equal(state.config.model, "some/provider/i-typed-myself");
   assert.equal(saved.length, 1);
+});
+
+test("a settled value is followed by the flag, not by the value list again", () => {
+  // Tab could not reach `lang cs --global` or `model <ref> --global` even though the handler
+  // accepts both: the value list returned before the flag branch was ever considered.
+  const langFlag = completePsych(catalogState(), "lang cs ");
+  assert.deepEqual(langFlag.map((i) => i.value), ["lang cs --global"]);
+  const langDash = completePsych(catalogState(), "lang cs -");
+  assert.deepEqual(langDash.map((i) => i.value), ["lang cs --global"]);
+  const modelDash = completePsych(catalogState(), "model openrouter-soukr/deepseek/deepseek-v4.1-flash -");
+  assert.deepEqual(modelDash.map((i) => i.value), [
+    "model openrouter-soukr/deepseek/deepseek-v4.1-flash --global",
+  ]);
+  // And before the value exists the value list still wins.
+  assert.deepEqual(labels(completePsych(catalogState(), "lang ")), ["en ✓", "cs"]);
+  assert.deepEqual(labels(completePsych(catalogState(), "lang c")), ["cs"]);
+});
+
+test("the help text does not advertise a subcommand that does not exist", () => {
+  // Running the command for real caught this: the usage line still listed `global` as a
+  // subcommand after it became a trailing flag, so following the help produced
+  // "Unknown option: global". Help that sends you into a dead end is worse than no help.
+  const s = stringsFor("en");
+  assert.ok(!/\|global\]/.test(s.usage), "usage must not list a global subcommand: " + s.usage);
+  assert.match(s.usage, /--global/, "and must name the flag instead");
+  for (const locale of ["en", "cs"]) {
+    assert.ok(!/\|global\]/.test(stringsFor(locale).usage), locale + " still lists global");
+  }
+});
+
+test("subcommand descriptions say what the subcommand does", () => {
+  // Both of these were wrong in a way only reading the picker shows: `now` was described by its
+  // result message and `status` by a report heading.
+  const items = completePsych(stateWith(), "");
+  assert.equal(find(items, "status").description, stringsFor("en").cmdStatus);
+  assert.equal(find(items, "now").description, stringsFor("en").cmdNow);
+  assert.notEqual(find(items, "now").description, stringsFor("en").done);
+});
+
+test("a parent row labels its value instead of showing a bare one", () => {
+  const items = completePsych(stateWith({ model: "a/b", maxAppraisalsPerSession: 5 }), "");
+  assert.equal(find(items, "model").description, "(now: a/b)");
+  assert.equal(find(items, "budget").description, "(now: 5)");
+  // An unset model says so rather than showing a dash the reader has to interpret.
+  const empty = completePsych(stateWith(), "");
+  assert.equal(find(empty, "model").description, stringsFor("en").notSet);
+  assert.equal(find(completePsych(stateWith({ maxAppraisalsPerSession: 0 }), ""), "budget").description, "(now: ∞)");
 });
 
 test("parseArgs takes the flag from anywhere and defaults to status", () => {

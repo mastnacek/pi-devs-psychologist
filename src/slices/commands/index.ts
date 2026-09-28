@@ -71,16 +71,17 @@ function subcommands(state: DevsPsychologistState): Completion[] {
 	const s = stringsFor(state.config.lang);
 	const cap = state.config.maxAppraisalsPerSession;
 	return [
-		leaf("status", "status", s.reportAppraisal),
-		leaf("now", "now", s.done),
+		leaf("status", "status", s.cmdStatus),
+		leaf("now", "now", s.cmdNow),
 		// The marker goes in `label` (display-only, the primary column) as well as the description:
 		// a settings menu that does not show which choice is in effect makes the user run `status`
 		// first to find out. `value` stays a clean token because it is inserted verbatim.
 		branch("on", state.config.enabled ? "on ✓" : "on", state.config.enabled ? `${MARK} ${s.enabled}` : s.enabled),
 		branch("off", state.config.enabled ? "off" : "off ✓", state.config.enabled ? s.disabled : `${MARK} ${s.disabled}`),
-		branch("model", "model", state.config.model || "—"),
-		branch("budget", "budget", `${cap === 0 ? "∞" : cap}`),
-		branch("lang", "lang", `${MARK} ${state.config.lang}`),
+		// A labelled value, not a bare one: `12` alone does not say which setting it is.
+		branch("model", "model", state.config.model ? s.nowValue(state.config.model) : s.notSet),
+		branch("budget", "budget", s.nowValue(cap === 0 ? "∞" : String(cap))),
+		branch("lang", "lang", `${MARK} ${state.config.lang}`),  
 	];
 }
 
@@ -155,17 +156,24 @@ export function completePsych(
 
 	// `lang` is a closed set of two; `model` comes from the engine's registry, so the picker
 	// lists real models instead of inviting a typo in `openrouter-soukr/deepseek/...`.
+	// A value is "settled" once something has been typed for it AND either a space follows or a
+	// further token has begun. Only then can the trailing flag come next; before that the value
+	// itself is still being completed. Getting this wrong made `lang cs --global` and
+	// `model <ref> --global` accepted by the handler but unreachable by Tab.
+	const afterHead = typed.slice(head.length);
+	const valueText = afterHead.trim();
+	const hasValue = valueText.length > 0;
+	const settled = hasValue && (/\s$/.test(typed) || valueText.split(/\s+/).length > 1);
+
 	if (head === "lang") {
+		if (settled) return flagCompletion(typed, parts, s.globalFlag);
 		const partial = (parts[1] ?? "").toLowerCase();
 		const all = languages(state);
 		const matching = partial.length === 0 ? all : all.filter((item) => item.label.startsWith(partial));
 		if (matching.length > 0) return matching;
 	} else if (head === "model") {
-		// A trailing space means the value is settled and only the flag can follow.
-		if (/\s$/.test(typed) && typed.slice(head.length).trim().length > 0) {
-			return flagCompletion(typed, parts, s.globalFlag);
-		}
-		return modelCompletions(state, typed.slice(head.length).trim());
+		if (settled) return flagCompletion(typed, parts, s.globalFlag);
+		return modelCompletions(state, valueText);
 	}
 
 	if (SETTINGS_HEADS.has(head)) {

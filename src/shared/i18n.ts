@@ -97,6 +97,13 @@ export interface Strings {
 	unknownOption: string;
 	configWritten: (path: string) => string;
 	configSeeded: (path: string) => string;
+	/** What each subcommand does, for the picker's description column. */
+	cmdStatus: string;
+	cmdNow: string;
+	/** An unset setting, shown in a parent row rather than a bare dash. */
+	notSet: string;
+	/** `(now: 12)` — a parent row's value, labelled. */
+	nowValue: (value: string) => string;
 	/** The trailing `--global` flag on a setting command. */
 	globalFlag: string;
 	/** The model picker's overflow row: how many entries were not shown. */
@@ -149,7 +156,13 @@ const EN: Strings = {
 	reportNoModel: "No psychologist model configured. Set one with: /psych model <provider/id>",
 
 	commandDescription: "Developer psychologist: appraisal now, state, and settings",
-	usage: "Usage: /psych [status|now|on|off|model <provider/id>|budget <n>|lang <en|cs>|global]",
+	cmdStatus: "show the report",
+	cmdNow: "run an appraisal now",
+	notSet: "(not set)",
+	nowValue: (value) => `(now: ${value})`,
+	// The help must not advertise a `global` subcommand: it is a trailing flag, and a user who
+	// followed the old text got "Unknown option: global".
+	usage: "Usage: /psych [status|now|on|off|model <provider/id>|budget <n>|lang <en|cs>] [--global]",
 	unknownOption: "Unknown option",
 	configWritten: (path) => `Config written to ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
@@ -235,7 +248,11 @@ const CS: Strings = {
 	reportNoModel: "Není nastavený model psychologa. Nastav ho: /psych model <provider/id>",
 
 	commandDescription: "Vývojářský psycholog: posouzení teď, stav a nastavení",
-	usage: "Použití: /psych [status|now|on|off|model <provider/id>|budget <n>|lang <en|cs>|global]",
+	cmdStatus: "zobrazit report",
+	cmdNow: "spustit posouzení teď",
+	notSet: "(nenastaveno)",
+	nowValue: (value) => `(nyní: ${value})`,
+	usage: "Použití: /psych [status|now|on|off|model <provider/id>|budget <n>|lang <en|cs>] [--global]",
 	unknownOption: "Neznámá volba",
 	configWritten: (path) => `Konfigurace zapsána do ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,
