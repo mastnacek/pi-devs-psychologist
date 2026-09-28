@@ -21,6 +21,7 @@
  */
 
 import { CS_LABELS, EN_LABELS, type Labels } from "./i18n-labels.js";
+import { RUN_CS, RUN_EN, type RunStrings } from "./i18n-runs.js";
 
 export { LABEL_GROUPS, LABEL_SOURCES, type Labels } from "./i18n-labels.js";
 
@@ -28,7 +29,7 @@ export const LOCALES = ["en", "cs"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 
-export interface Strings {
+export interface Strings extends RunStrings {
 	/** Statusline. The product name (`psych`) is identical across locales; the state is not. */
 	chipOff: string;
 	/** Shown when no model is configured: observation is live, the spend is zero. */
@@ -150,6 +151,7 @@ export interface Strings {
 }
 
 const EN: Strings = {
+	...RUN_EN,
 	chipOff: "psych: off",
 	chipSignals: "psych: signals",
 	chipConfigError: "psych: check model",
@@ -202,7 +204,7 @@ const EN: Strings = {
 	nowValue: (value) => `(now: ${value})`,
 	// The help must not advertise a `global` subcommand: it is a trailing flag, and a user who
 	// followed the old text got "Unknown option: global".
-	usage: "Usage: /psych [status|now|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Usage: /psych [status|now|stop|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Unknown option",
 	configWritten: (path) => `Config written to ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
@@ -240,6 +242,7 @@ const EN: Strings = {
 };
 
 const CS: Strings = {
+	...RUN_CS,
 	chipOff: "psych: vyp",
 	chipSignals: "psych: signály",
 	chipConfigError: "psych: zkontroluj model",
@@ -290,7 +293,7 @@ const CS: Strings = {
 	cmdEffect: "zobrazit, zda zásahy pomohly",
 	notSet: "(nenastaveno)",
 	nowValue: (value) => `(nyní: ${value})`,
-	usage: "Použití: /psych [status|now|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Použití: /psych [status|now|stop|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Neznámá volba",
 	configWritten: (path) => `Konfigurace zapsána do ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,

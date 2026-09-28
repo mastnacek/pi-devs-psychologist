@@ -94,6 +94,25 @@ report and the statusline chip; the appraiser still uses the API call.
   dim source, omitted when empty) and the notification fallback lists at most one. Suggestions are
   operator-only: they are **never** sent to the working agent, even with `steerAgent: true`. The API
   runtime's `SYSTEM_PROMPT` is untouched (D2); only `SUBMIT_OUTPUT_INSTRUCTION` names the field.
+- **Async delivery and the researching UX (T26).** `turn_end` **starts** the appraisal and returns
+  immediately — the promise is kept in state, so a session is never blocked on a model that takes
+  tens of seconds (both runtimes). `/psych now` still waits, and waits on the in-flight promise when
+  one exists. A finished result that arrives while the agent is streaming is **held** and presented
+  on the next `agent_end`; a newer held result replaces an older one. The appraiser records the turn
+  the run started on, and a delivery whose window has moved on by ≥ 3 turns says `based on the
+  session N turns ago` in the card header (en + cs; `measureCard` stays exact). The chip switches to
+  `psych: researching 42s · 7 tools` (agent) / `psych: researching 42s` (api), repainted at most once
+  per second on an injectable clock and cleared in the appraisal's `finally` and on `session_shutdown`;
+  the runner reports `onProgress({ toolCalls, elapsedMs })` from the stream reducer. New terminal
+  `/psych stop` kills the run (child kill handle; the API call and the agent run both abort through an
+  `AbortController` that forwards the session signal), records failure stage `aborted` and clears the
+  held result; it notifies when nothing is running.
+- **Accounting in `/psych` (T27).** The report gains a width-safe "Last run" block — runtime, model,
+  context level, duration, top-5 tool calls by name, tokens in/out, cost and outcome stage — and a
+  session line `runs this session: N · agent cost $x / $cap` (a zero cap renders `unlimited`). Last-run
+  metadata is stored in state for both runtimes and for failures as well as successes. A new
+  `AppraiseOutcome` reason `cost` refuses the next agent run **before spawning** when
+  `agent.maxCostUsdPerSession` is reached; the report states the reached cap.
 
 ## 0.4.0
 

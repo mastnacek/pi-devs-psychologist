@@ -126,6 +126,12 @@ function messageOf(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
+/** Whether a request's signal is already aborted. A function so the caller's narrowing does not
+ * make a later check look impossible to the type checker. */
+function signalAborted(signal: AbortSignal | undefined): boolean {
+	return signal?.aborted === true;
+}
+
 /** The call. Never throws; every failure is a typed result with a stage. */
 export async function callModel(
 	registry: ModelRegistry,
@@ -134,6 +140,11 @@ export async function callModel(
 	const ref = typeof req.modelRef === "string" ? req.modelRef.trim() : "";
 	if (ref.length === 0) {
 		return { ok: false, stage: "config", error: "no psychologist model configured" };
+	}
+	// An abort that already landed (the operator pressed stop, or the session ended) is reported as
+	// `aborted` rather than as a request failure: the stage is how `/psych stop` is accounted (T26).
+	if (signalAborted(req.signal)) {
+		return { ok: false, stage: "aborted", error: "the appraisal was aborted" };
 	}
 
 	const resolved = resolveModel(registry, ref);
@@ -171,7 +182,15 @@ export async function callModel(
 	try {
 		response = await registry.complete(resolved.model, context, options);
 	} catch (error) {
-		return { ok: false, stage: "request", error: `${resolved.label}: ${messageOf(error)}` };
+		// Abort is a distinct stage, not a request error: the report must be able to say the operator
+		// stopped it rather than that the provider failed (T26).
+		const aborted =
+			signalAborted(req.signal) || (error instanceof Error && error.name === "AbortError");
+		return {
+			ok: false,
+			stage: aborted ? "aborted" : "request",
+			error: aborted ? "the appraisal was aborted" : `${resolved.label}: ${messageOf(error)}`,
+		};
 	}
 
 	if (response.stopReason === "error") {

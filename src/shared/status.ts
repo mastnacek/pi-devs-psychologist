@@ -14,6 +14,9 @@ import type { DevsPsychologistState } from "./state.js";
 
 export const STATUS_ID = "devs-psychologist";
 
+/** How often the researching chip repaints. At most once per second, per T26. */
+export const RESEARCHING_TICK_MS = 1000;
+
 /** Write the shared slot; a dead session or missing UI is not an error. */
 export function setStatus(ctx: ExtensionContext, text: string | undefined): void {
 	if (!ctx.hasUI) return;
@@ -54,6 +57,20 @@ export function paintChip(state: DevsPsychologistState, ctx: ExtensionContext): 
 		return;
 	}
 
+	// A run in flight is the one state where the operator must see progress rather than wait:
+	// an agent run takes tens of seconds. The elapsed count comes from the injected clock, and
+	// the tool count is present only on the agent runtime (the API call has no tools to count).
+	if (state.appraisalStartedAt !== undefined) {
+		const seconds = Math.max(0, Math.round((state.timers.now() - state.appraisalStartedAt) / 1000));
+		setStatus(
+			ctx,
+			state.config.runtime === "agent"
+				? strings.chipResearchingTools(`${seconds}s`, String(state.appraisalToolCalls))
+				: strings.chipResearching(`${seconds}s`),
+		);
+		return;
+	}
+
 	// A model that cannot be resolved or has no credentials is a configuration problem only
 	// the operator can fix, so it earns a persistent chip. Transient failures — a provider
 	// error, a timeout — must not shout: they are not actionable and they pass.
@@ -73,4 +90,31 @@ export function paintChip(state: DevsPsychologistState, ctx: ExtensionContext): 
 /** Clear the slot. Idempotent; called from session_shutdown. */
 export function clearChip(ctx: ExtensionContext): void {
 	setStatus(ctx, undefined);
+}
+
+/**
+ * Start the researching chip: record the start and repaint at most once per second until the run
+ * ends. The timer is started here rather than in the factory because a run is a session-scoped
+ * event, and it is injectable so no test owns a real interval.
+ */
+export function startResearchingChip(state: DevsPsychologistState, ctx: ExtensionContext): void {
+	state.appraisalStartedAt = state.timers.now();
+	state.appraisalToolCalls = 0;
+	if (state.chipTimer !== undefined) return;
+	state.chipTimer = state.timers.setInterval(() => {
+		state.ifLive(() => paintChip(state, ctx));
+	}, RESEARCHING_TICK_MS);
+}
+
+/**
+ * Stop the researching chip and clear its progress. Idempotent, and called from the appraisal's
+ * `finally` AND from `session_shutdown`, because a run can end either way.
+ */
+export function stopResearchingChip(state: DevsPsychologistState): void {
+	if (state.chipTimer !== undefined) {
+		state.timers.clearInterval(state.chipTimer);
+		state.chipTimer = undefined;
+	}
+	state.appraisalStartedAt = undefined;
+	state.appraisalToolCalls = 0;
 }

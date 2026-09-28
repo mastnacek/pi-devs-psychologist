@@ -63,6 +63,8 @@ function subcommands(state: DevsPsychologistState): Completion[] {
 	return [
 		leaf("status", "status", s.cmdStatus),
 		leaf("now", "now", s.cmdNow),
+		// A terminal leaf: no trailing space, because Tab confirms it as final (T26).
+		leaf("stop", "stop", s.cmdStop),
 		// A terminal leaf: no trailing space, because Tab confirms it as final (T16).
 		leaf("effect", "effect", s.cmdEffect),
 		// The marker goes in `label` (display-only, the primary column) as well as the description:

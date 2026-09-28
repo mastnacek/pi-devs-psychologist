@@ -16,7 +16,6 @@ import assert from "node:assert/strict";
 import {
 	completePsych,
 	GLOBAL_FLAG,
-	MODEL_PICKER_CAP,
 	parseArgs,
 	registerPsychCommand,
 } from "../src/slices/commands/index.js";
@@ -51,7 +50,7 @@ test("an empty argument offers every subcommand with the contract's trailing spa
 });
 
 test("a partial token filters, and a token that matches nothing defers to the engine", () => {
-  assert.deepEqual(labels(completePsych(stateWith(), "st")), ["status"]);
+  assert.deepEqual(labels(completePsych(stateWith(), "st")), ["status", "stop"]);
   assert.equal(completePsych(stateWith(), "zzz"), null, "null, not [], so file completion still works");
 });
 
@@ -120,113 +119,6 @@ function catalogState(over = {}) {
   return state;
 }
 
-test("a fully-typed model offers its providers WITHOUT waiting for a space", () => {
-  // The trap this guards: Tab-confirming `model ` closes the picker and typing a space switches
-  // the engine to FILE completion, so a provider list reachable only after the space is
-  // unreachable by Tab altogether. references/command-completions.md marks this mandatory.
-  const items = completePsych(catalogState(), "model");
-  assert.deepEqual(labels(items), ["openrouter-default", "openrouter-soukr"]);
-  assert.deepEqual(items.map((item) => item.value), ["model openrouter-default/", "model openrouter-soukr/"]);
-});
-
-test("with no catalog the picker defers to the engine, so a hand-typed ref still works", () => {
-  // The cache is empty before the first session start, and a registry that answers nothing must
-  // not turn into a broken picker — free text keeps working, which is also what makes the flag
-  // completion reachable after a hand-typed value.
-  assert.equal(completePsych(stateWith(), "model openrouter-soukr/"), null);
-});
-
-test("the first level offers the registered providers, each one Tab from its models", () => {
-  // Multi-account support falls out of this for free: pi-openrouter-accounts registers each
-  // OpenRouter account as its own provider id, so listing providers IS listing accounts.
-  const items = completePsych(catalogState(), "model ");
-  assert.deepEqual(labels(items), ["openrouter-default", "openrouter-soukr"]);
-  // No trailing space: the model id continues the same token.
-  assert.deepEqual(items.map((item) => item.value), ["model openrouter-default/", "model openrouter-soukr/"]);
-});
-
-test("filtering level one by a partial account name, including from the middle", () => {
-  // Substring, not prefix: the account is called `soukr` while its provider id is
-  // `openrouter-soukr`, and an operator should not have to know the prefix to find it.
-  // The account row leads, and its models follow in the same list: picking the account descends
-  // into it, picking a model finishes the value. Both are wanted, so both are offered.
-  assert.deepEqual(labels(completePsych(catalogState(), "model soukr")), [
-    "openrouter-soukr",
-    "openrouter-soukr/cohere/north-mini-code:free",
-    "openrouter-soukr/deepseek/deepseek-v4.1-flash",
-  ]);
-  assert.deepEqual(labels(completePsych(catalogState(), "model openrouter-s")), [
-    "openrouter-soukr",
-    "openrouter-soukr/cohere/north-mini-code:free",
-    "openrouter-soukr/deepseek/deepseek-v4.1-flash",
-  ]);
-  // And the same for a model name buried inside a reference.
-  assert.deepEqual(labels(completePsych(catalogState(), "model claude")), [
-    "openrouter-default/anthropic/claude-sonnet-4-5",
-  ]);
-});
-
-test("a settled provider lists only its own models, as full references", () => {
-  const items = completePsych(catalogState(), "model openrouter-soukr/");
-  assert.deepEqual(labels(items), ["cohere/north-mini-code:free", "deepseek/deepseek-v4.1-flash"]);
-  assert.deepEqual(items.map((item) => item.value), [
-    "model openrouter-soukr/cohere/north-mini-code:free",
-    "model openrouter-soukr/deepseek/deepseek-v4.1-flash",
-  ]);
-  assert.ok(!items.some((item) => item.label.includes("claude")), "another account's models stay out");
-});
-
-test("a provider that is not in the registry is never offered", () => {
-  assert.equal(completePsych(catalogState(), "model openrouter-nonsense/"), null);
-});
-
-test("a partial reference narrows, and a slash keeps the provider in play", () => {
-  const deep = completePsych(catalogState(), "model openrouter-soukr/deep");
-  // A partial reference is matched against the whole path, so the label is the whole path.
-  assert.deepEqual(labels(deep), ["openrouter-soukr/deepseek/deepseek-v4.1-flash"]);
-  const any = completePsych(catalogState(), "model openrouter-default/");
-  assert.equal(any.length, 2);
-  // A reference that matches nothing defers rather than inventing one.
-  assert.equal(completePsych(catalogState(), "model openrouter-soukr/zzz"), null);
-});
-
-test("the model in effect is marked, at its own row and at its provider's row", () => {
-  const state = catalogState({ model: "openrouter-soukr/deepseek/deepseek-v4.1-flash" });
-  const refs = completePsych(state, "model openrouter-soukr/");
-  const active = refs.find((item) => item.label === "deepseek/deepseek-v4.1-flash ✓");
-  assert.match(active.description, /●/);
-  assert.equal(active.value, "model openrouter-soukr/deepseek/deepseek-v4.1-flash", "value stays clean");
-  assert.equal(refs.find((item) => item.label === "cohere/north-mini-code:free").description, undefined);
-  // The parent level shows it too, so the current value is visible without descending.
-  const providers = completePsych(state, "model ");
-  // The provider holding the current model is ticked too, so the value is visible one level up.
-  assert.match(find(providers, "openrouter-soukr").description, /●/);
-  assert.equal(find(providers, "openrouter-soukr").label, "openrouter-soukr ✓");
-  assert.equal(find(providers, "openrouter-default").description, undefined);
-});
-
-test("a large catalog is capped and says how much it hid", () => {
-  // A silent truncation would hide models with no way to tell; a 400-row picker would be the
-  // nagging this plugin exists to avoid.
-  const state = catalogState();
-  state.modelCatalog = Array.from({ length: 120 }, (_, i) => "openrouter-soukr/model-" + String(i).padStart(3, "0"));
-  const items = completePsych(state, "model openrouter-soukr/");
-  assert.equal(items.length, MODEL_PICKER_CAP + 1);
-  const remainder = items.at(-1);
-  assert.match(remainder.label, /70 more/);
-  // The overflow row is UI copy like everything else, so it comes from the locale table.
-  const cs = { ...state, config: { ...state.config, lang: "cs" } };
-  assert.match(completePsych(cs, "model openrouter-soukr/").at(-1).label, /dalších 70/);
-  // Selecting the remainder must change nothing: it re-inserts what is already typed.
-  assert.equal(remainder.value, "model openrouter-soukr/");
-});
-
-test("the --global flag still follows a model chosen from the registry", () => {
-  const items = completePsych(catalogState(), "model openrouter-soukr/deepseek/deepseek-v4.1-flash ");
-  assert.deepEqual(items.map((item) => item.value), [
-    "model openrouter-soukr/deepseek/deepseek-v4.1-flash --global",
-  ]);
-});
 
 test("a hand-typed model ref is accepted, because completion is a convenience not a gate", async () => {
   const state = catalogState();

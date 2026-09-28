@@ -21,6 +21,7 @@ import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works
 import type { ThemeColor } from "@earendil-works/pi-coding-agent";
 import type { Appraisal, NeedKey } from "../../shared/appraisal.js";
 import { NEEDS } from "../../shared/appraisal.js";
+import { STALE_DELIVERY_TURNS } from "../../shared/delivery.js";
 import type { Strings } from "../../shared/i18n.js";
 
 /** The two style operations the layout needs; `Theme` satisfies it. */
@@ -43,6 +44,11 @@ export interface CardInput {
 	appraisal: Appraisal;
 	/** Citations the model gave that matched no evidence line. Shown, not hidden. */
 	unmatched: string[];
+	/**
+	 * Turns between when the run started and when it is shown (T26). Present only when the gap is
+	 * worth naming; the card then says the appraisal describes a session that has moved on.
+	 */
+	staleTurns?: number;
 }
 
 /** Icons are language-neutral, so they stay in the layout rather than the string table. */
@@ -134,6 +140,12 @@ export function layoutCard(input: CardInput, s: Strings, width: number, paint: P
 	const col = labelCol(s);
 	const head: LayoutLine[] = [];
 	const bodyWidth = Math.max(20, width - 4);
+
+	// Staleness first: the caveat belongs above the verdicts it qualifies. One line, so the measured
+	// height stays exact — `measureCard` runs the same function.
+	if (input.staleTurns !== undefined && input.staleTurns >= STALE_DELIVERY_TURNS) {
+		head.push({ text: paint.fg("warning", s.cardStaleTurns(input.staleTurns)) });
+	}
 
 	head.push({ text: paint.fg("dim", paint.bold(s.cardVerdicts)) });
 

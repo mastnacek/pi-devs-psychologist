@@ -26,6 +26,8 @@ export interface ReportInput {
 	/** Session record evidence lines. */
 	history: readonly string[];
 	lang: Locale;
+	/** Terminal width, so every line is clipped rather than wrapped (T27). `0`/absent means no clip. */
+	width?: number;
 }
 
 /** `  · text` — one evidence line. */
@@ -137,7 +139,45 @@ export function renderReport(input: ReportInput): string {
 		lines.push("", heading(s.reportSpend), `  ${usage.totalTokens} tokens · $${usage.cost.toFixed(4)}`);
 	}
 
-	return lines.join("\n");
+	// T27: the last run's own accounting, plus the session's agent spend against its cap. Both are
+	// facts the operator budgets against; without them the async run is invisible money.
+	lines.push("", heading(s.reportLastRun));
+	const run = state.lastRun;
+	if (!run) {
+		lines.push(bullet(s.reportNever));
+	} else {
+		lines.push(`  ${s.runLabels.runtime} ${run.runtime}`);
+		lines.push(`  ${s.runLabels.model} ${run.model}`);
+		lines.push(`  ${s.runLabels.context} ${run.context}`);
+		lines.push(`  ${s.runLabels.duration} ${(run.durationMs / 1000).toFixed(1)}s`);
+		lines.push(`  ${s.runLabels.tools} ${topTools(run.toolCounts)}`);
+		lines.push(`  ${s.runLabels.tokens} ${s.runTokens(String(run.inputTokens), String(run.outputTokens))}`);
+		lines.push(`  ${s.runLabels.cost} $${run.costUsd.toFixed(4)}`);
+		lines.push(`  ${s.runLabels.outcome} ${run.stage}`);
+	}
+	const sessionCap = state.config.agent.maxCostUsdPerSession;
+	const sessionCost = `$${state.agentSessionCostUsd.toFixed(4)}`;
+	lines.push(
+		`  ${s.runSession(state.agentRunsThisSession, sessionCost, sessionCap === 0 ? s.runUnlimited : `$${sessionCap.toFixed(2)}`)}`,
+	);
+	if (sessionCap > 0 && state.agentSessionCostUsd >= sessionCap) lines.push(`  ⚠ ${s.runCostCapReached}`);
+
+	return clipRender(lines.join("\n"), input.width);
+}
+
+/** `bash ×3, edit ×2` — the top five tools by call count. A dash when the API runtime ran. */
+function topTools(counts: Record<string, number>): string {
+	const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+	return entries.length === 0 ? "—" : entries.map(([name, count]) => `${name} ×${count}`).join(", ");
+}
+
+/** Clip every line to `width` so a narrow terminal truncates rather than corrupts (T27). */
+function clipRender(text: string, width: number | undefined): string {
+	if (width === undefined || width <= 0) return text;
+	return text
+		.split("\n")
+		.map((line) => truncateToWidth(line, width, "…"))
+		.join("\n");
 }
 
 /** One table cell, padded to `width`, then the whole line clipped to the terminal. */

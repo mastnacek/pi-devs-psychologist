@@ -24,6 +24,8 @@ export { completePsych, GLOBAL_FLAG, MODEL_PICKER_CAP } from "./completions.js";
 export interface CommandDeps {
 	/** Run an appraisal now, ignoring the cadence but not the budget. Returns a status line. */
 	now(ctx: ExtensionCommandContext): Promise<string>;
+	/** Stop the running appraisal (T26). Returns a status line. */
+	stop(ctx: ExtensionCommandContext): string;
 	/** Show the report through whatever surface is available. */
 	report(ctx: ExtensionCommandContext): void;
 	/** Show the intervention-effect table (T16). Injected so this slice knows no other slice. */
@@ -74,6 +76,10 @@ export function registerPsychCommand(
 
 				case "now":
 					notify(await deps.now(ctx));
+					return;
+
+				case "stop":
+					notify(deps.stop(ctx));
 					return;
 
 				case "effect":

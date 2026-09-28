@@ -255,3 +255,24 @@ test("kill is idempotent: timeout then close kills once", async () => {
   await promise;
   assert.deepEqual(record.killed, [4242], "one kill, not two");
 });
+
+test("onProgress reports the tool census and elapsed time as the child streams (T26)", async () => {
+  const child = fakeChild();
+  const { io } = fakeIo([child]);
+  const seen = [];
+  const promise = runAgent(REQUEST, options({ onProgress: (p) => seen.push(p) }), io);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  emitLine(child, SUBMIT_START);
+  emitLine(
+    child,
+    JSON.stringify({ type: "tool_execution_start", toolCallId: "x", toolName: "read" }),
+  );
+  emitLine(child, SUBMIT_END);
+  child.emit("close", 0);
+  await promise;
+
+  assert.ok(seen.length > 0, "progress was reported");
+  const last = seen.at(-1);
+  assert.equal(last.toolCalls, 2, "psych_submit and read are both counted");
+  assert.equal(typeof last.elapsedMs, "number");
+});

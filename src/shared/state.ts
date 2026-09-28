@@ -14,9 +14,20 @@ import { DEFAULT_CONFIG, GLOBAL_CONFIG_FILE, loadConfig, type DevsPsychologistCo
 import { DEFAULT_SIGNAL_OPTIONS, type Observation } from "./signals.js";
 import { EMPTY_TRIGGER_BASELINE, type TriggerBaseline, type TriggerReason } from "./triggers.js";
 import type { Appraisal } from "./appraisal.js";
+import type { AppraiseOutcome } from "./appraisal-outcome.js";
 import type { OutcomeRecord } from "./outcome.js";
 import type { UsageSummary } from "./model-call.js";
+import {
+	realTimerIo,
+	type LastRunAccount,
+	type PendingAppraisal,
+	type TimerIo,
+	type TimerToken,
+} from "./run-account.js";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+// Re-exported so a caller can name the async records through `state.js` alone.
+export type { LastRunAccount, PendingAppraisal, TimerIo, TimerToken } from "./run-account.js";
 
 /** Tool call metadata captured at start, paired with its outcome at end. */
 export interface PendingTool {
@@ -129,8 +140,36 @@ export interface DevsPsychologistState {
 	agentSessionFile: string | undefined;
 	/** Summed cost (USD) of agent-runtime runs this session, compared with `agent.maxCostUsdPerSession`. */
 	agentSessionCostUsd: number;
+	/** Agent-runtime runs started this session, shown by the report (T27). */
+	agentRunsThisSession: number;
 	/** Kills the currently running child, or `undefined` when none is running. Idempotent. */
 	agentChildKill: (() => void) | undefined;
+
+	// --- async appraisal (T26) ---
+	/**
+	 * The in-flight appraisal. `turn_end` starts it and returns without awaiting; `/psych now`
+	 * waits on it instead of starting a second one. The outcome union lives in shared so this
+	 * kernel (which a slice may import) never has to reach into a slice.
+	 */
+	appraisalPromise: Promise<AppraiseOutcome> | undefined;
+	/** An enforced appraisal waiting for the next pause, or `undefined`. Newest wins. */
+	pendingAppraisal: PendingAppraisal | undefined;
+	/** True between `agent_start` and `agent_end`; delivery is deferred while it holds. */
+	agentStreaming: boolean;
+	/** Aborts the in-flight API call or agent run (`/psych stop`, `session_shutdown`). */
+	appraisalAbort: AbortController | undefined;
+	/** When the current run started, for the researching chip. `undefined` when idle. */
+	appraisalStartedAt: number | undefined;
+	/** Tool calls the running child has made so far, for the researching chip. */
+	appraisalToolCalls: number;
+	/** The researching chip's interval handle, or `undefined`. */
+	chipTimer: TimerToken | undefined;
+
+	// --- accounting (T27) ---
+	/** Metadata of the last appraiser run, for the report's "Last run" block. */
+	lastRun: LastRunAccount | undefined;
+	/** The clock the researching chip reads; injectable so tests need no real timers. */
+	timers: TimerIo;
 
 	// --- helpers ---
 	ifLive(cb: () => void): void;
@@ -177,7 +216,17 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		agentTrusted: false,
 		agentSessionFile: undefined,
 		agentSessionCostUsd: 0,
+		agentRunsThisSession: 0,
 		agentChildKill: undefined,
+		appraisalPromise: undefined,
+		pendingAppraisal: undefined,
+		agentStreaming: false,
+		appraisalAbort: undefined,
+		appraisalStartedAt: undefined,
+		appraisalToolCalls: 0,
+		chipTimer: undefined,
+		lastRun: undefined,
+		timers: realTimerIo(),
 		outcomes: [],
 		triggerBaseline: { ...EMPTY_TRIGGER_BASELINE },
 		appraisalsSkipped: 0,
@@ -207,6 +256,9 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 			// The agent-runtime cost is per session; the run itself is owned by the child handle, which
 			// `session_shutdown` kills before it drains.
 			state.agentSessionCostUsd = 0;
+			state.agentRunsThisSession = 0;
+			state.lastRun = undefined;
+			state.pendingAppraisal = undefined;
 		},
 		budgetAvailable() {
 			const cap = state.config.maxAppraisalsPerSession;

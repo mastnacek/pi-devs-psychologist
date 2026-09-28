@@ -25,6 +25,9 @@ const EXPECTED_EVENTS = [
   "tool_execution_start",
   "tool_execution_end",
   "turn_end",
+  // The appraiser holds a finished result until the agent pauses (T26).
+  "agent_start",
+  "agent_end",
   "session_shutdown",
 ];
 
@@ -81,11 +84,13 @@ test("every subscription is tracked, and session_shutdown drains the tracked one
 
     await pi.emit("session_shutdown", { type: "session_shutdown" }, ctx);
 
-    // session_start, the observer's four, and the appraiser's one. The shutdown handler
-    // itself is not tracked, because it is the drainer.
+    // session_start, the observer's four, and the appraiser's three (turn_end, agent_start,
+    // agent_end). The shutdown handler itself is not tracked, because it is the drainer.
     assert.deepEqual(
       [...pi.unsubscribed].sort(),
       [
+        "agent_end",
+        "agent_start",
         "input",
         "session_start",
         "tool_execution_end",

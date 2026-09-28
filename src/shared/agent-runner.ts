@@ -67,6 +67,12 @@ export interface AgentRunOptions {
 	 * idempotent, so shutdown, timeout and abort can all call it safely.
 	 */
 	onChild?: (handle: ChildHandle | undefined) => void;
+	/**
+	 * Called as the child streams, so the caller can show live progress (T26). Fired per stdout
+	 * chunk; the caller throttles its repaint. `toolCalls` is the running census; `elapsedMs` is the
+	 * wall-clock since spawn.
+	 */
+	onProgress?: (progress: { toolCalls: number; elapsedMs: number }) => void;
 }
 
 /** The handle a caller keeps to kill a running child. */
@@ -283,6 +289,11 @@ export async function runAgent(
 			for (const line of split.lines) {
 				reduceLine(state, line);
 				if (options.maxCostUsd > 0 && totalCostUsd(state) > options.maxCostUsd) overBudget = true;
+			}
+			if (options.onProgress) {
+				let tools = 0;
+				for (const name of Object.keys(state.toolCounts)) tools += state.toolCounts[name];
+				options.onProgress({ toolCalls: tools, elapsedMs: Math.max(0, io.now() - started) });
 			}
 			if (overBudget) {
 				kill();

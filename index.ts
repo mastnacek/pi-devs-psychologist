@@ -39,10 +39,18 @@ import { readHistory } from "./src/shared/history.js";
 import { noteFollowed, noteQuickWin, restoreOutcomes } from "./src/shared/outcome.js";
 import { stringsFor } from "./src/shared/i18n.js";
 import { extractSignals } from "./src/shared/signals.js";
-import { refreshModelCatalog, createDevsPsychologistState, reloadConfig, restoreAppraisal, signalOptions } from "./src/shared/state.js";
-import { clearChip, paintChip } from "./src/shared/status.js";
+import { refreshModelCatalog, createDevsPsychologistState, reloadConfig, restoreAppraisal, signalOptions, type DevsPsychologistState } from "./src/shared/state.js";
+import { clearChip, paintChip, stopResearchingChip } from "./src/shared/status.js";
 import { parseChildLimits, parseChildRole } from "./src/shared/child-limits.js";
-import { maybeAppraise, registerAppraiser, defaultDeps, type AppraiserDeps } from "./src/slices/appraiser/index.js";
+import {
+	maybeAppraise,
+	registerAppraiser,
+	defaultDeps,
+	abortAppraisal,
+	stopAppraisal,
+	type AppraiserDeps,
+	type AppraiseOutcome,
+} from "./src/slices/appraiser/index.js";
 import { registerChildSlice } from "./src/slices/child/index.js";
 import { registerPsychCommand } from "./src/slices/commands/index.js";
 import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
@@ -62,6 +70,11 @@ export interface DevsPsychologistOptions {
 	 * unset and `defaultAgentRunIo()` is used. The rest of the agent path (cost cap, state) stays real.
 	 */
 	agentIo?: AgentRunIo;
+	/**
+	 * Test seam for the researching chip's interval (T26). Production leaves it unset and the global
+	 * clock is used; the suite injects a fake so no real timer exists and shutdown is observable.
+	 */
+	timerIo?: DevsPsychologistState["timers"];
 }
 
 export default function devsPsychologistExtension(
@@ -95,6 +108,7 @@ export default function devsPsychologistExtension(
 
 	const state = createDevsPsychologistState(pi);
 	if (options.globalFile) state.globalFile = options.globalFile;
+	if (options.timerIo) state.timers = options.timerIo;
 
 	// The one place a slice boundary is crossed: the appraiser is given the delivery policy, and
 	// the delivery policy is given the card. Neither slice knows the other exists.
@@ -104,9 +118,10 @@ export default function devsPsychologistExtension(
 			target,
 			ctx,
 			appraisal,
-			defaultInterventionDeps((c, a, unmatched) =>
-				// The card takes one object; the delivery policy hands over the piece separately.
-				presentAppraisal(c, { appraisal: a, unmatched }, target.config.lang),
+			defaultInterventionDeps((c, a, unmatched, staleTurns) =>
+				// The card takes one object; the delivery policy hands the pieces over separately. `staleTurns`
+				// is present only when the run's window has moved on (T26).
+				presentAppraisal(c, { appraisal: a, unmatched, ...(staleTurns ? { staleTurns } : {}) }, target.config.lang),
 			),
 			// The delivery options are the LAST argument: an explicit request shows the analysis even
 			// when it has no advice to give.
@@ -148,6 +163,8 @@ export default function devsPsychologistExtension(
 		const modelRef = effectiveAgentModel(state.config);
 		// A registry may be absent (headless fakes); the run does not need it, only the label does.
 		const resolved = registry && parseModelRef(modelRef) ? resolveModel(registry, modelRef) : undefined;
+		// One agent run started this session; the report budgets the session against it (T27).
+		state.agentRunsThisSession += 1;
 		const result = await runAgent(
 			{
 				modelRef,
@@ -176,6 +193,11 @@ export default function devsPsychologistExtension(
 				keepTranscript: cfg.keepTranscript,
 				onChild: (handle) => {
 					state.agentChildKill = handle ? handle.kill : undefined;
+				},
+				// Live progress for the researching chip (T26): the child's tool census, fed by the stream
+				// reducer. The chip's own timer throttles the repaint, so this only updates the count.
+				onProgress: (progress) => {
+					state.appraisalToolCalls = progress.toolCalls;
 				},
 			},
 			options.agentIo ?? defaultAgentRunIo(),
@@ -269,9 +291,12 @@ export default function devsPsychologistExtension(
 	registerPsychCommand(pi, state, {
 		now: async (ctx) => {
 			const s = stringsFor(state.config.lang);
-			// `force` skips the cadence because the operator asked explicitly. It does not skip the
-			// budget: a hard ceiling that yields on request is not a ceiling.
-			const outcome = await maybeAppraise(pi, state, ctx, appraiserDeps, { force: true });
+			// The operator waits, so if an automatic appraisal is already running we wait on THAT
+			// promise rather than starting a second (T26). Otherwise run a forced one: `force` skips the
+			// cadence because the operator asked explicitly, but never the budget.
+			const outcome: AppraiseOutcome = state.appraisalPromise
+				? await state.appraisalPromise
+				: await maybeAppraise(pi, state, ctx, appraiserDeps, { force: true });
 			// `=== false`, not `!`: truthiness narrowing is unreliable under `strict: false`, and a
 			// union that silently fails to narrow is a type check that reads as passing.
 			if (outcome.ran === false) {
@@ -286,6 +311,8 @@ export default function devsPsychologistExtension(
 						return s.busy;
 					case "budget":
 						return `${s.reportBudget(state.appraisalsThisSession, String(state.config.maxAppraisalsPerSession))}`;
+					case "cost":
+						return s.reportCostCap;
 					default:
 						return s.usage;
 				}
@@ -299,16 +326,25 @@ export default function devsPsychologistExtension(
 			// The card was already shown by the delivery policy when there was something to act on.
 			return outcome.silent ? s.reportEmpty : s.done;
 		},
-		report: (ctx) => {
+		stop: () => {
+			// The operator asked to stop; `/psych stop` (T26) kills the run and says so. `stopAppraisal`
+			// returns whether anything was running, so "nothing to stop" is never a false claim.
+			const s = stringsFor(state.config.lang);
+			return stopAppraisal(state, s.stopReason) ? s.stopRequested : s.stopNothing;
+		},
+			report: (ctx) => {
 			// Refreshed on every invocation, so adding an OpenRouter account mid-session is picked
 			// up by the next Tab press instead of needing a restart.
 			refreshModelCatalog(state, ctx.modelRegistry);
 			const signals = extractSignals(state.observations, signalOptions(state));
+			// Width comes from the terminal so the report truncates rather than wraps (T27).
+			const columns = process.stdout?.columns ?? 0;
 			const text = renderReport({
 				state,
 				signals: signals.evidence,
 				history: readHistory(ctx).evidence,
 				lang: state.config.lang,
+				...(columns > 0 ? { width: columns } : {}),
 			});
 			if (ctx.hasUI) ctx.ui.notify(text, "info");
 		},
@@ -336,10 +372,11 @@ export default function devsPsychologistExtension(
 	// Cleanup: drain listeners and release the statusline slot. Idempotent, because
 	// cancellation, reload and exit can all converge here.
 	pi.on("session_shutdown", async (_event, ctx) => {
-		// Kill a running child first: the tree must not outlive the session (T24). The kill is
-		// idempotent, so a run that already finished leaves this a no-op.
-		state.agentChildKill?.();
-		state.agentChildKill = undefined;
+		// Stop a running run first: kill the child, abort the call, drop a held result and clear the
+		// researching chip's timer (T24, T26). `abortAppraisal` is idempotent, so a run that already
+		// finished leaves this a no-op. `stopResearchingChip` clears the timer even with no run.
+		abortAppraisal(state);
+		stopResearchingChip(state);
 		while (state.unsubscribers.length > 0) {
 			try {
 				state.unsubscribers.pop()?.();

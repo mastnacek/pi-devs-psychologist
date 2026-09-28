@@ -369,5 +369,5 @@ test("registerAppraiser subscribes turn_end and tracks it for shutdown", () => {
   const state = makeState();
   registerAppraiser(pi, state, makeDeps());
   assert.ok(pi.handlers.has("turn_end"));
-  assert.equal(state.unsubscribers.length, 1);
+  assert.equal(state.unsubscribers.length, 3);
 });

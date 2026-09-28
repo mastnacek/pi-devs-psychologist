@@ -39,11 +39,21 @@ export interface DeliveryOptions {
 	 * behind a "nothing to report" status line makes a working appraisal look like a refusal.
 	 */
 	evenIfSilent?: boolean;
+	/**
+	 * Turns between the run's start and this delivery (T26). Passed to the card so a slow run can
+	 * say its window has moved on; omitted when the gap is not worth naming.
+	 */
+	staleTurns?: number;
 }
 
 export interface InterventionDeps {
-	/** Show the card. Returns whether it was displayed. */
-	present(ctx: ExtensionContext, appraisal: Appraisal, unmatched: string[]): Promise<boolean>;
+	/** Show the card. Returns whether it was displayed. `staleTurns` feeds the card's header (T26). */
+	present(
+		ctx: ExtensionContext,
+		appraisal: Appraisal,
+		unmatched: string[],
+		staleTurns?: number,
+	): Promise<boolean>;
 	/** Plain fallback where a card cannot render. */
 	notify(ctx: ExtensionContext, text: string): void;
 	/** Write one advisory line into the working agent's context. */
@@ -80,7 +90,7 @@ export async function deliverIntervention(
 		// overlay that cannot draw and a plugin that says nothing look identical from outside.
 		let shown = false;
 		try {
-			shown = await deps.present(ctx, appraisal, unmatched);
+			shown = await deps.present(ctx, appraisal, unmatched, options.staleTurns);
 		} catch {
 			shown = false;
 		}
