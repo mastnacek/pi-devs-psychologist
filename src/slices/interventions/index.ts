@@ -65,7 +65,11 @@ export async function deliverIntervention(
 	options: DeliveryOptions = {},
 ): Promise<DeliveryOutcome> {
 	const intervention: Intervention | undefined = appraisal.interventions[0];
-	if ((!intervention || isSilent(appraisal)) && options.evenIfSilent !== true) {
+	// Researched suggestions (T25) are worth a card on their own: they cost a tool-using run, and
+	// holding them back until an intervention happens to appear would throw that spend away.
+	const hasSuggestions = (appraisal.suggestions?.length ?? 0) > 0;
+	const nothingToShow = (!intervention && !hasSuggestions) || (isSilent(appraisal) && !hasSuggestions);
+	if (nothingToShow && options.evenIfSilent !== true) {
 		return { human: "none", agent: false, reason: "silent" };
 	}
 
@@ -98,7 +102,9 @@ export async function deliverIntervention(
 	}
 
 	let agent = false;
-	if (state.config.steerAgent) {
+	// Only an intervention may steer; suggestions are operator-only and a suggestions-only card has
+	// nothing for the agent.
+	if (state.config.steerAgent && intervention) {
 		try {
 			deps.steer(pi, ctx, intervention.text);
 			agent = true;

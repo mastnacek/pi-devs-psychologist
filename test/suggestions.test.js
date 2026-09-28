@@ -275,3 +275,29 @@ test("psych_submit accepts a valid appraisal that carries suggestions", async ()
   assert.equal(result.terminate, true);
   assert.equal(state.submitted, true);
 });
+
+test("suggestions alone earn a card, and nothing is steered", async () => {
+  // A researched suggestion costs a tool-using run; holding it back because no intervention
+  // happened to appear would throw that spend away.
+  const seen = { present: 0, steer: [] };
+  const deps = {
+    present: async () => {
+      seen.present += 1;
+      return true;
+    },
+    notify: () => {},
+    steer: (_pi, _ctx, text) => seen.steer.push(text),
+  };
+  const appraisal = neutralAppraisal();
+  appraisal.suggestions = [{ kind: "package", text: "Try pi-lens.", source: "npm:pi-lens", cited: [] }];
+  const outcome = await deliverIntervention(makePi(), stateWith({ steerAgent: true }), makeCtx(), appraisal, deps);
+  assert.equal(outcome.human, "card");
+  assert.equal(seen.present, 1);
+  assert.equal(seen.steer.length, 0, "no intervention, so nothing reaches the agent");
+});
+
+test("no intervention and no suggestions is still silence", async () => {
+  const deps = { present: async () => true, notify: () => {}, steer: () => {} };
+  const outcome = await deliverIntervention(makePi(), stateWith(), makeCtx(), neutralAppraisal(), deps);
+  assert.equal(outcome.human, "none");
+});
