@@ -51,6 +51,18 @@ report and the statusline chip; the appraiser still uses the API call.
   once the tool budget is spent. `PI_DEVS_PSYCH_LIMITS` is parsed **fail-closed**
   (`src/shared/child-limits.ts`): a missing, malformed or non-boolean value means the capability is
   off and the budget is 10.
+- **The agent brief (T23).** New pure `src/shared/agent-brief.ts`,
+  `buildAgentBrief(input) → { systemAppend, userMessage }`. The system append carries the role
+  prompt (the psychologist's `SYSTEM_PROMPT` with **only** its JSON output paragraph replaced by
+  `SUBMIT_OUTPUT_INSTRUCTION`, so the child is told to call `psych_submit`; the anchor is an exact
+  substring and the module **throws at load** if a prompt edit removes it), “where you are”, the pi
+  docs map (verified against the installed engine), the pi-packages guidance, the tool bullets the
+  limits allow (web / mcp / skills / NotebookLM / repo), the budget and the research rule. The user
+  message keeps `buildUserText`’s evidence **byte-identical** (D2), swaps the final line for
+  “Appraise the session now. Submit with psych_submit.” and accepts an optional `DIGEST — …` block.
+  Companion impure helper `src/shared/pi-paths.ts` (`resolvePiDocsDir({ argv1, packageDir, exists })`)
+  resolves the engine docs dir from `dist/bundle/cli.js` or `PI_PACKAGE_DIR`, returning it only when
+  `docs/docs.json` exists. Nothing spawns yet; the appraiser is untouched.
 
 ## 0.4.0
 
