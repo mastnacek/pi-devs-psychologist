@@ -11,6 +11,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { defaultInterventionDeps, deliverIntervention } from "../src/slices/interventions/index.js";
 import { neutralAppraisal } from "../src/shared/appraisal.js";
+import { isSilent } from "../src/shared/appraisal-enforce.js";
 import { steerText } from "../src/shared/prompt.js";
 import { DEFAULT_CONFIG } from "../src/shared/config.js";
 import { makeCtx, makePi, makeState } from "./fakes.js";
@@ -48,8 +49,8 @@ function makeDeps(over = {}) {
   };
 }
 
-async function deliver(state, ctx, appraisal, deps, pi = makePi()) {
-  return deliverIntervention(pi, state, ctx, appraisal, deps);
+async function deliver(state, ctx, appraisal, deps, pi = makePi(), options = undefined) {
+  return deliverIntervention(pi, state, ctx, appraisal, deps, options);
 }
 
 test("an empty appraisal produces silence, and no surface is touched", async () => {
@@ -112,6 +113,35 @@ test("without a UI there is nothing to deliver to, and that is stated", async ()
   assert.deepEqual(outcome, { human: "none", agent: false, reason: "no_ui" });
   assert.equal(deps.seen.present, 0, "no attempt to render without a UI");
   assert.deepEqual(deps.seen.steer, []);
+});
+
+test("an explicit request shows the analysis even when it has no advice", async () => {
+  // Silence is the right default for an appraisal the plugin chose to run, and the wrong answer
+  // to an operator who asked for one: the verdicts ARE the analysis. Without this, `/psych now`
+  // on a quiet session looked like a refusal to work.
+  const verdictsOnly = { ...neutralAppraisal(), progress: { state: "unproven", cited: [] } };
+  assert.equal(isSilent(verdictsOnly), true, "this appraisal carries no intervention");
+
+  const quiet = makeDeps();
+  const asked = await deliver(stateWith(), makeCtx(), verdictsOnly, quiet, makePi(), { evenIfSilent: true });
+  assert.equal(quiet.seen.present, 1, "the card is shown when the operator asked");
+  assert.equal(asked.human, "card");
+
+  const automatic = makeDeps();
+  const silence = await deliver(stateWith(), makeCtx(), verdictsOnly, automatic);
+  assert.equal(automatic.seen.present, 0, "an automatic appraisal still keeps its silence");
+  assert.deepEqual(silence, { human: "none", agent: false, reason: "silent" });
+});
+
+test("an analysis with no advice still reaches the operator where no card can render", async () => {
+  // The notify fallback used the intervention's text, which is undefined in this case, and the
+  // try/catch swallowed it — so the fallback showed nothing at all.
+  const verdictsOnly = { ...neutralAppraisal(), progress: { state: "unproven", cited: [] } };
+  const deps = makeDeps({ present: async () => false });
+  const outcome = await deliver(stateWith(), makeCtx(), verdictsOnly, deps, makePi(), { evenIfSilent: true });
+  assert.equal(outcome.human, "notification");
+  assert.equal(deps.seen.notify.length, 1);
+  assert.ok(deps.seen.notify[0].length > 0, "and it says something rather than an empty string");
 });
 
 test("steerAgent false never touches the working agent's context", async () => {

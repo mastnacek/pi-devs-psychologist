@@ -53,7 +53,9 @@ function validResponse(over = {}) {
 function makeDeps(over = {}) {
   const calls = [];
   const deliveries = [];
+  const deliveryOptions = [];
   return {
+    deliveryOptions,
     calls,
     deliveries,
     readHistory: () => ({ evidence: [SESSION_LINE] }),
@@ -68,8 +70,9 @@ function makeDeps(over = {}) {
         usage: { input: 10, output: 5, cacheRead: 0, cacheWrite: 0, totalTokens: 15, cost: { total: 0.002 } },
       };
     },
-    deliver: async (_api, _state, _ctx, appraisal) => {
+    deliver: async (_api, _state, _ctx, appraisal, options) => {
       deliveries.push(appraisal);
+      deliveryOptions.push(options);
       return { human: "card", agent: false };
     },
     ...over,
@@ -185,6 +188,8 @@ test("force skips the cadence, because the operator asked explicitly", async () 
   const outcome = await maybeAppraise(pi, state, makeCtx(), deps, { force: true });
   assert.equal(outcome.ran, true);
   assert.equal(deps.calls.length, 1);
+  // And the request is passed on to delivery, so the analysis is shown even with no advice.
+  assert.deepEqual(deps.deliveryOptions, [{ evenIfSilent: true }]);
 });
 
 test("force does NOT bypass the budget: a ceiling that yields on request is not a ceiling", async () => {
@@ -195,6 +200,13 @@ test("force does NOT bypass the budget: a ceiling that yields on request is not 
   const outcome = await maybeAppraise(pi, state, makeCtx(), deps, { force: true });
   assert.deepEqual(outcome, { ran: false, reason: "budget" });
   assert.equal(deps.calls.length, 0);
+});
+
+test("an automatic appraisal is delivered without the show-even-if-silent option", async () => {
+  const pi = makePi();
+  const deps = makeDeps();
+  await maybeAppraise(pi, stateWith({ cadenceTurns: 1 }), makeCtx(), deps);
+  assert.deepEqual(deps.deliveryOptions, [{ evenIfSilent: false }]);
 });
 
 test("a successful appraisal is stored, cited, costed and handed to delivery once", async () => {

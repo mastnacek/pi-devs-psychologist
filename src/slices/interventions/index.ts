@@ -21,6 +21,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { isSilent } from "../../shared/appraisal-enforce.js";
 import type { Appraisal } from "../../shared/appraisal.js";
 import type { Intervention } from "../../shared/appraisal.js";
+import { stringsFor } from "../../shared/i18n.js";
 import { steerText } from "../../shared/prompt.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
 
@@ -28,6 +29,17 @@ import type { DevsPsychologistState } from "../../shared/state.js";
 // definition lives there because the appraiser slice carries it too.
 export type { DeliveryOutcome, HumanDelivery } from "../../shared/delivery.js";
 import type { DeliveryOutcome, HumanDelivery } from "../../shared/delivery.js";
+
+export interface DeliveryOptions {
+	/**
+	 * Show the appraisal even when it carries no intervention.
+	 *
+	 * Silence is the right default for an appraisal the plugin decided to run, and the wrong
+	 * answer to an operator who asked for one: the verdicts ARE the analysis, and hiding them
+	 * behind a "nothing to report" status line makes a working appraisal look like a refusal.
+	 */
+	evenIfSilent?: boolean;
+}
 
 export interface InterventionDeps {
 	/** Show the card. Returns whether it was displayed. */
@@ -50,9 +62,10 @@ export async function deliverIntervention(
 	ctx: ExtensionContext,
 	appraisal: Appraisal,
 	deps: InterventionDeps,
+	options: DeliveryOptions = {},
 ): Promise<DeliveryOutcome> {
 	const intervention: Intervention | undefined = appraisal.interventions[0];
-	if (!intervention || isSilent(appraisal)) {
+	if ((!intervention || isSilent(appraisal)) && options.evenIfSilent !== true) {
 		return { human: "none", agent: false, reason: "silent" };
 	}
 
@@ -70,7 +83,7 @@ export async function deliverIntervention(
 		human = shown ? "card" : "notification";
 		if (!shown) {
 			try {
-				deps.notify(ctx, intervention.text);
+				deps.notify(ctx, intervention ? intervention.text : stringsFor(state.config.lang).cardNothingToAct);
 			} catch {
 				// A dead UI must not fail the turn.
 			}

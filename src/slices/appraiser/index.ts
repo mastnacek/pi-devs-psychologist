@@ -77,6 +77,7 @@ export interface AppraiserDeps {
 		state: DevsPsychologistState,
 		ctx: ExtensionContext,
 		appraisal: Appraisal,
+		options?: { evenIfSilent?: boolean },
 	): Promise<DeliveryOutcome>;
 }
 
@@ -173,7 +174,9 @@ export async function maybeAppraise(
 		// agent, or nothing at all.
 		let delivery: DeliveryOutcome = { human: "none", agent: false, reason: "silent" };
 		try {
-			delivery = await deps.deliver(pi, state, ctx, parsed.appraisal);
+			// `force` means the operator asked, so the analysis is shown even when it has no advice
+			// to give. An automatic appraisal keeps its silence.
+			delivery = await deps.deliver(pi, state, ctx, parsed.appraisal, { evenIfSilent: force });
 		} catch {
 			// A delivery failure must not fail the turn: the appraisal is already stored.
 		}

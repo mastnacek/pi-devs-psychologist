@@ -59,7 +59,7 @@ export default function devsPsychologistExtension(
 
 	// The one place a slice boundary is crossed: the appraiser is given the delivery policy, and
 	// the delivery policy is given the card. Neither slice knows the other exists.
-const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal) =>
+const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal, options) =>
 	deliverIntervention(
 		api,
 		target,
@@ -69,6 +69,9 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal) =>
 			// The card takes one object; the delivery policy hands over the piece separately.
 			presentAppraisal(c, { appraisal: a, unmatched }, target.config.lang),
 		),
+		// The delivery options are the LAST argument: an explicit request shows the analysis even
+		// when it has no advice to give.
+		options,
 	),
 );
 
@@ -120,6 +123,9 @@ const appraiserDeps = defaultDeps(readHistory, (api, target, ctx, appraisal) =>
 						return s.usage;
 				}
 			}
+			// An explicit request must show the analysis even when it has no advice: the verdicts ARE
+			// the analysis, and answering a direct question with "nothing to report" makes a working
+			// appraisal look like a refusal.
 			if (outcome.ok === false) {
 				return `${s.reportErr} — ${outcome.stage}: ${outcome.error}`;
 			}
