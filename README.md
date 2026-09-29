@@ -441,9 +441,9 @@ no session identifier, the record cannot be joined back to any session.
 
 ## Status
 
-`0.8.0` — **complete.** It observes, appraises when the evidence carries something new, names unverified commits, measures whether its interventions help, can run the observer as a read-only pi agent (`runtime: "agent"`) with web, MCP, skills and pi docs, shows the appraisal as a card,
+`0.8.1` — **complete.** It observes, appraises when the evidence carries something new, names unverified commits, measures whether its interventions help, can run the observer as a read-only pi agent (`runtime: "agent"`) with web, MCP, skills and pi docs, shows the appraisal as a card,
 answers `/psych`, `/psych ask`, `/psych scout`, `/psych review` and `/psych history`, and replays a
-past session offline to eval a prompt change (`/psych replay`). 730 tests.
+past session offline to eval a prompt change (`/psych replay`). 733 tests.
 
 Live today: the observation window, the session-history fold, the appraiser with its budget, the
 appraisal card, the delivery policy (card → notification → steering, off by default), the

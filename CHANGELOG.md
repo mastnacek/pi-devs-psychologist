@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.8.1 (unreleased)
+## 0.8.1
 
 - **fix(commands): two settings-menu rows said the wrong thing (audit against the skill).**
   `/psych history` reused the master-switch strings, so a menu with the plugin ON showed
