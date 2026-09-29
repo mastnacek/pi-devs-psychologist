@@ -146,8 +146,9 @@ export async function askObserver(
 		}
 		state.lastAppraisalUsage = summarizeUsage(result.usage);
 
-		// The API runtime has no tools, so a research source (a docs path, an nlm notebook) cannot be real:
-		// only a URL or an install spec survives. The agent runtime uses the machine's real policy (T25).
+		// The API runtime has no tools, so it cannot have researched anything: a URL or install spec it
+		// "suggests" is recalled or invented, never checked. Suggestions are therefore dropped entirely on
+		// `api`; the agent runtime uses the machine's real source policy (T25).
 		const parsed = parseAsk(result.text, lines, agentRuntime ? deps.sourcePolicy?.() : undefined);
 		if (parsed.ok === false) {
 			return { ran: true, ok: false, stage: "parse", error: parsed.error };
@@ -157,7 +158,7 @@ export async function askObserver(
 			question,
 			answer: enforced.answer,
 			cited: enforced.cited,
-			suggestions: enforced.suggestions,
+			suggestions: agentRuntime ? enforced.suggestions : [],
 			unsupported: enforced.unsupported,
 			noResearch: !agentRuntime,
 		};

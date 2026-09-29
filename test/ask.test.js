@@ -198,7 +198,11 @@ test("the api runtime answers without tools and the card says so; its research s
       text: JSON.stringify({
         answer: "From the evidence alone.",
         cited: [LINE],
-        suggestions: [{ kind: "research", text: "a notebook", source: "nlm:nb-1" }],
+        suggestions: [
+          { kind: "research", text: "a notebook", source: "nlm:nb-1" },
+          { kind: "package", text: "a recalled package", source: "npm:some-package" },
+          { kind: "doc", text: "a recalled url", source: "https://example.com/x" },
+        ],
       }),
       provider: "p",
       modelId: "m",
@@ -210,7 +214,7 @@ test("the api runtime answers without tools and the card says so; its research s
   const outcome = await askObserver(state, makeCtx(), deps, "is there a plugin?");
   assert.equal(outcome.ok, true);
   assert.equal(deps.presented[0].noResearch, true, "the API card states there was no research");
-  assert.deepEqual(deps.presented[0].suggestions, [], "a research source is refused on the API runtime");
+  assert.deepEqual(deps.presented[0].suggestions, [], "no tools means no research: every suggestion, URL and install spec included, is dropped on api");
 });
 
 test("the agent runtime card does not claim 'no research'", async () => {
