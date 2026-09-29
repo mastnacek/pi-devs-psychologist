@@ -55,6 +55,19 @@ function branch(value: string, label: string, description?: string): Completion 
 const MARK = "· ●";
 
 /**
+ * `help` children: one leaf per topic, described by the topic's own one-liner. The description is
+ * the whole reason the topic row exists — a user who knows the name but not the meaning reads it
+ * before descending, and the detail text is one Tab away at `/psych help <topic>`.
+ */
+function helpTopics(state: DevsPsychologistState, partial: string): Completion[] | null {
+	const s = stringsFor(state.config.lang);
+	const all = s.helpTopics.map((topic) => leaf(`help ${topic}`, topic, s.helpLine[topic]));
+	if (partial.length === 0) return all;
+	const matching = all.filter((item) => item.label.startsWith(partial));
+	return matching.length > 0 ? matching : null;
+}
+
+/**
  * The subcommand menu. Settings commands carry the value in effect, because a settings menu
  * that does not show the current setting is a menu you have to leave in order to check.
  */
@@ -86,6 +99,9 @@ function subcommands(state: DevsPsychologistState): Completion[] {
 		// Non-terminal (idea 1): it takes a session-file path, and there is nothing enumerable to
 		// complete after it, so the trailing space opens the free-form parameter.
 		branch("replay", "replay", s.cmdReplay),
+		// Non-terminal: it takes an optional topic, whose children are listed with their meanings,
+		// so a new user can set the plugin up without leaving the picker (the setup-help slice).
+		branch("help", "help", s.cmdHelp),
 		// The marker goes in `label` (display-only, the primary column) as well as the description:
 		// a settings menu that does not show which choice is in effect makes the user run `status`
 		// first to find out. `value` stays a clean token because it is inserted verbatim.
@@ -212,6 +228,7 @@ export function completePsych(
 		if (head === "context") return contexts(state);
 		if (head === "agent-model") return modelCompletions(state, "", agentPick);
 		if (head === "replay") return replayOptions(state);
+		if (head === "help") return helpTopics(state, "");
 		// A partial prefix keeps the trailing-space parent item, so Tab still inserts token + space.
 		const all = subcommands(state);
 		if (head.length === 0) return all;
@@ -250,6 +267,9 @@ export function completePsych(
 		return modelCompletions(state, valueText, agentPick);
 	} else if (head === "replay") {
 		return replayOptions(state);
+	} else if (head === "help") {
+		// A topic is terminal and help is not a setting, so no --global follows it.
+		return helpTopics(state, valueText);
 	}
 
 	if (SETTINGS_HEADS.has(head)) {

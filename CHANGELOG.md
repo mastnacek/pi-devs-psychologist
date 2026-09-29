@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 0.8.2
+
+- **feat(commands): `/psych help [item]` — setup help that answers "what is this" and "what
+  happens after".** The picker's one-word descriptions left a new user with two unanswered
+  questions about every setting: what the item is, and what changes once it is set. Now the
+  empty `/psych help` lists every setup item (`model`, `budget`, `lang`, `runtime`, `context`,
+  `agent-model`, `on`, `global`) with the value in effect, and a named item returns its full
+  text: WHAT it is, AFTER YOU SET IT (the post-set effect, including the zero-spend default of
+  an empty `model`, the consent behaviour of `context digest|fork`, and the resolved-model rule
+  of `agent-model`), and CHECK (how to verify it took). An unknown item is a warning that lists
+  the items that exist. The `help` row and its topic children complete in the picker, each topic
+  described by its own one-liner, so the meaning is readable without descending. Strings live in
+  the new `src/shared/i18n-help.ts` (en + cs, key parity enforced by the existing i18n lint);
+  three dead picker keys (`cmdRuntime`, `cmdContext`, `cmdAgentModel`) removed. 8 new tests;
+  746 pass, tsc clean.
+
 ## 0.8.1
 
 - **Audit of three surfaces against the pi-plugin-dev skill (docs/audit-2026-09-29.md).** The

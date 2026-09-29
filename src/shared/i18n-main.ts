@@ -6,6 +6,7 @@
 
 import { CARD_CS, CARD_EN, type CardStrings } from "./i18n-card.js";
 import { CS_LABELS, EN_LABELS, type Labels } from "./i18n-labels.js";
+import { HELP_CS, HELP_EN, type HelpStrings } from "./i18n-help.js";
 import { HISTORY_CS, HISTORY_EN, type HistoryStrings } from "./i18n-history.js";
 import { NOTICE_CS, NOTICE_EN, type NoticeStrings } from "./i18n-notices.js";
 import { REPLAY_CS, REPLAY_EN, type ReplayStrings } from "./i18n-replay.js";
@@ -15,7 +16,7 @@ export const LOCALES = ["en", "cs"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 
-export interface Strings extends RunStrings, CardStrings, NoticeStrings, ReplayStrings, HistoryStrings {
+export interface Strings extends RunStrings, CardStrings, NoticeStrings, ReplayStrings, HistoryStrings, HelpStrings {
 	/** Statusline. The product name (`psych`) is identical across locales; the state is not. */
 	chipOff: string;
 	/** Shown when no model is configured: observation is live, the spend is zero. */
@@ -126,9 +127,6 @@ export interface Strings extends RunStrings, CardStrings, NoticeStrings, ReplayS
 	/** The chip when `runtime: "agent"` but no model resolves: observation only, said out loud. */
 	chipAgentNoModel: string;
 	/** The subcommand descriptions for the runtime switch. */
-	cmdRuntime: string;
-	cmdContext: string;
-	cmdAgentModel: string;
 	runtimeSet: (mode: string) => string;
 	contextSet: (level: string) => string;
 	agentModelSet: (model: string) => string;
@@ -175,6 +173,7 @@ export const EN: Strings = {
 	...NOTICE_EN,
 	...REPLAY_EN,
 	...HISTORY_EN,
+	...HELP_EN,
 	chipOff: "psych: off",
 	chipSignals: "psych: signals",
 	chipConfigError: "psych: check model",
@@ -232,7 +231,7 @@ export const EN: Strings = {
 	nowValue: (value) => `(now: ${value})`,
 	// The help must not advertise a `global` subcommand: it is a trailing flag, and a user who
 	// followed the old text got "Unknown option: global".
-	usage: "Usage: /psych [status|now|stop|effect|history|ask <question>|scout [topic]|review|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Usage: /psych [status|now|stop|effect|history|ask <question>|scout [topic]|review|help [item]|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Unknown option",
 	configWritten: (path) => `Config written to ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
@@ -250,9 +249,6 @@ export const EN: Strings = {
 	done: "Appraisal complete.",
 	busy: "An appraisal is already running.",
 	chipAgentNoModel: "psych: agent, no model",
-	cmdRuntime: "switch between the API call and a child pi agent",
-	cmdContext: "how much session context the child agent may see",
-	cmdAgentModel: "model for the child agent (empty = the shared model)",
 	runtimeSet: (mode) => `Runtime set to ${mode}`,
 	contextSet: (level) => `Context level set to ${level}`,
 	agentModelSet: (model) => `Agent model set to ${model}`,
@@ -287,6 +283,7 @@ export const CS: Strings = {
 	...NOTICE_CS,
 	...REPLAY_CS,
 	...HISTORY_CS,
+	...HELP_CS,
 	chipOff: "psych: vyp",
 	chipSignals: "psych: signály",
 	chipConfigError: "psych: zkontroluj model",
@@ -342,7 +339,7 @@ export const CS: Strings = {
 	notifyScoutCandidate: (name, fit, why, installSpec, url) => `${name} (${fit}) — ${why}\n${installSpec}\n${url}`,
 	notSet: "(nenastaveno)",
 	nowValue: (value) => `(nyní: ${value})`,
-	usage: "Použití: /psych [status|now|stop|effect|history|ask <dotaz>|scout [téma]|review|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Použití: /psych [status|now|stop|effect|history|ask <dotaz>|scout [téma]|review|help [položka]|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Neznámá volba",
 	configWritten: (path) => `Konfigurace zapsána do ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,
@@ -360,9 +357,6 @@ export const CS: Strings = {
 	done: "Posouzení dokončeno.",
 	busy: "Posouzení už běží.",
 	chipAgentNoModel: "psych: agent, bez modelu",
-	cmdRuntime: "přepnout mezi voláním API a podřízeným pi agentem",
-	cmdContext: "kolik kontextu relace smí podřízený agent vidět",
-	cmdAgentModel: "model pro podřízeného agenta (prázdné = sdílený model)",
 	runtimeSet: (mode) => `Runtime nastaven na ${mode}`,
 	contextSet: (level) => `Úroveň kontextu nastavena na ${level}`,
 	agentModelSet: (model) => `Model agenta nastaven na ${model}`,

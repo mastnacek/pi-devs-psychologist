@@ -12,7 +12,9 @@
  */
 
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import { effectiveAgentModel } from "../../shared/config.js";
 import { LOCALES, stringsFor, type Locale } from "../../shared/i18n.js";
+import type { HelpTopic } from "../../shared/i18n-help.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
 import { completePsych, GLOBAL_FLAG } from "./completions.js";
 
@@ -62,6 +64,37 @@ export interface CommandDeps {
 }
 
 /**
+ * The `/psych help` text.
+ *
+ * This is the setup help the picker's one-word descriptions cannot carry: the listing says what
+ * each item IS and shows the value in effect, so it also answers "what am I on?" without leaving
+ * the screen, and `/psych help <item>` answers the follow-up question a new user actually has —
+ * what happens after it is set, and how to check that it took.
+ */
+function renderHelp(state: DevsPsychologistState, item: string): string {
+	const s = stringsFor(state.config.lang);
+	const topic = item.trim().toLowerCase() as HelpTopic;
+	if (topic.length > 0) return s.helpDetail[topic];
+	const cap = state.config.maxAppraisalsPerSession;
+	const values: Record<HelpTopic, string> = {
+		model: state.config.model || s.notSet,
+		budget: cap === 0 ? "∞" : String(cap),
+		lang: state.config.lang,
+		runtime: state.config.runtime,
+		context: state.config.agent.context,
+		"agent-model": effectiveAgentModel(state.config) || s.notSet,
+		on: state.config.enabled ? "on" : "off",
+		global: s.notSet,
+	};
+	const lines = [s.helpTitle, "", s.helpOverview, ""];
+	for (const t of s.helpTopics) {
+		lines.push(`${t.padEnd(12)}${values[t].padEnd(15)}${s.helpLine[t]}`);
+	}
+	lines.push("", s.helpFooter);
+	return lines.join("\n");
+}
+
+/**
  * Split raw arguments into the subcommand, its value and the trailing `--global` flag.
  *
  * Every setting command accepts `--global`: with it the patch is persisted to
@@ -98,6 +131,19 @@ export function registerPsychCommand(
 				case "status":
 					deps.report(ctx);
 					return;
+
+				case "help": {
+					// Pure text: it never saves, never reloads, never touches the budget. An unknown
+					// item is an incomplete command, not a silent no-op, so it goes out as a warning.
+					const help = stringsFor(state.config.lang);
+					const topic = value.trim().toLowerCase() as HelpTopic;
+					if (topic.length > 0 && !help.helpTopics.includes(topic)) {
+						notify(help.helpUnknown(value.trim(), help.helpTopics.join(" | ")), "warning");
+						return;
+					}
+					notify(renderHelp(state, value));
+					return;
+				}
 
 				case "now":
 					notify(await deps.now(ctx));

@@ -107,6 +107,10 @@ sections, cost totals, other plugins' state, cross-session history) and why — 
 
 ## Configuration
 
+Not sure what a setting does? **`/psych help <item>`** (or just `/psych help`) explains every
+item in the picker: what it is, what happens once it is set, and how to verify it took — without
+leaving the session.
+
 `model` is a `provider/modelId` handle, so it selects a provider **account** as well
 as a model. This workshop runs several OpenRouter accounts side by side via
 `pi-openrouter-accounts` (each account registers as its own provider id, e.g.
@@ -267,6 +271,7 @@ spots is not an observer. A different *account* is not automatically a different
 | Command | Effect |
 |---|---|
 | `/psych` | Report: the observed signals and the last appraisal |
+| `/psych help [item]` | Setup help: every setting with its value in effect, and — for a named item — what it is, what happens after you set it, and how to check that it took |
 | `/psych now` | Form an appraisal immediately, consuming budget |
 | `/psych ask <question>` | Consult the observer directly. Runs the agent runtime (falls back to a tool-less API call on `runtime: api`, and says so). One card: the answer, its cited evidence, researched suggestions. Consumes budget; an uncited answer is marked unsupported, never hidden |
 | `/psych scout [topic]` | Find an existing plugin for recurring friction, or a gap worth building. Agent runtime only, behind `roles.scout.enabled`. The topic defaults to the top recurring fingerprint. One card: candidates (name, fit, why, install spec, url) and, when nothing fits, a paste-ready SPAI idea line. When nothing is found and the operator asked, it says so — never silently |
