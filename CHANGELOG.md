@@ -2,6 +2,13 @@
 
 ## 0.7.0 (unreleased)
 
+- **fix(reviewer): convention rules are citable evidence (T32a).** A live run dropped a correct
+  finding: the child quoted a rule from `AGENTS.md` and enforcement, which can only verify what the
+  parent supplied, rejected it as unsupported — the parent knew the rule's PATH, not its TEXT.
+  `src/shared/conventions.ts` now reads the repo's stated rules (bounded, and only when the reviewer
+  is enabled) and supplies them as `AGENTS.md:12: <rule>` lines; the brief names them as the only
+  citable lines. Live: `convention_mismatch` finding kept, 0 dropped, $0.0118, 3 tool calls.
+
 T32a. The reviewer role: one delivery-boundary review on the already-proven agent seams, proposing at
 most one finding that cites a stated rule, or abstaining with `insufficient_context`. It is NOT a
 second auditor — pi-pair left open exactly two claims (a different, stronger model and convention

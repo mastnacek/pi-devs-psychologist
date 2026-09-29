@@ -94,6 +94,12 @@ export interface ReviewBrief {
 	maxDiffBytes: number;
 	/** The repo's stated convention files the child reads when they exist. */
 	conventionFiles: readonly string[];
+	/**
+	 * The convention files' rule lines as evidence (`AGENTS.md:12: Never …`), read by the PARENT
+	 * and bounded. The child copies one of these EXACTLY into `cited`, because that is the only kind of
+	 * claim the parent can verify without ever holding the change.
+	 */
+	conventionRules?: readonly string[];
 }
 
 export interface AgentBriefInput {
@@ -213,7 +219,27 @@ function reviewSection(review: ReviewBrief): string {
 			`- read each of these convention files that exists: ${files}`,
 		].join("\n"),
 		`The combined diff must not exceed ${review.maxDiffBytes} bytes. If it does, review the last ${review.maxDiffBytes} bytes and say in \`text\` what you left out.`,
+		conventionRulesSection(review.conventionRules),
 	].join("\n\n");
+}
+
+/**
+ * The convention rules the PARENT read, as the only citable lines a finding may rest on.
+ *
+ * A live run showed why this block exists: the child quoted the rule text from the file it had
+ * just read, and enforcement — which can only verify what the parent supplied — dropped the finding
+ * as unsupported. Copying one of these lines EXACTLY into `cited` is what makes the claim checkable
+ * without the parent ever holding the change.
+ */
+function conventionRulesSection(rules: readonly string[] | undefined): string {
+	if (rules === undefined || rules.length === 0) {
+		return "The parent read no stated rules in the configured convention files. If your finding needs one, submit `insufficient_context` and say which file was missing.";
+	}
+	return [
+		"These CONVENTIONS lines are the ONLY citations a finding may rest on. Copy one EXACTLY into `cited` — the parent can verify these lines and nothing else, so a finding quoting a rule any other way is dropped as unsupported:",
+		...rules.map((line) => `- ${line}`),
+		"A diff hunk is NOT citable. Name the file in `file` and describe the change in `text`.",
+	].join("\n");
 }
 
 /**

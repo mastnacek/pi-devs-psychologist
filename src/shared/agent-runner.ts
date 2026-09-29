@@ -207,7 +207,9 @@ export async function runAgent(
 		...(request.digest ? { digest: request.digest } : {}),
 		...(request.question ? { question: request.question } : {}),
 		...(request.topic ? { topic: request.topic } : {}),
-		...(request.review ? { review: request.review } : {}),
+		...(request.review
+			? { review: { ...request.review, ...(request.review.conventionRules ? { conventionRules: request.review.conventionRules } : {}) } }
+			: {}),
 		...(options.workshopDir ? { workshopDir: options.workshopDir } : {}),
 	});
 	const launch = buildChildLaunch({

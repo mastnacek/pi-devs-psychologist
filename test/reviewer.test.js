@@ -1,27 +1,27 @@
 /**
- * `reviewer` — the role's contract, enforcement, the slice, the card and the delivery trigger (T32a).
+ * `reviewer` — the role's contract, enforcement, the slice and the delivery trigger (T32a). The card is
+ * in `review-card.test.js`, the convention rules in `conventions.test.js`.
  *
  * The properties that carry the weight: the schema refuses an overreaching verdict; enforcement
  * drops a finding with no surviving citation and clears rule/file from an abstention; `enabled:
  * false` runs nothing; the trigger fires once per commit head and diffs the range since the last
- * review; the card measures exactly what it draws and no line exceeds its width; and the slice holds
+ * review; and the slice holds
  * no file-mutation import and never sends a message to the working agent (ADR 0001 invariant 7).
  */
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { dirname } from "node:path";
 import { Check } from "typebox/value";
 import { REVIEW_SCHEMA } from "../src/shared/appraisal.js";
 import { enforceReview, parseReview } from "../src/shared/appraisal-enforce.js";
 import { DEFAULT_CONFIG } from "../src/shared/config.js";
 import { stringsFor } from "../src/shared/i18n.js";
 import { FRAME_LINES } from "../src/slices/overlay/layout.js";
-import { ReviewView } from "../src/slices/overlay/review-view.js";
-import { layoutReviewCard, measureReviewCard } from "../src/slices/overlay/review-layout.js";
 import { reviewObserver, reviewCommandHandler } from "../src/slices/reviewer/index.js";
 import { registerObserver } from "../src/slices/observer/index.js";
 import { completePsych } from "../src/slices/commands/index.js";
@@ -37,6 +37,30 @@ const GOOD = {
   text: "stop re-exporting the layout module from the slice barrel",
   cited: [LINE],
 };
+
+/** The injected slice seams: the model call, the card, the fallback and the git HEAD. */
+function makeDeps(over = {}) {
+  const presented = [];
+  const notes = [];
+  const requests = [];
+  return {
+    presented,
+    notes,
+    requests,
+    readHistory: () => ({ evidence: [LINE] }),
+    callModel: async (_registry, req) => {
+      requests.push(req);
+      return { ok: true, text: JSON.stringify(GOOD), provider: "p", modelId: "m", label: "p/m", usage: undefined };
+    },
+    present: async (_ctx, input) => {
+      presented.push(input);
+      return true;
+    },
+    notify: (_ctx, text) => notes.push(text),
+    resolveHead: () => "H2",
+    ...over,
+  };
+}
 
 function configWith(over = {}, reviewer = {}) {
   return {
@@ -130,93 +154,6 @@ test("junk is not JSON", () => {
 
 /* --- the card --- */
 
-function cardInput(over = {}) {
-  return {
-    finding: { ...GOOD, cited: [LINE] },
-    head: "abcdef1234567890",
-    lastHead: "",
-    unmatched: [],
-    sameModel: false,
-    ...over,
-  };
-}
-
-test("measureReviewCard counts exactly the lines the view draws, and no line exceeds the width", () => {
-  const cases = [
-    cardInput(),
-    cardInput({ finding: { verdict: "insufficient_context", rule: "", file: "", text: "no stated rule decides this", cited: [] } }),
-    cardInput({ finding: undefined, unmatched: ["made up"] }),
-    cardInput({ sameModel: true, lastHead: "1234567890abcdef", unmatched: ["x"] }),
-  ];
-  for (const input of cases) {
-    for (const locale of ["en", "cs"]) {
-      const s = stringsFor(locale);
-      const { head, tail } = layoutReviewCard(input, s, 76, PLAIN);
-      const measured = measureReviewCard(input, s, 76);
-      assert.equal(measured.head, head.length);
-      assert.equal(measured.tail, tail.length);
-      assert.equal(measured.total, FRAME_LINES + head.length + tail.length);
-    }
-    for (const theme of [PLAIN, makePi().ansi]) {
-      for (const width of [40, 120]) {
-        const lines = new ReviewView(input, theme, () => {}, { maxHeight: 200 }).render(width);
-        for (const line of lines) {
-          assert.ok(
-            visibleWidth(line) <= width,
-            `a ${visibleWidth(line)}-cell line in a ${width}-cell card: ${JSON.stringify(line)}`,
-          );
-        }
-      }
-    }
-  }
-});
-
-test("an insufficiency is one line, a finding shows its rule and citation, and the same model is disclosed", () => {
-  const s = stringsFor("en");
-  const declined = layoutReviewCard(
-    cardInput({ finding: { verdict: "insufficient_context", rule: "", file: "", text: "cannot tell" } }),
-    s,
-    76,
-    PLAIN,
-  ).head.map((l) => l.text).join("\n");
-  assert.ok(declined.includes(s.reviewDeclined));
-  assert.ok(declined.includes("cannot tell"));
-
-  const finding = layoutReviewCard(cardInput(), s, 76, PLAIN).head.map((l) => l.text).join("\n");
-  assert.ok(finding.includes(s.labels.reviewVerdicts.convention_mismatch));
-  assert.ok(finding.includes(GOOD.file));
-  assert.ok(finding.includes(GOOD.rule));
-  assert.ok(finding.includes(LINE), "the citation is shown");
-  assert.ok(!finding.includes(s.reviewSameModel));
-
-  const same = layoutReviewCard(cardInput({ sameModel: true }), s, 76, PLAIN).head.map((l) => l.text).join("\n");
-  assert.ok(same.includes(s.reviewSameModel), "the same-model caveat is disclosed");
-});
-
-/* --- the slice --- */
-
-function makeDeps(over = {}) {
-  const presented = [];
-  const notes = [];
-  const requests = [];
-  return {
-    presented,
-    notes,
-    requests,
-    readHistory: () => ({ evidence: [LINE] }),
-    callModel: async (_registry, req) => {
-      requests.push(req);
-      return { ok: true, text: JSON.stringify(GOOD), provider: "p", modelId: "m", label: "p/m", usage: undefined };
-    },
-    present: async (_ctx, input) => {
-      presented.push(input);
-      return true;
-    },
-    notify: (_ctx, text) => notes.push(text),
-    resolveHead: () => "H2",
-    ...over,
-  };
-}
 
 test("enabled:false runs nothing, and the api runtime is refused", async () => {
   const off = makeState();
@@ -307,15 +244,29 @@ test("the reviewer's own model overrides the shared one, empty means the shared 
 });
 
 test("the reviewer role reaches the child as role 'pair' and carries the delivery anchors", async () => {
+  // A real convention file in a temp cwd: the parent reads the rules, so the citable lines exist.
+  const cwd = mkdtempSync(join(tmpdir(), "psych-review-"));
+  writeFileSync(join(cwd, "AGENTS.md"), "- Every new source file gets a test.\n- Never use raw control characters.\n", "utf8");
   const state = makeState();
   state.config = configWith({}, { enabled: true, model: "strong/model" });
   state.reviewLastHead = "H1";
   const deps = makeDeps({ resolveHead: () => "H2" });
-  await reviewObserver(state, makeCtx(), deps);
+  try {
+  await reviewObserver(state, makeCtx({ cwd }), deps);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
   const req = deps.requests[0];
   assert.equal(req.agentRole, "pair");
   assert.equal(req.modelRefOverride, "strong/model");
-  assert.deepEqual(req.review, { lastDeliveryHead: "H1", head: "H2", maxDiffBytes: 200000, conventionFiles: DEFAULT_CONFIG.roles.reviewer.conventionFiles });
+  assert.equal(req.review.lastDeliveryHead, "H1");
+  assert.equal(req.review.head, "H2");
+  assert.equal(req.review.maxDiffBytes, 200000);
+  assert.deepEqual(req.review.conventionFiles, DEFAULT_CONFIG.roles.reviewer.conventionFiles);
+  // The rules the parent read travel with the anchors, and they are the only citable lines.
+  assert.ok(Array.isArray(req.review.conventionRules), "convention rules reach the child");
+  assert.equal(typeof req.review.conventionRules[0], "string");
+  for (const line of req.review.conventionRules) assert.match(line, /^\S+:\d+: .+/, "each rule is a located line");
 });
 
 test("a stop request lands on the running model call as an abort", async () => {

@@ -25,6 +25,7 @@ import { stringsFor } from "../../shared/i18n.js";
 import { callModel, summarizeUsage, type ModelCallResult } from "../../shared/model-call.js";
 import { buildReviewUserText, REVIEW_SYSTEM_PROMPT } from "../../shared/prompt.js";
 import { isAbstention, type ReviewCardInput } from "../../shared/review.js";
+import { conventionEvidenceLines, readConventionRules } from "../../shared/conventions.js";
 import { extractSignals } from "../../shared/signals.js";
 import { paintChip, startResearchingChip, stopResearchingChip } from "../../shared/status.js";
 import { signalOptions, type DevsPsychologistState } from "../../shared/state.js";
@@ -155,11 +156,18 @@ export async function reviewObserver(
 			maxDiffBytes: reviewer.maxDiffBytes,
 			conventionFiles: reviewer.conventionFiles,
 		};
-		// Enforcement verifies citations against what the PLUGIN supplied: the session evidence lines
-		// and the convention file paths. The diff is read by the child, so the parent cannot verify a
-		// verbatim diff line; the brief therefore asks the child to cite supplied lines (a convention
-		// path or a SESSION line) and to carry the rule text in `rule`.
-		const lines = [...liveLines, ...sessionLines, ...reviewer.conventionFiles];
+		// Enforcement verifies citations against what the PLUGIN supplied: the session evidence lines,
+		// the convention file paths, and the convention files' own rule lines. The diff is read by the
+		// child, so the parent cannot verify a verbatim diff line — and a live run proved that dropping
+		// such a citation silently loses the finding: the child correctly cited a real `AGENTS.md` rule
+		// and a real diff hunk, and the review was dropped for quoting the rule's TEXT rather than its
+		// PATH. So the child is asked to copy a CONVENTIONS line EXACTLY into `cited` (the diff hunk
+		// belongs in `file` and `text`, which enforcement does not require to be supplied lines), and
+		// the rules are read here, bounded, only when this role is enabled.
+		const rules = reviewer.enabled
+			? readConventionRules(ctx.cwd, reviewer.conventionFiles)
+			: [];
+		const lines = [...liveLines, ...sessionLines, ...reviewer.conventionFiles, ...conventionEvidenceLines(rules)];
 
 		const result = await deps.callModel(ctx.modelRegistry, {
 			modelRef,
@@ -172,7 +180,7 @@ export async function reviewObserver(
 			evidence: { liveLines, sessionLines },
 			agentRole: "pair",
 			agentContext: "evidence",
-			review,
+			review: { ...review, conventionRules: conventionEvidenceLines(rules) },
 		});
 
 		if (result.ok === false) return { ran: true, ok: false, stage: result.stage, error: result.error, head };

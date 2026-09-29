@@ -117,7 +117,7 @@ export interface ModelCallRequest {
 	/** Agent runtime only: the friction the `scout` role is asked about (T31). */
 	topic?: string;
 	/** Agent runtime only: the delivery anchors, for the `reviewer`/`pair` role (T32a). */
-	review?: import("./agent-brief.js").ReviewBrief;
+	review?: import("./agent-brief.js").ReviewBrief & { conventionRules?: readonly string[] };
 }
 
 /** Split `provider/modelId` on the first slash only. */
