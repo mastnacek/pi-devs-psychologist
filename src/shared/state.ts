@@ -18,6 +18,7 @@ import type { AppraiseOutcome } from "./appraisal-outcome.js";
 import type { ForkConsent } from "./agent-context.js";
 import type { OutcomeRecord } from "./outcome.js";
 import type { UsageSummary } from "./model-call.js";
+import type { RepoMapCache } from "./repo-map.js";
 import {
 	realTimerIo,
 	type LastRunAccount,
@@ -180,6 +181,12 @@ export interface DevsPsychologistState {
 	// --- accounting (T27) ---
 	/** Metadata of the last appraiser run, for the report's "Last run" block. */
 	lastRun: LastRunAccount | undefined;
+	/**
+	 * The objective repo map (T8): its facts, its citable lines and which turn computed it. Computed
+	 * ONCE per cwd and reused, so the walk never runs on the hot path. `undefined` before the first
+	 * eligible point; reset with the session window.
+	 */
+	repoMap: RepoMapCache | undefined;
 	/** The clock the researching chip reads; injectable so tests need no real timers. */
 	timers: TimerIo;
 
@@ -239,6 +246,7 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		appraisalToolCalls: 0,
 		chipTimer: undefined,
 		lastRun: undefined,
+		repoMap: undefined,
 		timers: realTimerIo(),
 		outcomes: [],
 		triggerBaseline: { ...EMPTY_TRIGGER_BASELINE },
@@ -277,6 +285,8 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 			state.agentForkNotified = false;
 			state.lastRun = undefined;
 			state.pendingAppraisal = undefined;
+			// A new session starts at a possibly different cwd, so the map is recomputed on first use.
+			state.repoMap = undefined;
 		},
 		budgetAvailable() {
 			const cap = state.config.maxAppraisalsPerSession;

@@ -114,6 +114,11 @@ This boundary is the default and holds for the API runtime unchanged. The option
 `fork` — scoped to that runtime alone and only as a persisted decision; what leaves the
 machine at each level is recorded in [ADR 0002](docs/adr/0002-agent-runtime.md).
 
+The codebase mapper (T8) is the one part of the evidence that inspects the filesystem,
+so it is the one that needs its boundary stated: it reads REPO STRUCTURE — paths and a
+counted line total per file — and never file *content*. The only thing a read of a file
+produces is a number of lines.
+
 ## 5. Hard prohibitions
 
 Each is required by a specific finding, not by taste:

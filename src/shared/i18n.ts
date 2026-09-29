@@ -47,6 +47,12 @@ export interface Strings extends RunStrings, CardStrings {
 	reportTitle: string;
 	reportSignals: string;
 	reportSession: string;
+	/** The objective repo-map section heading (T8). */
+	reportRepoMap: string;
+	/** Shown when `mapRepo` is off or `cwd` is outside a git work tree (T8). */
+	reportMapUnavailable: string;
+	/** `map age: N turn(s)` — shown only once the cached map has gone stale (T8). */
+	reportMapAge: (n: number) => string;
 	reportAppraisal: string;
 	reportNone: string;
 	reportNever: string;
@@ -164,6 +170,9 @@ const EN: Strings = {
 	reportTitle: "DEVELOPER PSYCHOLOGIST",
 	reportSignals: "Observed signals",
 	reportSession: "Session record",
+	reportRepoMap: "Repo map",
+	reportMapUnavailable: "repo map unavailable",
+	reportMapAge: (n) => `map age: ${n} turn(s)`,
 	reportAppraisal: "Appraisal",
 	reportNone: "Not yet: no appraisal has run. Set a model with /psych model <provider/id>.",
 	reportNever: "no appraisal yet",
@@ -261,6 +270,9 @@ const CS: Strings = {
 	reportTitle: "VÝVOJÁŘSKÝ PSYCHOLOG",
 	reportSignals: "Zjištěné signály",
 	reportSession: "Záznam relace",
+	reportRepoMap: "Mapa repa",
+	reportMapUnavailable: "mapa repa nedostupná",
+	reportMapAge: (n) => `stáří mapy: ${n} tahů`,
 	reportAppraisal: "Posouzení",
 	reportNone: "Zatím ne: posouzení ještě neproběhlo. Nastav model: /psych model <provider/id>.",
 	reportNever: "posouzení zatím žádné",

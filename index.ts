@@ -57,6 +57,7 @@ import { runScoutTrigger, scoutCommandHandler, type ScoutDeps } from "./src/slic
 import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
 import { registerObserver } from "./src/slices/observer/index.js";
 import { presentAppraisal, presentAsk, presentScout } from "./src/slices/overlay/index.js";
+import { repoMapEvidenceLines, repoMapReport } from "./src/slices/mapper/index.js";
 import { renderReport, renderEffect } from "./src/slices/report/index.js";
 
 export interface DevsPsychologistOptions {
@@ -190,6 +191,10 @@ export default function devsPsychologistExtension(
 	// appraiser has already consumed the budget and moved the baseline before this is called.
 	appraiserDeps.runScout = (ctx, topic) => runScoutTrigger(state, ctx, scoutDeps, topic);
 
+	// The repo map (T8): the appraiser asks for citable SESSION lines, the mapper slice owns the
+	// walk and the once-per-session cache. Injected, so neither slice imports the other.
+	appraiserDeps.repoMap = (target, cwd) => repoMapEvidenceLines(target, cwd);
+
 	// Session init: seed the config file if it is missing (so the plugin is self-describing and
 	// there is something to edit), reload the cascade — which needs a cwd that does not exist at
 	// extension-load time — and start from an empty window, so a new session is never appraised
@@ -294,18 +299,24 @@ export default function devsPsychologistExtension(
 			const s = stringsFor(state.config.lang);
 			return stopAppraisal(state, s.stopReason) ? s.stopRequested : s.stopNothing;
 		},
-			report: (ctx) => {
+				report: (ctx) => {
 			// Refreshed on every invocation, so adding an OpenRouter account mid-session is picked
 			// up by the next Tab press instead of needing a restart.
 			refreshModelCatalog(state, ctx.modelRegistry);
 			const signals = extractSignals(state.observations, signalOptions(state));
 			// Width comes from the terminal so the report truncates rather than wraps (T27).
 			const columns = process.stdout?.columns ?? 0;
+			// The repo map (T8) is cached, so rendering the report never re-walks the tree; the age is
+			// surfaced so an old number is not read as a current one.
+			const map = repoMapReport(state, ctx.cwd);
 			const text = renderReport({
 				state,
 				signals: signals.evidence,
 				history: readHistory(ctx).evidence,
 				lang: state.config.lang,
+				mapLines: map.lines,
+				mapUnavailable: map.unavailable,
+				mapAgeTurns: map.ageTurns,
 				...(columns > 0 ? { width: columns } : {}),
 			});
 			if (ctx.hasUI) ctx.ui.notify(text, "info");

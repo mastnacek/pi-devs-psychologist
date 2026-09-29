@@ -116,6 +116,16 @@ export interface DevsPsychologistConfig {
 	 * machine is not the programmer's business when they have asked not to be.
 	 */
 	envFacts: boolean;
+	/**
+	 * Include the objective repo map (file counts, longest file, test-to-source ratio, slice layout)
+	 * among the citable evidence (T8).
+	 *
+	 * ON by default: it is arithmetic over the tree the session is working in, computed once per
+	 * session, and it costs nothing but a walk. `false` removes the lines and makes `/psych` say the
+	 * map is unavailable. The one thing it must NEVER read is file content — see `src/shared/
+	 * repo-map.ts`; the walk counts lines and discards the text.
+	 */
+	mapRepo: boolean;
 }
 
 export const DEFAULT_CONFIG: DevsPsychologistConfig = {
@@ -138,6 +148,7 @@ export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	steerAgent: false,
 	retainObservations: DEFAULT_SIGNAL_OPTIONS.maxObservations,
 	envFacts: true,
+	mapRepo: true,
 };
 
 const CONFIG_DIR = join(homedir(), ".pi", "agent");
@@ -276,6 +287,7 @@ export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsych
 		// Default on, opt-out: `false` is the only value that disables it, so a hand-written
 		// config with a missing or nonsense key keeps the better behaviour.
 		envFacts: cfg.envFacts !== false,
+		mapRepo: cfg.mapRepo !== false,
 	};
 }
 

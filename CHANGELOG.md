@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## 0.6.1 (unreleased)
+
+T8. The appraiser gets an objective map of the repo the session is working in — file sizes, the
+longest files, the test-to-source ratio, the slice layout — as citable evidence, so "this is a large
+change" is a number from arithmetic rather than a guess. Pure `node:fs`, no model, no watcher.
+
+### Added
+
+- **`mapRepo` config key (default `true`).** Adds the repo-map lines to the SESSION evidence and a
+  "Repo map" section to `/psych`. `false` withholds them and the report says the map is unavailable.
+- **`src/shared/repo-map.ts` (pure core, T8).** `buildRepoMap(files, options) → { evidence, facts }`
+  over an already-counted `{ path, lineCount }[]`: `fileCount`, `sourceFileCount`, `testFileCount`,
+  `testToSourceRatio` (2 decimals), `longestFile` (ties → first path), `filesOver300Lines`,
+  `topLevelDirs`, `sliceDirs`, `medianFileLines`, `skippedLarge`.
+- **`src/slices/mapper/` (T8).** `collect.ts` walks `cwd` with `lstat` only — symlinks are skipped,
+  never followed — skipping `node_modules`/`dist`/`build`/`coverage`/dot-dirs (except `.github`),
+  capping at 4000 files and 1 MiB per read. Only the line count leaves the walk; no file content ever
+  reaches a prompt. `index.ts` adds the git-work-tree gate (`git rev-parse --show-toplevel`, cwd
+  fallback when git is absent) and a once-per-session cache in `state.repoMap`.
+- **Repo map in `/psych` (T8).** A "Repo map" section (en + cs), width-safe, with a `map age: N turn(s)`
+  line once the cached map is older than 20 turns.
+
 ## 0.6.0
 
 - **T33 — research grounding.** No code: the existing NotebookLM notebook behind `docs/research-notes.md` is allowed via `agent.nlmNotebooks`; README section documents the setup. Verified live: `/psych ask` queried it and returned a `nlm:<id>`-sourced suggestion (3 tools, 81 s).

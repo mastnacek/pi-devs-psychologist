@@ -14,6 +14,7 @@ import { NEEDS } from "../../shared/appraisal.js";
 import { isSilent } from "../../shared/appraisal-enforce.js";
 import { effectiveAgentModel } from "../../shared/config.js";
 import { stringsFor, type Locale } from "../../shared/i18n.js";
+import { MAP_STALE_TURNS } from "../../shared/repo-map.js";
 import { effectByKind, type OutcomeRecord } from "../../shared/outcome.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
 import { PLUGIN_VERSION } from "../../shared/version.js";
@@ -28,6 +29,12 @@ export interface ReportInput {
 	lang: Locale;
 	/** Terminal width, so every line is clipped rather than wrapped (T27). `0`/absent means no clip. */
 	width?: number;
+	/** The objective repo-map evidence lines (T8). Empty when the map is unavailable. */
+	mapLines?: readonly string[];
+	/** True when `mapRepo` is off or `cwd` is outside a git work tree: `/psych` says so. */
+	mapUnavailable?: boolean;
+	/** Turns since the map was computed; shown only when it has gone stale. */
+	mapAgeTurns?: number;
 }
 
 /** `  · text` — one evidence line. */
@@ -92,6 +99,13 @@ export function renderReport(input: ReportInput): string {
 	lines.push("", heading(s.reportSession));
 	if (input.history.length === 0) lines.push(bullet(s.reportEmpty));
 	for (const line of input.history) lines.push(bullet(line));
+
+	// The repo map (T8) is offered to the model as SESSION evidence, so it is shown here alongside
+	// what the session record contributed. Unavailable is stated, never rendered as zeroes.
+	lines.push("", heading(s.reportRepoMap));
+	if (input.mapUnavailable ?? (input.mapLines ?? []).length === 0) lines.push(bullet(s.reportMapUnavailable));
+	for (const line of input.mapLines ?? []) lines.push(bullet(line));
+	if ((input.mapAgeTurns ?? 0) > MAP_STALE_TURNS) lines.push(bullet(s.reportMapAge(input.mapAgeTurns as number)));
 
 	lines.push("", heading(s.reportAppraisal));
 	const appraisal = state.lastAppraisal;

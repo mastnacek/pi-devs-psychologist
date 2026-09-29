@@ -133,15 +133,27 @@ that restored text contributes zero observations.
 
 ---
 
-## . T8 — Codebase mapper (no LLM)
+## x T8 — Codebase mapper (no LLM)
 
 `src/slices/mapper/index.ts`: an objective structural map of the repo the session
 is working in — file sizes, slice layout, longest files, test-to-source ratio —
 to give the appraiser a factual complexity figure instead of a guess. Pure
 `node:fs`; no model, no watcher.
 
-**Validation:** over a fixture tree, asserts exact file counts and the longest
-file, and asserts the mapper never reads outside `cwd`.
+**Delivered:** `src/shared/repo-map.ts` (pure core: `buildRepoMap(files, options) → { evidence,
+facts }`; `RepoMap`, `RepoMapCache`, `MAP_STALE_TURNS`) and `src/slices/mapper/{collect.ts,index.ts}`
+(the `lstat`-only walk that never follows a symlink or leaves `cwd`, plus the git-work-tree gate and
+the once-per-session cache in `state.repoMap`). The lines join the appraiser's SESSION evidence the
+way the environment lines do, so they are citable and enforced like any other evidence; `/psych`
+gains a width-safe "Repo map" section (en + cs) with a `map age` line past 20 turns. Config key
+`mapRepo` (default true). Non-goals: no watcher, no git beyond the work-tree root, no model, no file
+content in any prompt.
+
+**Validation:** `npm test` — 621/621 (`test/mapper.test.js` asserts exact file counts, longest file,
+over-300 count, ratio rounding, slice-dir detection, `.git`/`node_modules` skipping, the 4000-file
+cap, the `> 20000`-line `skippedLarge` path, symlink-to-temp never read, disable config, cwd outside
+a repo, collect-once caching, the staleness line, and evidence present in prompt and
+`allowedEvidence`). `npx tsc --noEmit` exits 0.
 
 ---
 

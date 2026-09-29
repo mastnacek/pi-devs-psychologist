@@ -175,10 +175,13 @@ export async function maybeAppraise(
 
 		// The environment lines join the SESSION block, not the LIVE one: they describe the
 		// machine the session ran on, not the window that just elapsed, and mixing the two
-		// would let the model read a stale flag as a fresh observation.
+		// would let the model read a stale flag as a fresh observation. The repo map (T8) is
+		// the same kind of fact — the shape of the codebase, not this turn's activity — so it
+		// joins SESSION too and is cached, not recomputed.
 		const sessionLines = [
 			...history.evidence,
 			...(state.config.envFacts ? environmentEvidence({ cwd: ctx.cwd }) : []),
+			...(deps.repoMap ? deps.repoMap(state, ctx.cwd) : []),
 		];
 		// One LIVE line per cooling/muted kind (T17), so the model is never asked to repeat advice this
 		// session already proved useless. It joins `signals.evidence`, so it reaches the prompt AND

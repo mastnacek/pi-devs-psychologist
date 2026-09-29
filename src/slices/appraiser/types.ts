@@ -54,4 +54,10 @@ export interface AppraiserDeps {
 	 * budget, the trigger baseline and the once-per-session guard.
 	 */
 	runScout?(ctx: ExtensionContext, topic: string): Promise<void>;
+	/**
+	 * The objective repo map lines for a session at `cwd` (T8). Injected, so this slice imports no
+	 * other slice; the mapper owns the walk and the per-session cache. Absent or empty means no repo
+	 * lines are offered, exactly like an unavailable map.
+	 */
+	repoMap?(state: import("../../shared/state.js").DevsPsychologistState, cwd: string): string[];
 }
