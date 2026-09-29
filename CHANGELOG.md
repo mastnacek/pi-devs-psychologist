@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.8.0 (unreleased)
+## 0.8.0
 
 - **fix(history): the write-once guard was cleared by the very event it guards against (T10).**
   `session_shutdown` fires on reload AND on exit, and the reload's `session_start` calls
