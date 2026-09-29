@@ -625,20 +625,11 @@ small wins?"` returns an answer; a fake-run test shows a `research` suggestion w
 
 ## Ideas not yet tasks (ranked by expected value per cost)
 
-**Batch API constraints (measured 2026-09-29, before any batch code):** the plan calls for running eval
-windows through the OpenRouter Batch API at 50 % price. Two facts the implementation must respect:
-- The batch `model` is the bare OpenRouter slug (`deepseek/deepseek-v4.1-flash`), NOT the pi provider
-  form (`openrouter/deepseek/deepseek-v4.1-flash`); the prefixed form returns 400 “does not have a
-  :batch endpoint”.
-- **Zero Data Retention blocks the batch API entirely (422).** The `openrouter-default` account has ZDR
-  on and can never use batches; the `openrouter-soukr` account submits fine (202). A batch path must
-  therefore pick a non-ZDR account explicitly, and must surface the 422 as a clear “this account cannot
-  run batches” rather than a generic failure. Both facts are load-bearing for the eval idea, not trivia.
-
 1. **Replay harness — `/psych replay <session-file>`.** Fold signals + history from any
    past session file and run the appraisal offline. Builds an eval set from real sessions
-   (expected intervention kind per window) and lets prompt changes be measured instead of
-   argued. Run many windows through the OpenRouter Batch API at 50 % price.
+   and lets prompt changes be measured instead of argued. Every replayed appraisal is a
+   DIRECT call to the model the operator chose (the same `callModel` seam the live
+   appraiser uses). **No batch models** — decided by the operator 2026-09-29.
 2. **Handoff at `session_shutdown`, zero tokens.** One factual ledger of open loops:
    unverified mutations, bookmarks still set, last failing fingerprint. Offered as a
    ready-to-paste SPAI line; never written automatically.

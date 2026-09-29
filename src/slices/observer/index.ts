@@ -19,61 +19,20 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { MUTATION_TOOLS, classifyFailure, errorTextFromResult, isCommitCommand } from "../../shared/lexicon.js";
+import { isCommitCommand } from "../../shared/lexicon.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
 import { mutationsSinceVerified } from "../../shared/signals.js";
+import {
+	commandFromArgs,
+	isProgrammerPrompt,
+	pathFromArgs,
+	signatureFromResult,
+} from "../../shared/tool-args.js";
 
-/** Argument spellings seen across the engine's built-in tools. */
-const COMMAND_KEYS = ["command", "cmd"] as const;
-const PATH_KEYS = ["path", "file_path", "filePath", "file", "target_file"] as const;
-
-function firstString(args: unknown, keys: readonly string[]): string | undefined {
-	if (args === null || typeof args !== "object") return undefined;
-	const record = args as Record<string, unknown>;
-	for (const key of keys) {
-		const value = record[key];
-		if (typeof value === "string" && value.length > 0) return value;
-	}
-	return undefined;
-}
-
-/** The shell command a tool carried, if any. */
-export function commandFromArgs(args: unknown): string | undefined {
-	return firstString(args, COMMAND_KEYS);
-}
-
-/**
- * The file a tool targeted, if any. Only mutation tools count as touching a
- * file: a `read` of the same path is not churn, and counting it would report
- * every file the agent looked at.
- */
-export function pathFromArgs(toolName: string, args: unknown): string | undefined {
-	if (!MUTATION_TOOLS.has(toolName)) return undefined;
-	return firstString(args, PATH_KEYS);
-}
-
-/** True when a prompt came from the programmer rather than from an extension. */
-export function isProgrammerPrompt(source: unknown): boolean {
-	// An extension-injected message is the plugin talking to itself. Counting it
-	// as a programmer prompt would corrupt every cadence and restatement signal.
-	return source !== "extension";
-}
-
-/**
- * The failure signature for a tool that errored, or `undefined`.
- *
- * This is the datum the observer used to throw away. `ToolExecutionEndEvent.result` carries
- * the tool's own error text, and reducing it to `ok: false` is what made this plugin unable
- * to tell "the edit tool could not find its target string" from "the test suite is red" —
- * two failures with opposite remedies, indistinguishable in the evidence set.
- *
- * Only the signature travels. The text itself never leaves this function: `classifyFailure`
- * picks from a fixed vocabulary, so no code, no argument and no path is forwarded.
- */
-export function signatureFromResult(isError: boolean, result: unknown): string | undefined {
-	if (isError !== true) return undefined;
-	return classifyFailure(errorTextFromResult(result));
-}
+// The four pure extractors live in `shared/tool-args.ts` so the offline replay can reconstruct the
+// SAME observation shapes from a past session file with one definition rather than a drifting copy.
+// Re-exported here so the observer's public surface (and its tests) is unchanged.
+export { commandFromArgs, isProgrammerPrompt, pathFromArgs, signatureFromResult };
 
 /**
  * Cross-slice dependency the observer needs: delivering the commit-check text is a slice's job,
