@@ -92,6 +92,7 @@ export function makeCtx(over = {}) {
       getEntries: () => [],
       getSessionDir: () => undefined,
       getSessionFile: () => undefined,
+      getSessionId: () => "session-1",
       getBranch: () => [],
       getCwd: () => process.cwd(),
     },

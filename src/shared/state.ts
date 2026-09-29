@@ -175,10 +175,16 @@ export interface DevsPsychologistState {
 	/** Cards and notifications held while the shield is up, released in order at the next `agent_end`. */
 	flowShieldQueue: Array<() => Promise<void>>;
 	/**
-	 * True once this session's history has been flushed to disk (T10). `session_shutdown` fires on
-	 * reload AND exit, so the flag makes the write idempotent per session; cleared on session start.
+	 * The session id whose history has already been flushed to disk (T10), or `undefined`.
+	 *
+	 * `session_shutdown` fires on reload AND on exit, so the write must be idempotent per session.
+	 * It is NOT a boolean cleared on `session_start`: a reload fires `session_start` too, so a
+	 * boolean is cleared by the very event that precedes the second shutdown and every session is
+	 * written twice. Keying on the session id survives that, because a reload keeps the id and a
+	 * new session does not. Found by driving the real composition root; the unit test that called
+	 * `writeHistory` twice in a row passed while the plugin doubled every count in production.
 	 */
-	historyFlushed: boolean;
+	historyFlushedFor: string | undefined;
 	/** Summed cost (USD) of agent-runtime runs this session, compared with `agent.maxCostUsdPerSession`. */
 	agentSessionCostUsd: number;
 	/** Agent-runtime runs started this session, shown by the report (T27). */
@@ -267,7 +273,7 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		agentForkNotified: false,
 		flowShield: false,
 		flowShieldQueue: [],
-		historyFlushed: false,
+		historyFlushedFor: undefined,
 		agentSessionCostUsd: 0,
 		agentRunsThisSession: 0,
 		agentChildKill: undefined,
@@ -322,7 +328,6 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 			state.agentForkNotified = false;
 			state.flowShield = false;
 			state.flowShieldQueue = [];
-			state.historyFlushed = false;
 			state.lastRun = undefined;
 			state.pendingAppraisal = undefined;
 			// A new session starts at a possibly different cwd, so the map is recomputed on first use.

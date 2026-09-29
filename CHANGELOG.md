@@ -2,6 +2,17 @@
 
 ## 0.8.0 (unreleased)
 
+- **fix(history): the write-once guard was cleared by the very event it guards against (T10).**
+  `session_shutdown` fires on reload AND on exit, and the reload's `session_start` calls
+  `resetWindow()`, which reset the `historyFlushed` boolean — so every session was written TWICE
+  and every count doubled. The unit test passed because it called `writeHistory` twice in a row
+  with no `session_start` between, which never happens in production. The guard is now keyed on the
+  session id in `state.historyFlushedFor`, which survives a reload and does not survive a new
+  session; two new tests drive the reset and a new id, and both fail on the old code (verified by
+  mutation). Live against the real composition root: reload then exit writes one session line.
+  Third time this pattern appeared (the handoff, then the reviewer), so the test fake now carries
+  `getSessionId` and the state field documents why it is not a boolean.
+
 - **feat(handoff): name the top unverified file in the ledger (idea 5).** The handoff already
   offered a *count* of unverified changes; it now names the subject. `HandoffLedger.unverifiedFiles`
   holds up to three repo-relative paths mutated since the last successful verification run, most

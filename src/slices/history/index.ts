@@ -4,9 +4,11 @@
  * The two halves are apart in time, exactly like the handoff ledger: the record is written at
  * `session_shutdown` and read only when the operator runs `/psych history`. Both are no-ops unless
  * `history.enabled` is true, and the write is a no-op per session — `session_shutdown` fires on
- * reload AND on exit, so an in-memory `historyFlushed` flag (set inside the same synchronous write)
- * stops the counts doubling. No session identifier is stored, so this is the only way to keep one
- * session from being written twice.
+ * reload AND on exit, so the write is guarded by the session id in `state.historyFlushedFor`.
+ * It is deliberately NOT a boolean cleared on `session_start`: a reload fires that too, so the
+ * boolean was cleared by the event preceding the second shutdown and every session was written
+ * twice. Keying on the id survives a reload and does not survive a new session. No session
+ * identifier is ever STORED in the file; this one only lives in memory.
  *
  * What is stored, and what is never stored, is the promise in `src/shared/history-store.ts`; this
  * slice only decides the moments. It imports only `src/shared/`, so it is testable without the
@@ -27,15 +29,41 @@ import { extractSignals, mutationsSinceVerified } from "../../shared/signals.js"
 import { signalOptions, type DevsPsychologistState } from "../../shared/state.js";
 import { renderHistory } from "./render.js";
 
+/**
+ * The identity of this session for the write-once guard: the session id, else the file path, else
+ * `undefined`. A context that exposes neither cannot be guarded, and the write proceeds — a doubled
+ * line is a smaller failure than a missing one, and the alternative is dropping the operator's data
+ * because the engine did not tell us who it is.
+ */
+function sessionKey(ctx: {
+	sessionManager?: { getSessionId?: () => string; getSessionFile?: () => string | undefined };
+}): string | undefined {
+	const manager = ctx.sessionManager;
+	if (manager === undefined) return undefined;
+	if (typeof manager.getSessionId === "function") {
+		const id = manager.getSessionId();
+		if (typeof id === "string" && id.length > 0) return id;
+	}
+	if (typeof manager.getSessionFile === "function") {
+		const file = manager.getSessionFile();
+		if (typeof file === "string" && file.length > 0) return file;
+	}
+	return undefined;
+}
+
 /** Persist this session's record, once, when the feature is on. Never throws into the session. */
 export function writeHistory(
 	state: DevsPsychologistState,
-	ctx: { cwd: string },
+	ctx: { cwd: string; sessionManager?: { getSessionId?: () => string; getSessionFile?: () => string | undefined } },
 ): void {
 	if (!state.config.history.enabled) return;
-	// A no-op second shutdown (reload then exit) must not append the same session twice.
-	if (state.historyFlushed) return;
-	state.historyFlushed = true;
+	// A no-op second shutdown (reload then exit) must not append the same session twice. The key is
+	// the session id, NOT a boolean cleared on `session_start`: a reload fires `session_start` too,
+	// so a boolean is cleared by the event that precedes the second shutdown and every session is
+	// written twice — which is what happened until the real composition root was driven end to end.
+	const key = sessionKey(ctx);
+	if (key !== undefined && state.historyFlushedFor === key) return;
+	state.historyFlushedFor = key;
 
 	const path = historyFilePath(ctx.cwd, state.config.history.path);
 	const signals = extractSignals(state.observations, signalOptions(state));

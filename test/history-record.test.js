@@ -31,6 +31,13 @@ const SESSION_KEYS = ["at", "failures", "toolCalls", "turns", "unverifiedMutatio
 const DELIVERY_KEYS = ["at", "followed", "kind", "verdict"];
 
 // PRD §5, verbatim: the words the report of a person-level record would be built from.
+/** A session-manager stand-in carrying only the identity the write-once guard reads. */
+const SESSION_A = "aaaaaaaa-1111";
+const SESSION_B = "bbbbbbbb-2222";
+function sessionManager(id) {
+	return { getSessionId: () => id, getSessionFile: () => `/tmp/${id}.jsonl` };
+}
+
 const PROHIBITED = ["score", "streak", "productivity", "efficiency", "burnout", "fatigue", "stress", "diagnosis", "trend", "improve-you", "keep-going"];
 
 /** A temp project directory that becomes `cwd`. */
@@ -85,7 +92,7 @@ test("off: nothing is written, and the command says so", () => {
 	try {
 		const state = stateWith({}, { enabled: false });
 		seed(state);
-		writeHistory(state, { cwd: p.dir });
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_A) });
 		assert.equal(existsSync(p.record), false, "nothing on disk");
 		assert.equal(existsSync(join(p.dir, ".pi")), false, "not even the directory");
 
@@ -104,7 +111,7 @@ test("on: one session line and one delivery line per delivered intervention", ()
 	try {
 		const state = stateWith({}, { enabled: true });
 		seed(state);
-		writeHistory(state, { cwd: p.dir });
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_A) });
 
 		const lines = linesOf(p.record);
 		assert.equal(lines.length, 3, "one session + two deliveries");
@@ -129,7 +136,7 @@ test("the delivery key set is exact, and verdicts carry the four-way value", () 
 	try {
 		const state = stateWith({}, { enabled: true });
 		seed(state);
-		writeHistory(state, { cwd: p.dir });
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_A) });
 		const deliveries = linesOf(p.record).filter((line) => "kind" in line);
 		for (const line of deliveries) assert.deepEqual(Object.keys(line).sort(), DELIVERY_KEYS);
 		assert.deepEqual(
@@ -149,7 +156,7 @@ test("a prompt string present in the session appears nowhere in the file", () =>
 	try {
 		const state = stateWith({}, { enabled: true });
 		seed(state);
-		writeHistory(state, { cwd: p.dir });
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_A) });
 		const text = readFileSync(p.record, "utf8");
 		assert.doesNotMatch(text, /SECRET_PROMPT_STRING_THAT_MUST_NOT_BE_STORED/, "the data boundary holds end to end");
 		// And no key the boundary forbids is smuggled in.
@@ -163,13 +170,45 @@ test("a prompt string present in the session appears nowhere in the file", () =>
 	}
 });
 
+test("a reload between two shutdowns still writes one session line", async () => {
+	// The case the boolean flag got wrong. `session_shutdown` fires on reload AND on exit, and the
+	// reload's `session_start` calls `resetWindow()` — which cleared the old boolean, so every
+	// session was written twice in production while the direct double-call test passed. Driving the
+	// reset here is the only way the test can fail on the old code.
+	const p = project();
+	try {
+		const state = stateWith({}, { enabled: true });
+		seed(state);
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_A) });
+		state.resetWindow();
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_A) });
+		const lines = linesOf(p.record);
+		assert.equal(lines.filter((line) => !("kind" in line)).length, 1, "one session line, not two");
+	} finally {
+		p.cleanup();
+	}
+});
+
+test("a genuinely new session is written again, and a new id is the difference", () => {
+	const p = project();
+	try {
+		const state = stateWith({}, { enabled: true });
+		seed(state);
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_A) });
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_B) });
+		assert.equal(linesOf(p.record).filter((line) => !("kind" in line)).length, 2, "two sessions, two lines");
+	} finally {
+		p.cleanup();
+	}
+});
+
 test("a second shutdown on the same session does not write the record twice", () => {
 	const p = project();
 	try {
 		const state = stateWith({}, { enabled: true });
 		seed(state);
-		writeHistory(state, { cwd: p.dir });
-		writeHistory(state, { cwd: p.dir });
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_A) });
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_A) });
 		const lines = linesOf(p.record);
 		assert.equal(lines.filter((line) => !("kind" in line)).length, 1, "one session line");
 		assert.equal(lines.filter((line) => "kind" in line).length, 2, "one delivery line each, not doubled");
@@ -282,7 +321,7 @@ test("the report names the file path and its verdict split", () => {
 	try {
 		const state = stateWith({}, { enabled: true });
 		seed(state);
-		writeHistory(state, { cwd: p.dir });
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_A) });
 		const ctx = makeCtx({ cwd: p.dir });
 		assert.equal(historyReport(state, ctx), "", "the table is shown by the slice itself");
 		const text = ctx.notes[0].message;
@@ -302,7 +341,7 @@ test("the report contains none of the PRD §5 prohibited words", () => {
 	try {
 		const state = stateWith({}, { enabled: true });
 		seed(state);
-		writeHistory(state, { cwd: p.dir });
+		writeHistory(state, { cwd: p.dir, sessionManager: sessionManager(SESSION_A) });
 		const ctx = makeCtx({ cwd: p.dir });
 		historyReport(state, ctx);
 		const lower = ctx.notes[0].message.toLowerCase();
