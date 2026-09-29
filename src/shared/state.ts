@@ -79,6 +79,8 @@ export interface DevsPsychologistState {
 	modelCatalog: string[];
 	/** Providers holding at least one catalog entry. The first level of the picker. */
 	modelProviders: string[];
+	/** `provider/id` -> registry rate per million tokens, for the picker's cost preview. */
+	modelCosts: Record<string, { input: number; output: number }>;
 
 	// --- appraisal budget ---
 	/**
@@ -236,6 +238,7 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		pendingTools: new Map(),
 		modelCatalog: [],
 		modelProviders: [],
+		modelCosts: {},
 		appraisalsThisSession: 0,
 		turnsSinceAppraisal: 0,
 		turnCount: 0,

@@ -15,12 +15,16 @@ export interface ModelCatalogSource {
 export interface ModelRefLike {
 	provider?: unknown;
 	id?: unknown;
+	/** Registry rate per million tokens, read for the picker's cost preview (T: cost estimate). */
+	cost?: { input?: unknown; output?: unknown };
 }
 
 /** The part of the state `refreshModelCatalog` writes. Structural, so a fake catalog is enough. */
 export interface ModelCatalogHolder {
 	modelCatalog: string[];
 	modelProviders: string[];
+	/** `provider/id` -> registry rate, for the cost preview. Absent entries are `price unknown`. */
+	modelCosts: Record<string, { input: number; output: number }>;
 }
 
 /**
@@ -52,14 +56,20 @@ export function refreshModelCatalog(
 
 	const refs = new Set<string>();
 	const providers = new Set<string>();
+	const costs: Record<string, { input: number; output: number }> = {};
 	for (const model of models) {
 		const provider = model?.provider;
 		const id = model?.id;
 		if (typeof provider !== "string" || provider.length === 0) continue;
 		if (typeof id !== "string" || id.length === 0) continue;
-		refs.add(provider + "/" + id);
+		const ref = provider + "/" + id;
+		refs.add(ref);
 		providers.add(provider);
+		const input = model.cost?.input;
+		const output = model.cost?.output;
+		if (typeof input === "number" && typeof output === "number") costs[ref] = { input, output };
 	}
 	state.modelCatalog = [...refs].sort();
 	state.modelProviders = [...providers].sort();
+	state.modelCosts = costs;
 }

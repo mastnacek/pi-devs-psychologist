@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 0.7.1 (unreleased)
+
+- **feat(same-model): the observer sharing the worker's model says so (idea 3).** When the session
+  exposes its model (`ctx.model`) and it equals the observer model the effective runtime would
+  call, the chip gains ` · same model` and `/psych` gains the full sentence. No behaviour change,
+  no extra spend. The main string table moved to `src/shared/i18n-main.ts` to stay under the line
+  budget.
+- **feat(cost): an estimated price per appraisal in the model picker (idea 4).** `/psych model` and
+  `/psych agent-model` rows now show `(~$X.XX per appraisal)` from the registry rate and a new
+  `estimateTokens` (input/output, default 1500/400, normalised per key). An unknown rate reads
+  `price unknown` — never a guess.
+
 ## 0.7.0 (unreleased)
 
 - **fix(reviewer): convention rules are citable evidence (T32a).** A live run dropped a correct

@@ -111,7 +111,8 @@ test("the model in effect is marked, at its own row and at its provider's row", 
   const active = refs.find((item) => item.label === "deepseek/deepseek-v4.1-flash ✓");
   assert.match(active.description, /●/);
   assert.equal(active.value, "model openrouter-soukr/deepseek/deepseek-v4.1-flash", "value stays clean");
-  assert.equal(refs.find((item) => item.label === "cohere/north-mini-code:free").description, undefined);
+  // Every model row now carries a price (or says it is unknown); the fake catalog has no rates.
+  assert.match(refs.find((item) => item.label === "cohere/north-mini-code:free").description, /price unknown/);
   // The parent level shows it too, so the current value is visible without descending.
   const providers = completePsych(state, "model ");
   assert.match(find(providers, "openrouter-soukr").description, /●/);

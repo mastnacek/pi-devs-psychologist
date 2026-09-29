@@ -182,6 +182,7 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `trigger` | `"signals"` | **Live.** `signals` \| `cadence`. `signals` appraises on new evidence; `cadence` is the old turn clock, kept for comparison |
 | `cadenceTurns` | `3` | **Live.** Under `trigger: "signals"` the minimum turns between attempts; under `trigger: "cadence"` the exact clock. An attempt restarts the count |
 | `triggerThresholds` | see JSON | **Live.** Per-reason trigger thresholds. Each key normalised independently; junk → default |
+| `estimateTokens` | `{"input":1500,"output":400}` | **Live.** The assumed prompt size, in tokens, for the model picker's `~$X.XX per appraisal` preview. Override per key; the real prompt grows with the session |
 | `commitCheck` | `true` | **Live.** On a successful commit (`git commit`, `git push`, `gh pr create`, `npm publish`) with unverified changes, name it in one notification and one evidence line. Observes only — never blocks; `false` silences it entirely |
 | `maxAppraisalsPerSession` | `12` | **Live.** Hard ceiling on *attempts* per session; `0` = unlimited |
 | `outcomeWindowTurns` | `5` | **Live.** Turns an intervention is given to prove itself before its outcome (per metric, no aggregate score) is judged. See `/psych effect` |

@@ -17,6 +17,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { DEFAULT_SIGNAL_OPTIONS } from "./signals.js";
 import { DEFAULT_COOLDOWN_TURNS, DEFAULT_OUTCOME_WINDOW_TURNS } from "./outcome.js";
+import { DEFAULT_ESTIMATE_TOKENS, type TokenEstimate } from "./cost.js";
 import { DEFAULT_TRIGGER_THRESHOLDS, type TriggerThresholds } from "./triggers.js";
 import { normalizeLocale, type Locale } from "./i18n.js";
 import {
@@ -82,6 +83,11 @@ export interface DevsPsychologistConfig {
 	cadenceTurns: number;
 	/** Per-reason trigger thresholds. Each normalised independently; junk → default. */
 	triggerThresholds: TriggerThresholds;
+	/**
+	 * The assumed size of one appraisal prompt, in tokens, used for the picker's cost preview
+	 * (`~$X.XX per appraisal`). Overridable because the real prompt grows with the session.
+	 */
+	estimateTokens: TokenEstimate;
 	/**
 	 * Whether a successful commit (`git commit`, `git push`, `gh pr create`, `npm publish`) made
 	 * with unverified changes is named (T15). ON by default: it observes only, never blocks.
@@ -150,6 +156,7 @@ export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	trigger: "signals",
 	cadenceTurns: 3,
 	triggerThresholds: { ...DEFAULT_TRIGGER_THRESHOLDS },
+	estimateTokens: { ...DEFAULT_ESTIMATE_TOKENS },
 	commitCheck: true,
 	maxAppraisalsPerSession: 12,
 	outcomeWindowTurns: DEFAULT_OUTCOME_WINDOW_TURNS,
@@ -258,6 +265,15 @@ function normalizeThresholds(value: unknown): TriggerThresholds {
 	};
 }
 
+/** Coerce the estimate object key by key, so one bad value cannot lose the other. */
+function normalizeEstimateTokens(value: unknown): TokenEstimate {
+	const raw = isPlainObject(value) ? value : {};
+	return {
+		input: positiveInt(raw.input, DEFAULT_ESTIMATE_TOKENS.input, 1),
+		output: positiveInt(raw.output, DEFAULT_ESTIMATE_TOKENS.output, 1),
+	};
+}
+
 /** Coerce a persisted layer into a usable config; junk becomes the default. */
 export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsychologistConfig {
 	return {
@@ -273,6 +289,7 @@ export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsych
 		trigger: triggerMode(cfg.trigger),
 		cadenceTurns: positiveInt(cfg.cadenceTurns, DEFAULT_CONFIG.cadenceTurns, 1),
 		triggerThresholds: normalizeThresholds(cfg.triggerThresholds),
+		estimateTokens: normalizeEstimateTokens(cfg.estimateTokens),
 		// Default on, opt-out: `false` is the only value that disables it, so a hand-written config
 		// with a missing or nonsense key keeps the better behaviour.
 		commitCheck: cfg.commitCheck !== false,

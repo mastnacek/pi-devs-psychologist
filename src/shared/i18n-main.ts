@@ -106,6 +106,10 @@ export interface Strings extends RunStrings, CardStrings {
 	globalFlag: string;
 	/** The model picker's overflow row: how many entries were not shown. */
 	modelMore: (n: number) => string;
+	/** The estimated price of one appraisal, shown next to a model in the picker. */
+	costPerAppraisal: (usd: string) => string;
+	/** Shown instead of a price when the registry rate is unknown — never a guess. */
+	priceUnknown: string;
 	typeToNarrow: string;
 	modelSet: (model: string) => string;
 	languageSet: (lang: string) => string;
@@ -220,6 +224,8 @@ export const EN: Strings = {
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
 	globalFlag: "write to ~/.pi/agent instead of the project",
 	modelMore: (n) => `… ${n} more`,
+	costPerAppraisal: (usd) => `(~$${usd} per appraisal)`,
+	priceUnknown: "price unknown",
 	typeToNarrow: "type to narrow",
 	modelSet: (model) => `Psychologist model set to ${model}`,
 	languageSet: (lang) => `Language set to ${lang}`,
@@ -324,6 +330,8 @@ export const CS: Strings = {
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,
 	globalFlag: "zapsat do ~/.pi/agent místo do projektu",
 	modelMore: (n) => `… dalších ${n}`,
+	costPerAppraisal: (usd) => `(~$${usd} za posouzení)`,
+	priceUnknown: "cena neznámá",
 	typeToNarrow: "piš dál pro zúžení",
 	modelSet: (model) => `Model psychologa nastaven na ${model}`,
 	languageSet: (lang) => `Jazyk nastaven na ${lang}`,

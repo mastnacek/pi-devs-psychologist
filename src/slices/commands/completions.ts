@@ -19,6 +19,7 @@
 
 import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import { effectiveAgentModel } from "../../shared/config.js";
+import { appraisalCostUsd } from "../../shared/cost.js";
 import { LOCALES, stringsFor, type Strings } from "../../shared/i18n.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
 
@@ -276,7 +277,15 @@ export function modelCompletions(
 	// which is inserted verbatim, and never ANSI, which cancels the theme colour.
 	const marker = (ref: string) => (ref === activeRef ? `${MARK} current` : undefined);
 	const ticked = (text: string, active: boolean) => (active ? `${text} ✓` : text);
-	const refItem = (ref: string): Completion => leaf(`${head} ${ref}`, ticked(ref, ref === activeRef), marker(ref));
+	// The estimated price per appraisal, from the registry rate. An unknown rate says so rather than
+	// guessing (T: cost estimate); the ✓ marker and the cost still share one description line.
+	const costText = (ref: string): string => {
+		const usd = appraisalCostUsd(state.modelCosts[ref], state.config.estimateTokens);
+		return usd === undefined ? s.priceUnknown : s.costPerAppraisal(usd.toFixed(2));
+	};
+	const refDescription = (ref: string): string =>
+		[marker(ref), costText(ref)].filter((part): part is string => part !== undefined).join(" · ");
+	const refItem = (ref: string): Completion => leaf(`${head} ${ref}`, ticked(ref, ref === activeRef), refDescription(ref));
 
 	// Level three: a settled provider prefix — only its own models can follow.
 	if (partial.endsWith("/")) {
@@ -286,7 +295,7 @@ export function modelCompletions(
 		return capped(
 			refs
 				.filter((ref) => ref.startsWith(prefix))
-				.map((ref) => leaf(`${head} ${ref}`, ticked(ref.slice(prefix.length), ref === activeRef), marker(ref))),
+				.map((ref) => leaf(`${head} ${ref}`, ticked(ref.slice(prefix.length), ref === activeRef), refDescription(ref))),
 			partial,
 			s,
 			head,
