@@ -145,3 +145,20 @@ test("an empty branch yields undefined, not an empty string", () => {
   assert.equal(buildDigest([]), undefined);
   assert.equal(buildDigest([entry({ role: "system", content: "" })]), undefined);
 });
+
+test("the credential rule matches whole name segments, not substrings", async () => {
+  const { scrubSecrets, isCredentialName } = await import("../src/shared/digest.js");
+  for (const name of ["OPENROUTER_API_KEY", "apiKey", "db.password", "GITHUB_TOKEN", "client-secret", "token"]) {
+    assert.equal(isCredentialName(name), true, name);
+  }
+  for (const name of ["keyboard", "tokenizer", "monkey", "passwordless_login_enabled_flag_x"]) {
+    // `passwordless` is one segment, not `password`.
+    assert.equal(isCredentialName(name), false, name);
+  }
+  const out = scrubSecrets("keyboard: us\ntokenizer=bpe\nDB_PASSWORD=hunter2\napiKey: abc123");
+  assert.match(out, /keyboard: us/);
+  assert.match(out, /tokenizer=bpe/);
+  assert.match(out, /DB_PASSWORD=\[redacted\]/);
+  assert.match(out, /apiKey: \[redacted\]/);
+  assert.doesNotMatch(out, /hunter2|abc123/);
+});

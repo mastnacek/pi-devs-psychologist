@@ -179,6 +179,22 @@ export function buildDigest(
 	return scrubSecrets(selected.map((item) => item.text).join("\n"));
 }
 
+/** Name segments that mark a credential. Matched as whole segments, never as substrings. */
+const CREDENTIAL_SEGMENTS = new Set(["key", "keys", "apikey", "token", "tokens", "secret", "secrets", "password", "passwd", "pwd"]);
+
+/**
+ * Whether a setting name names a credential: split on `_`, `.`, `-` and camelCase humps, then look
+ * for a credential segment. `OPENROUTER_API_KEY`, `apiKey`, `db.password` yes; `keyboard`, `tokenizer` no.
+ */
+export function isCredentialName(name: string): boolean {
+	if (name.length === 0) return false;
+	const segments = name
+		.replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+		.split(/[\s_.-]+/)
+		.map((segment) => segment.toLowerCase());
+	return segments.some((segment) => CREDENTIAL_SEGMENTS.has(segment));
+}
+
 /**
  * Replace every recognisable secret with `[redacted]`.
  *
@@ -197,7 +213,7 @@ export function scrubSecrets(text: string): string {
 	);
 	// Authorization headers.
 	out = out.replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, `Bearer ${REDACTED}`);
-	// Vendor-prefixed API keys and tokens.
+	// Vendor-prefixed API keys and tokens (before the name rule, which would keep their prefix).
 	out = out.replace(/\bsk-[A-Za-z0-9_-]{8,}/g, REDACTED);
 	out = out.replace(/\bgh[pous]_[A-Za-z0-9]{8,}/g, REDACTED);
 	out = out.replace(/\bgithub_pat_[A-Za-z0-9_]{8,}/g, REDACTED);
@@ -205,9 +221,12 @@ export function scrubSecrets(text: string): string {
 	out = out.replace(/\bxox[bp]-[A-Za-z0-9-]{8,}/g, REDACTED);
 	// `KEY=value` / `KEY: value` where the key names a credential. The key and separator are kept
 	// so the line still reads as a setting; only the value is replaced.
+	// The credential word must be a whole name SEGMENT (`API_KEY`, `apiKey`, `token`, `DB_PASSWORD`),
+	// not a substring: `keyboard: us` and `tokenizer=bpe` are settings, not secrets.
 	out = out.replace(
-		/\b([A-Za-z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Za-z0-9_]*)(\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s"'`]+)/gi,
-		(_match, name: string, separator: string) => `${name}${separator}${REDACTED}`,
+		/\b([A-Za-z0-9_.-]*)(\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s"'`]+)/g,
+		(match, name: string, separator: string) =>
+			isCredentialName(name) ? `${name}${separator}${REDACTED}` : match,
 	);
 	return out;
 }

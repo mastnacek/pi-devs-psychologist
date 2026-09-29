@@ -1,7 +1,1 @@
-# Normalize line endings in the repository, not on the developer's disk.
-# Without this, a Windows checkout commits CRLF and a POSIX one commits LF, so
-# the same file shows as changed for no reason — and the plugin ships .ts that
-# the engine loads with `jiti`, where mixed endings are pure noise.
 * text=auto eol=lf
-*.png binary
-*.jpg binary
