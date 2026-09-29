@@ -76,6 +76,9 @@ function subcommands(state: DevsPsychologistState): Completion[] {
 		branch("scout", "scout", s.cmdScout),
 		// A terminal leaf: no trailing space, because Tab confirms it as final (T32a).
 		leaf("review", "review", s.cmdReview),
+		// Non-terminal (idea 1): it takes a session-file path, and there is nothing enumerable to
+		// complete after it, so the trailing space opens the free-form parameter.
+		branch("replay", "replay", s.cmdReplay),
 		// The marker goes in `label` (display-only, the primary column) as well as the description:
 		// a settings menu that does not show which choice is in effect makes the user run `status`
 		// first to find out. `value` stays a clean token because it is inserted verbatim.
@@ -119,6 +122,18 @@ function contexts(state: DevsPsychologistState): Completion[] {
 			level === current ? `${MARK} active` : undefined,
 		),
 	);
+}
+
+/** `replay` children: the terminal mode leaves, with the default (`--dry`) marked. */
+function replayOptions(state: DevsPsychologistState): Completion[] {
+	const s = stringsFor(state.config.lang);
+	return [
+		leaf("replay --run", "run", s.replayModeRun),
+		// The default mode is dry: no model call, zero spend. The value in effect is marked in the
+		// label (primary column) and the description, never in `value` (inserted verbatim).
+		leaf("replay --dry", "dry ✓", `${MARK} ${s.replayModeDry}`),
+		leaf("replay --eval", "eval", s.replayEvalTitle),
+	];
 }
 
 /** `runtime` children: the two runtime modes, with the one in effect marked. */
@@ -189,6 +204,7 @@ export function completePsych(
 		if (head === "runtime") return runtimes(state);
 		if (head === "context") return contexts(state);
 		if (head === "agent-model") return modelCompletions(state, "", agentPick);
+		if (head === "replay") return replayOptions(state);
 		// A partial prefix keeps the trailing-space parent item, so Tab still inserts token + space.
 		const all = subcommands(state);
 		if (head.length === 0) return all;
@@ -225,6 +241,8 @@ export function completePsych(
 	} else if (head === "agent-model") {
 		if (settled) return flagCompletion(typed, parts, s.globalFlag);
 		return modelCompletions(state, valueText, agentPick);
+	} else if (head === "replay") {
+		return replayOptions(state);
 	}
 
 	if (SETTINGS_HEADS.has(head)) {

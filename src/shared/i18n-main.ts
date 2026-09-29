@@ -7,13 +7,14 @@
 import { CARD_CS, CARD_EN, type CardStrings } from "./i18n-card.js";
 import { CS_LABELS, EN_LABELS, type Labels } from "./i18n-labels.js";
 import { NOTICE_CS, NOTICE_EN, type NoticeStrings } from "./i18n-notices.js";
+import { REPLAY_CS, REPLAY_EN, type ReplayStrings } from "./i18n-replay.js";
 import { RUN_CS, RUN_EN, type RunStrings } from "./i18n-runs.js";
 
 export const LOCALES = ["en", "cs"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 
-export interface Strings extends RunStrings, CardStrings, NoticeStrings {
+export interface Strings extends RunStrings, CardStrings, NoticeStrings, ReplayStrings {
 	/** Statusline. The product name (`psych`) is identical across locales; the state is not. */
 	chipOff: string;
 	/** Shown when no model is configured: observation is live, the spend is zero. */
@@ -163,6 +164,7 @@ export const EN: Strings = {
 	...RUN_EN,
 	...CARD_EN,
 	...NOTICE_EN,
+	...REPLAY_EN,
 	chipOff: "psych: off",
 	chipSignals: "psych: signals",
 	chipConfigError: "psych: check model",
@@ -272,6 +274,7 @@ export const CS: Strings = {
 	...RUN_CS,
 	...CARD_CS,
 	...NOTICE_CS,
+	...REPLAY_CS,
 	chipOff: "psych: vyp",
 	chipSignals: "psych: signály",
 	chipConfigError: "psych: zkontroluj model",

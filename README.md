@@ -255,6 +255,8 @@ spots is not an observer. A different *account* is not automatically a different
 | `/psych scout [topic]` | Find an existing plugin for recurring friction, or a gap worth building. Agent runtime only, behind `roles.scout.enabled`. The topic defaults to the top recurring fingerprint. One card: candidates (name, fit, why, install spec, url) and, when nothing fits, a paste-ready SPAI idea line. When nothing is found and the operator asked, it says so — never silently |
 | `/psych review` | Review the change since the last delivery against the repo's stated conventions. Agent runtime only, behind `roles.reviewer.enabled`. Runs one now, ignoring the once-per-delivery rule but not the budget. One card: the delivery anchor, one finding class (or the one-line abstention) with its rule and citation |
 | `/psych effect` | Table of delivered interventions per kind: delivered, improved, unchanged, worse, followed. Session-scoped, width-safe |
+| `/psych replay <session-file> [--run] [--model <provider/id>] [--cadence <n>] [--json <file>]` | Replay a past session offline. **Dry by default** (no model call, zero spend); `--run` sends each window through one API completion. Consumes no budget and is never recorded in the outcome ledger — it is a measurement, not an observation of the operator |
+| `/psych replay --eval <before.json> <after.json>` | Compare two `--json` result files: verdicts kept, claims dropped, citation rate, precision, abstention rate and citations per finding, per run, with a per-window before/after. Pure arithmetic — no model, no session file |
 | `/psych on` / `off` | Master switch |
 | `/psych model <provider/id>` | Choose the psychologist. The value completes from the engine's registered models and providers (use `--global` to make it machine-wide) |
 | `/psych budget <n>` | Appraisals per session (`0` = unlimited) |
@@ -286,6 +288,48 @@ Deci & Ryan, Schultz, Zeigarnik, Leroy, DevEx and the AI-specific findings), and
 
 Measured on this machine (0.6.0, deepseek-v4.1-flash): one `nlm notebook query`, 3 tool calls, 81 s.
 NotebookLM is the slow part; keep `agent.timeoutMs` ≥ 180000 when it is allowed.
+
+## Replay and eval
+
+A prompt change is a hypothesis. This harness lets it be measured instead of argued: it folds a
+**past** session file into the same observation windows the live appraiser would have produced and
+runs the appraisal offline. It reads real sessions, so the numbers come from the operator's own work.
+
+**The four-step loop.**
+
+1. **`/psych replay <session-file> --dry`** — fold the windows only (the default), no model call. See
+   how many windows the session makes, why each would have fired, and how much evidence each carried.
+2. **`/psych replay <session-file> --run --json before.json`** — run the appraisal once per window
+   through the configured model (or `--model <provider/id>`), writing the per-window results to a file.
+3. **Edit the prompt** (`src/shared/prompt.ts`) — or change a threshold, or a filter.
+4. **`/psych replay <session-file> --run --json after.json`**, then
+   **`/psych replay --eval before.json after.json`** — the table compares the two runs. A change that
+   lowers `citation rate` or raises `claims dropped` is worse by these numbers, and that is the point.
+
+Session files live under `~/.pi/agent/sessions/--<encoded-cwd>--/<timestamp>_<uuid>.jsonl`.
+
+**`--json` file format.** One object per run:
+
+```json
+{
+  "version": 1,
+  "sessionFile": "…/<timestamp>_<uuid>.jsonl",
+  "mode": "run",
+  "model": "provider/id",
+  "windows": [
+    { "windowIndex": 0, "reasons": ["failure_streak"], "liveLines": ["…"], "sessionLines": ["…"],
+      "responseText": "<the model's own JSON answer>",
+      "enforcement": { "appraisal": { }, "unmatched": [], "downgraded": [] } }
+  ]
+}
+```
+
+The `liveLines`/`sessionLines` are the evidence **lines** (counts and names), never the transcript —
+the same data boundary a live appraisal obeys. `--eval` reads only the `windows` array.
+
+Options: `--dry` (default) / `--run`, `--model <provider/id>` (defaults to `model`; always the direct
+API call, never the agent runtime, never a child process), `--cadence <n>` (defaults to `cadenceTurns`),
+`--json <file>`. If the file cannot be read, the command notifies with the path and the reason.
 
 ## Token economy
 
@@ -352,7 +396,8 @@ from repeating it). Config `handoff` (default `true`) turns both the write and t
 ## Status
 
 `0.7.1` — **complete.** It observes, appraises when the evidence carries something new, names unverified commits, measures whether its interventions help, can run the observer as a read-only pi agent (`runtime: "agent"`) with web, MCP, skills and pi docs, shows the appraisal as a card,
-answers `/psych`, `/psych ask`, `/psych scout` and `/psych review`. 681 tests.
+answers `/psych`, `/psych ask`, `/psych scout` and `/psych review`, and replays a past session offline
+for eval (`/psych replay`). 700 tests.
 
 Live today: the observation window, the session-history fold, the appraiser with its budget, the
 appraisal card, the delivery policy (card → notification → steering, off by default), the

@@ -56,6 +56,13 @@ export interface AggregateMetrics {
 	abstentionRate: number;
 	/** Surviving citations ÷ windows that delivered an intervention. */
 	meanCitationsPerFinding: number;
+	/**
+	 * Mean per-window citation rate (mean of `WindowMetrics.citationRate`, not a ratio of sums):
+	 * a window that offered three claims and matched one is not the same evidence as a window that
+	 * offered one and matched it, and averaging the rates keeps both visible. The renderer needs a
+	 * single number; this is it.
+	 */
+	citationRate: number;
 	verdictsKept: number;
 	claimsDropped: number;
 	citations: number;
@@ -127,6 +134,7 @@ export function aggregate(metrics: readonly WindowMetrics[]): AggregateMetrics {
 				: withVerdict.filter((m) => m.allVerdictsCited).length / withVerdict.length,
 		abstentionRate: totalVerdicts === 0 ? 0 : neutral / totalVerdicts,
 		meanCitationsPerFinding: findings.length === 0 ? 0 : citations / findings.length,
+		citationRate: metrics.length === 0 ? 0 : metrics.reduce((sum, m) => sum + m.citationRate, 0) / metrics.length,
 		verdictsKept: metrics.reduce((sum, m) => sum + m.verdictsKept, 0),
 		claimsDropped: metrics.reduce((sum, m) => sum + m.claimsDropped, 0),
 		citations,

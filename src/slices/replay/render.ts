@@ -47,7 +47,7 @@ export function renderReplay(input: ReplayReportInput): string {
 	const s = stringsFor(input.lang);
 	const lines: string[] = [
 		s.replayTitle,
-		s.replayHeader(input.windows.length, input.mode),
+		s.replayHeader(input.windows.length, input.mode === "run" ? s.replayModeRun : s.replayModeDry),
 	];
 	if (input.mode === "run") lines.push(s.replayModel(input.modelRef));
 	if (input.failures > 0) lines.push(s.replayFailures(input.failures));

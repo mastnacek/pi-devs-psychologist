@@ -45,6 +45,11 @@ export interface CommandDeps {
 	 * rule but not the budget. Same status-line contract as `ask`.
 	 */
 	review(ctx: ExtensionCommandContext): Promise<string>;
+	/**
+	 * Replay a past session offline, or eval two runs (`/psych replay`, idea 1). Consumes no budget and
+	 * is never recorded. Same status-line contract as `ask`: `""` when it rendered its own report.
+	 */
+	replay(ctx: ExtensionCommandContext, args: string): Promise<string>;
 	/** Persist a patch to the chosen layer; returns the path written. */
 	save(patch: Record<string, unknown>, isGlobal: boolean, ctx: ExtensionCommandContext): string;
 	/** Re-read the config cascade after a write, so the effect is immediate. */
@@ -123,6 +128,15 @@ export function registerPsychCommand(
 				case "review": {
 					// A terminal leaf with no argument (T32a): run one review now, ignoring once-per-delivery.
 					const line = await deps.review(ctx);
+					if (line.length > 0) notify(line);
+					return;
+				}
+
+				case "replay": {
+					// The whole tail is handed over verbatim (spacing preserved) because a session path must
+					// survive: `parseArgs` joins tokens and would collapse a path's internal spacing.
+					const rest = (args ?? "").trim().replace(/^replay\b\s*/, "");
+					const line = await deps.replay(ctx, rest);
 					if (line.length > 0) notify(line);
 					return;
 				}

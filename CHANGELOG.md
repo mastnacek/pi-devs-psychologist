@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 0.8.0 (unreleased)
+
+- **feat(replay): replay a past session offline, and eval two runs against each other (idea 1).**
+  `src/shared/replay.ts` folds a finished session file's parsed lines into the SAME `Observation[]`
+  the live observer produces — reusing the observer's own extractors (`src/shared/tool-args.ts`, now
+  one shared definition re-exported by the observer) so the two paths cannot drift.
+  `src/shared/replay-windows.ts` cuts the log at every `cadenceTurns` turns and folds each prefix
+  exactly as the live appraiser does (`extractSignals`/`describeSignals`/`foldHistory`/
+  `evaluateTriggers`), so `buildUserText` on a replayed window is byte-identical to a live prompt.
+  `/psych replay <session-file>` is dry by default (no model call); `--run` sends each window through
+  the existing `callModel` seam (the same direct API call the appraiser makes — never a child pi),
+  `--model`, `--cadence` and `--json` are available, and `--eval <before.json> <after.json>` renders a
+  pure-arithmetic table (`src/shared/replay-eval.ts`: verdicts kept, claims dropped, citation rate,
+  precision, abstention rate, citations per finding, per-window before/after). Consumes no budget and
+  is never recorded in the outcome ledger; the report shows counts and verdicts, never prompt text,
+  and nothing is written into the session being replayed.
+
 ## 0.7.1
 
 - **fix(handoff): the previous session's ledger is found on disk (idea 2).** A live run showed the

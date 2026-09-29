@@ -26,7 +26,7 @@
  * shows the evidence it used.
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { saveConfig, seedGlobalConfig } from "./src/shared/config.js";
@@ -57,6 +57,7 @@ import { registerPsychCommand } from "./src/slices/commands/index.js";
 import { askCommandHandler, type AskDeps } from "./src/slices/ask/index.js";
 import { runScoutTrigger, scoutCommandHandler, type ScoutDeps } from "./src/slices/scout/index.js";
 import { reviewCommandHandler, runReviewTrigger, type ReviewDeps } from "./src/slices/reviewer/index.js";
+import { replayCommandHandler } from "./src/slices/replay/index.js";
 import { resolveGitHead } from "./src/shared/review.js";
 import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
 import { registerObserver } from "./src/slices/observer/index.js";
@@ -362,6 +363,9 @@ export default function devsPsychologistExtension(
 		scout: scoutCommandHandler(state, scoutDeps),
 		// The reviewer slice owns it for /psych review (T32a).
 		review: reviewCommandHandler(state, reviewDeps),
+		// Offline replay (idea 1): always the API seam — never a child pi — and the filesystem lives here,
+		// not in the pure reader. The slice renders its own report; it returns "" on success.
+		replay: replayCommandHandler(state, { readFile: (p) => readFileSync(p, "utf8"), writeFile: (p, t) => writeFileSync(p, t, "utf8"), callModel: apiCallModel }),
 		save: (patch, isGlobal, ctx) => {
 			// An explicit runtime choice supersedes the one-run flag; any other setting keeps it.
 			if (patch && typeof patch === "object" && "runtime" in patch) state.runtimeOverride = undefined;
