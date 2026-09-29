@@ -228,7 +228,7 @@ spots is not an observer. A different *account* is not automatically a different
 | `/psych model <provider/id>` | Choose the psychologist. The value completes from the engine's registered models and providers (use `--global` to make it machine-wide) |
 | `/psych budget <n>` | Appraisals per session (`0` = unlimited) |
 | `/psych lang <en\|cs>` | UI language (model-facing text stays English) |
-| `/psych runtime <api\|agent>` | Which runtime forms the appraisal. `agent` is observational until T24 (nothing spawns yet) |
+| `/psych runtime <api\|agent>` | Which runtime forms the appraisal. `agent` runs the observer as a headless read-only pi child |
 | `/psych context <evidence\|digest\|fork>` | How much session context the child agent may see. `digest`/`fork` open a confirm stating what leaves the machine; outside a TUI they are refused — set `agent.context` in the config file |
 | `/psych agent-model <provider/id>` | Model for the child agent (empty = the shared `model`). Completes from the engine's registered models |
 | `--global` (trailing) | On any setting command: write to `~/.pi/agent` instead of the project |
