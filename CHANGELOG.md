@@ -1,6 +1,9 @@
 # CHANGELOG
 
-## 0.6.0 (unreleased)
+## 0.6.0
+
+- **T33 — research grounding.** No code: the existing NotebookLM notebook behind `docs/research-notes.md` is allowed via `agent.nlmNotebooks`; README section documents the setup. Verified live: `/psych ask` queried it and returned a `nlm:<id>`-sourced suggestion (3 tools, 81 s).
+- **Live-verified scout:** `/psych scout` for unverified commits found `pi-gauntlet` (fit: solves) in 30 s.
 
 T31. The scout role turns recurring friction into a question asked before anything is built: does the
 pi ecosystem already solve this, or is a small plugin worth building? It runs on the agent runtime,

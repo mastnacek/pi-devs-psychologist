@@ -239,6 +239,6 @@ Full specifications (goal, files, behaviour, acceptance, non-goals) live in
 - `x T28` Context level `digest` (scrubbed, no tool outputs)
 - `x T29` Context level `fork` (full session, confirm on first use)
 - `x T30` `/psych ask <question>`
-- `. T31` Scout role — recurring friction → existing plugin or a SPAI idea
+- `x T31` Scout role — recurring friction → existing plugin or a SPAI idea
 - `. T32` Pair role — revises T12, only if pi-pair leaves a gap
-- `. T33` NotebookLM research grounding
+- `x T33` NotebookLM research grounding

@@ -262,6 +262,21 @@ arrives as a notification instead. Silence is the normal outcome, not a failure.
 
 ---
 
+## Research grounding (NotebookLM)
+
+The agent runtime can query the literature the prompt rules come from instead of reciting it.
+`docs/research-notes.md` was distilled from one NotebookLM notebook (92 sources: Amabile & Kramer,
+Deci & Ryan, Schultz, Zeigarnik, Leroy, DevEx and the AI-specific findings), and the child may query it.
+
+1. `nlm login` once on the machine (the child runs `nlm login --check` and skips NotebookLM if it fails;
+   it never logs in itself).
+2. Allow the notebook: `"agent": { "allowNlm": true, "nlmNotebooks": ["<notebook-id>"] }`.
+   Only listed ids are queryable, and only listed ids are accepted as a suggestion source (`nlm:<id>`).
+3. Ask: `/psych ask What does the research say about <x>?` — the answer carries a `nlm:<id>` source.
+
+Measured on this machine (0.6.0, deepseek-v4.1-flash): one `nlm notebook query`, 3 tool calls, 81 s.
+NotebookLM is the slow part; keep `agent.timeoutMs` ≥ 180000 when it is allowed.
+
 ## Token economy
 
 - **Zero tokens when `model` is empty.** Observation and `/psych` cost nothing.
@@ -288,8 +303,8 @@ and the invariants are in [`docs/adr/0001-two-roles-one-observer.md`](docs/adr/0
 
 ## Status
 
-`0.5.1` — **complete.** It observes, appraises when the evidence carries something new, names unverified commits, measures whether its interventions help, can run the observer as a read-only pi agent (`runtime: "agent"`) with web, MCP, skills and pi docs, shows the appraisal as a card, and
-answers `/psych` and `/psych ask`. 574 tests.
+`0.6.0` — **complete.** It observes, appraises when the evidence carries something new, names unverified commits, measures whether its interventions help, can run the observer as a read-only pi agent (`runtime: "agent"`) with web, MCP, skills and pi docs, shows the appraisal as a card, and
+answers `/psych`, `/psych ask` and `/psych scout`. 604 tests.
 
 Live today: the observation window, the session-history fold, the appraiser with its budget, the
 appraisal card, the delivery policy (card → notification → steering, off by default), the
