@@ -2,6 +2,21 @@
 
 ## 0.8.0 (unreleased)
 
+- **feat(handoff): name the top unverified file in the ledger (idea 5).** The handoff already
+  offered a *count* of unverified changes; it now names the subject. `HandoffLedger.unverifiedFiles`
+  holds up to three repo-relative paths mutated since the last successful verification run, most
+  mutated first, over successful mutations only, and the next session's line reads
+  `… unverified change(s) (top: <file>), …`. A file name is a fact about the work, not about the
+  person, so no cross-session record is needed for it.
+- **feat(history): opt-in cross-session delivery record, off by default (T10).** `/psych history`
+  shows a per-project JSONL record of delivery events and session counts — the only thing this plugin
+  stores beyond a session, and it stays off until `history.enabled` is set true. Exactly two line
+  kinds with exactly fixed key sets (`session { at, turns, toolCalls, failures, verifiedRuns,
+  unverifiedMutations }`, `delivery { at, kind, verdict, followed }`); no prompt text, no paths, no
+  tool or model names, no session id, no score, no rate, no trend. Pruned on read by
+  `history.retentionDays` (default `90`) and rewritten clean on the next append; deleting
+  `<cwd>/.pi/psych-history/history.jsonl` erases the record.
+
 - **fix(replay): `precision` measured nothing (idea 1).** It was "windows whose every KEPT verdict
   cites a supplied line", but enforcement deletes an uncited verdict and leaves a neutral one, so
   the ratio was 1 by construction — a run that asserted three verdicts and matched none scored as

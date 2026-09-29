@@ -6,6 +6,7 @@
 
 import { CARD_CS, CARD_EN, type CardStrings } from "./i18n-card.js";
 import { CS_LABELS, EN_LABELS, type Labels } from "./i18n-labels.js";
+import { HISTORY_CS, HISTORY_EN, type HistoryStrings } from "./i18n-history.js";
 import { NOTICE_CS, NOTICE_EN, type NoticeStrings } from "./i18n-notices.js";
 import { REPLAY_CS, REPLAY_EN, type ReplayStrings } from "./i18n-replay.js";
 import { RUN_CS, RUN_EN, type RunStrings } from "./i18n-runs.js";
@@ -14,7 +15,7 @@ export const LOCALES = ["en", "cs"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 
-export interface Strings extends RunStrings, CardStrings, NoticeStrings, ReplayStrings {
+export interface Strings extends RunStrings, CardStrings, NoticeStrings, ReplayStrings, HistoryStrings {
 	/** Statusline. The product name (`psych`) is identical across locales; the state is not. */
 	chipOff: string;
 	/** Shown when no model is configured: observation is live, the spend is zero. */
@@ -165,6 +166,7 @@ export const EN: Strings = {
 	...CARD_EN,
 	...NOTICE_EN,
 	...REPLAY_EN,
+	...HISTORY_EN,
 	chipOff: "psych: off",
 	chipSignals: "psych: signals",
 	chipConfigError: "psych: check model",
@@ -222,7 +224,7 @@ export const EN: Strings = {
 	nowValue: (value) => `(now: ${value})`,
 	// The help must not advertise a `global` subcommand: it is a trailing flag, and a user who
 	// followed the old text got "Unknown option: global".
-	usage: "Usage: /psych [status|now|stop|effect|ask <question>|scout [topic]|review|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Usage: /psych [status|now|stop|effect|history|ask <question>|scout [topic]|review|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Unknown option",
 	configWritten: (path) => `Config written to ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
@@ -275,6 +277,7 @@ export const CS: Strings = {
 	...CARD_CS,
 	...NOTICE_CS,
 	...REPLAY_CS,
+	...HISTORY_CS,
 	chipOff: "psych: vyp",
 	chipSignals: "psych: signály",
 	chipConfigError: "psych: zkontroluj model",
@@ -330,7 +333,7 @@ export const CS: Strings = {
 	notifyScoutCandidate: (name, fit, why, installSpec, url) => `${name} (${fit}) — ${why}\n${installSpec}\n${url}`,
 	notSet: "(nenastaveno)",
 	nowValue: (value) => `(nyní: ${value})`,
-	usage: "Použití: /psych [status|now|stop|effect|ask <dotaz>|scout [téma]|review|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Použití: /psych [status|now|stop|effect|history|ask <dotaz>|scout [téma]|review|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Neznámá volba",
 	configWritten: (path) => `Konfigurace zapsána do ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,

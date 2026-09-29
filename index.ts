@@ -62,6 +62,7 @@ import { resolveGitHead } from "./src/shared/review.js";
 import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
 import { registerObserver } from "./src/slices/observer/index.js";
 import { registerHandoff } from "./src/slices/handoff/index.js";
+import { historyReport, registerHistory } from "./src/slices/history/index.js";
 import { presentAppraisal, presentAsk, presentReview, presentScout } from "./src/slices/overlay/index.js";
 import { repoMapEvidenceLines, repoMapReport } from "./src/slices/mapper/index.js";
 import { renderReport, renderEffect } from "./src/slices/report/index.js";
@@ -142,8 +143,7 @@ export default function devsPsychologistExtension(
 	// branch is read at CALL time so a `/psych runtime` switch takes effect without a reload.
 	const apiCallModel: AppraiserDeps["callModel"] = (registry, req) => callModel(registry, req);
 
-	// The child's engine entry and docs dir, resolved once (T24). Never a shell, never `pi.cmd`: the
-	// node binary runs the engine's own cli.js (spike Q1).
+	// The child's engine entry and docs dir, resolved once (T24): never a shell, never `pi.cmd`.
 	const cliPath =
 		process.argv[1] ??
 		(process.env.PI_PACKAGE_DIR
@@ -164,8 +164,7 @@ export default function devsPsychologistExtension(
 		state.config.runtime !== "agent" ? apiCallModel(registry, req) : agentCallModel(registry, req);
 
 	const appraiserDeps = defaultDeps(readHistory, deliver, callModelDep, () => ({
-		// Resolved by this root (never by the slice), read live so a config edit that adds a notebook
-		// takes effect without a restart. Sources are judged in `appraisal-enforce.ts` (T25).
+		// Resolved by this root, read live so a config edit takes effect without a restart (T25).
 		docsDir,
 		nlmNotebooks: state.config.agent.nlmNotebooks,
 	}));
@@ -279,6 +278,7 @@ export default function devsPsychologistExtension(
 	registerAppraiser(pi, state, appraiserDeps);
 	// The zero-token handoff (idea 2): writes its ledger at shutdown and offers it at the next start.
 	registerHandoff(pi, state, { readHistory });
+	registerHistory(pi, state);
 
 	registerPsychCommand(pi, state, {
 		now: async (ctx) => {
@@ -357,6 +357,7 @@ export default function devsPsychologistExtension(
 			});
 			if (ctx.hasUI) ctx.ui.notify(text, "info");
 		},
+		history: (ctx) => historyReport(state, ctx),
 		// The ask slice owns the mapping from a skip/failure to the status line; this root only wires it.
 		ask: askCommandHandler(state, askDeps),
 		// The scout slice owns the same mapping for /psych scout (T31).

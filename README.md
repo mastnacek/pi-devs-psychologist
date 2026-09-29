@@ -143,6 +143,11 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
       "workshopDir": "D:\\01_programovani\\pi\\plugins"
     }
   },
+  "history": {
+    "enabled": false,
+    "retentionDays": 90,
+    "path": ""
+  },
   "trigger": "signals",
   "cadenceTurns": 3,
   "triggerThresholds": {
@@ -198,6 +203,7 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `runtime` | `"api"` | **Live.** `api` \| `agent` — which runtime forms the appraisal. `agent` spawns a headless read-only `pi` child with the selected model, pi docs, packages, web, MCP, skills and nlm (see ADR 0002) |
 | `agent` | see below | **Live.** Settings for the `agent` runtime. Normalised key by key and merged per key across layers |
 | `roles` | see below | **Live.** The optional roles that share the agent runtime. Each has its own consent gate |
+| `history` | see below | **Live (opt-in).** The cross-session delivery record (T10). OFF by default — see "Longitudinal history (opt-in)" below |
 
 #### `agent` keys (runtime `"agent"`)
 
@@ -232,6 +238,17 @@ once per fingerprint per session, and never in the same turn as an appraisal.
 | `roles.reviewer.model` | `""` | **Live.** `provider/id` for the review. Empty = the shared `model`, and the card then says "same model as the working agent" (a reviewer on the worker's model shares its blind spots) |
 | `roles.reviewer.maxDiffBytes` | `200000` | **Live.** The cap on the combined diff the child is told to read. Past it, it reviews the last `maxDiffBytes` and says in `text` what it left out |
 | `roles.reviewer.conventionFiles` | `["AGENTS.md","CLAUDE.md","CONTRIBUTING.md",".pi/rules.md"]` | **Live.** The repo's stated rules the child reads. `[]` means it cannot check convention adherence |
+
+#### `history` keys (opt-in)
+
+Off by default, and the only feature that stores anything beyond a session. What may be stored is
+pinned in "Longitudinal history (opt-in)" below.
+
+| Key | Default | Effect today |
+|---|---|---|
+| `history.enabled` | `false` | **Live.** The only switch that starts writing the record. Off, nothing is written and nothing is read |
+| `history.retentionDays` | `90` | **Live.** Lines older than this are dropped on read and removed by the next append |
+| `history.path` | `""` | **Live.** Override for the JSONL path. Empty means `<cwd>/.pi/psych-history/history.jsonl` |
 
 Coercion, so a typo degrades instead of breaking the session: junk numbers fall back to
 the default; `model` must be a string, and an unparsable one becomes `""` rather than a
@@ -391,7 +408,36 @@ session already recorded. No score, no mood word, no claim about the person.
 
 Nothing is said at shutdown. The ledger is offered at the **start of the next session** as one
 notification line with those counts, once (a marker entry stops a reload or a resumed session
-from repeating it). Config `handoff` (default `true`) turns both the write and the offer off.
+from repeating it). The line also names the most-mutated file still unverified, `(top: file.ts)`, so
+the honest count has a subject. Config `handoff` (default `true`) turns both the write and the offer
+off.
+
+## Longitudinal history (opt-in)
+
+`/psych history` shows a cross-session record of **delivery events and session counts**, so that
+"verified progress has thinned out" can be answered without reading anyone's prompts. It is **off by
+default** (`history.enabled: false`): until you turn it on, nothing is written and nothing is read.
+
+**What is stored**, in one JSONL file per project (`<cwd>/.pi/psych-history/history.jsonl`, override
+with `history.path`), one line per event and exactly two kinds of line with exactly these keys:
+
+```
+session  { at, turns, toolCalls, failures, verifiedRuns, unverifiedMutations }
+delivery { at, kind, verdict, followed }   verdict: improved | unchanged | worse | unresolved
+```
+
+**What is never stored:** no prompt text, no message bodies, no file paths, no tool names, no model
+names, no session identifier, no score, no streak, no rate, no per-day trend, and no word that reads
+the operator. The row set is pinned by an exact-key-set test, and the report is asserted against the
+PRD §5 prohibited-word list, in `test/history-record.test.js`.
+
+**Retention.** A line older than `history.retentionDays` (default `90`) is skipped on read and
+removed the next time the record is appended; the directory is created on the first write and never
+by a read. A line that does not match one of the two shapes is dropped, not repaired.
+
+**Erasure.** The record is that one file. Deleting it removes the record; there is no clear command
+because there is nothing else to clear — the report names the path it read. Since the plugin keeps
+no session identifier, the record cannot be joined back to any session.
 
 ## Status
 

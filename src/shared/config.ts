@@ -28,6 +28,7 @@ import {
 	type RuntimeMode,
 } from "./agent-config.js";
 import { DEFAULT_ROLES_CONFIG, normalizeRoles, type RolesConfig } from "./role-config.js";
+import { DEFAULT_HISTORY_CONFIG, normalizeHistory, type HistoryConfig } from "./history-config.js";
 
 // Re-exported so `config.ts` stays the one import for the plugin's settings vocabulary.
 export { DEFAULT_AGENT_CONFIG, effectiveAgentModel, normalizeAgent, THINKING_LEVELS } from "./agent-config.js";
@@ -59,6 +60,8 @@ export interface DevsPsychologistConfig {
 	agent: AgentConfig;
 	/** The optional roles that share the agent runtime (T31). Each has its own consent gate. */
 	roles: RolesConfig;
+	/** Opt-in cross-session delivery record (T10), OFF by default. See `src/shared/history-store.ts`. */
+	history: HistoryConfig;
 	/**
 	 * The model that plays the psychologist, as `provider/modelId`. It should be
 	 * a DIFFERENT model than the one doing the work: an observer sharing the
@@ -157,11 +160,9 @@ export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	agent: { ...DEFAULT_AGENT_CONFIG },
 	roles: {
 		scout: { ...DEFAULT_ROLES_CONFIG.scout },
-		reviewer: {
-			...DEFAULT_ROLES_CONFIG.reviewer,
-			conventionFiles: [...DEFAULT_ROLES_CONFIG.reviewer.conventionFiles],
-		},
+		reviewer: { ...DEFAULT_ROLES_CONFIG.reviewer, conventionFiles: [...DEFAULT_ROLES_CONFIG.reviewer.conventionFiles] },
 	},
+	history: { ...DEFAULT_HISTORY_CONFIG },
 	model: "",
 	trigger: "signals",
 	cadenceTurns: 3,
@@ -280,10 +281,7 @@ function normalizeThresholds(value: unknown): TriggerThresholds {
 /** Coerce the estimate object key by key, so one bad value cannot lose the other. */
 function normalizeEstimateTokens(value: unknown): TokenEstimate {
 	const raw = isPlainObject(value) ? value : {};
-	return {
-		input: positiveInt(raw.input, DEFAULT_ESTIMATE_TOKENS.input, 1),
-		output: positiveInt(raw.output, DEFAULT_ESTIMATE_TOKENS.output, 1),
-	};
+	return { input: positiveInt(raw.input, DEFAULT_ESTIMATE_TOKENS.input, 1), output: positiveInt(raw.output, DEFAULT_ESTIMATE_TOKENS.output, 1) };
 }
 
 /** Coerce a persisted layer into a usable config; junk becomes the default. */
@@ -294,6 +292,7 @@ export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsych
 		runtime: runtimeMode(cfg.runtime),
 		agent: normalizeAgent(cfg.agent),
 		roles: normalizeRoles(cfg.roles),
+		history: normalizeHistory(cfg.history),
 		// An unparsable model id must fail to "no model", never to a guess: a typo
 		// that silently selects some other model would spend money on the wrong
 		// observer.

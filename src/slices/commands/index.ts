@@ -31,6 +31,11 @@ export interface CommandDeps {
 	/** Show the intervention-effect table (T16). Injected so this slice knows no other slice. */
 	effect(ctx: ExtensionCommandContext): void;
 	/**
+	 * Show the opt-in cross-session record (`/psych history`, T10). Returns a status line when it
+	 * should not render (off, or no UI), and `""` when it has shown the table itself.
+	 */
+	history(ctx: ExtensionCommandContext): string;
+	/**
 	 * Ask the observer a direct question (`/psych ask <question>`, T30). Returns a status line for the
 	 * skip/failure cases; an empty string when the answer was already shown as a card or notification.
 	 */
@@ -105,6 +110,14 @@ export function registerPsychCommand(
 				case "effect":
 					deps.effect(ctx);
 					return;
+
+				case "history": {
+					// A terminal leaf with no argument (T10): the slice returns the line to say, or "" when
+					// it has rendered the table itself.
+					const line = deps.history(ctx);
+					if (line.length > 0) notify(line);
+					return;
+				}
 
 				case "ask": {
 					// An empty question is an incomplete command, not a silent no-op: say so.
