@@ -10,6 +10,7 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { effectiveAgentModel } from "./config.js";
 import { stringsFor } from "./i18n.js";
+import { modelRefOf, sameModelWarning } from "./same-model.js";
 import type { DevsPsychologistState } from "./state.js";
 
 export const STATUS_ID = "devs-psychologist";
@@ -40,6 +41,13 @@ const CONFIG_STAGES = new Set(["config", "resolve", "auth"]);
 
 export function paintChip(state: DevsPsychologistState, ctx: ExtensionContext): void {
 	const strings = stringsFor(state.config.lang);
+	// Capture the working model here rather than in the factory: a context that exposes one is the
+	// only place it is knowable, and a context that does not must leave the previous value alone.
+	if (ctx.model !== undefined) state.sessionModelRef = modelRefOf(ctx.model);
+	// The chip is one short line, so the same-model disclosure is a suffix (the full sentence lives in
+	// `/psych`). It applies to every configured state; the no-model states cannot have a match.
+	const paint = (text: string): void =>
+		setStatus(ctx, sameModelWarning(state) ? `${text} · ${strings.chipSameModel}` : text);
 	if (!state.config.enabled) {
 		setStatus(ctx, strings.chipOff);
 		return;
@@ -62,8 +70,7 @@ export function paintChip(state: DevsPsychologistState, ctx: ExtensionContext): 
 	// the tool count is present only on the agent runtime (the API call has no tools to count).
 	if (state.appraisalStartedAt !== undefined) {
 		const seconds = Math.max(0, Math.round((state.timers.now() - state.appraisalStartedAt) / 1000));
-		setStatus(
-			ctx,
+		paint(
 			state.config.runtime === "agent"
 				? strings.chipResearchingTools(`${seconds}s`, String(state.appraisalToolCalls))
 				: strings.chipResearching(`${seconds}s`),
@@ -75,7 +82,7 @@ export function paintChip(state: DevsPsychologistState, ctx: ExtensionContext): 
 	// the operator can fix, so it earns a persistent chip. Transient failures — a provider
 	// error, a timeout — must not shout: they are not actionable and they pass.
 	if (state.lastAppraisalFailure && CONFIG_STAGES.has(state.lastAppraisalFailure.stage)) {
-		setStatus(ctx, strings.chipConfigError);
+		paint(strings.chipConfigError);
 		return;
 	}
 	const cap = state.config.maxAppraisalsPerSession;
@@ -84,7 +91,14 @@ export function paintChip(state: DevsPsychologistState, ctx: ExtensionContext): 
 	// Turns since the last appraisal is the one number that explains silence:
 	// the observer is waiting for its cadence, not dead.
 	const waiting = state.appraisalInFlight ? "…" : `${state.turnsSinceAppraisal}t`;
-	setStatus(ctx, strings.chipAppraisal(waiting, budget));
+	setStatus(
+		ctx,
+		state.appraisalInFlight
+			? `${strings.chipAppraisal("…", budget)}${sameModelWarning(state) ? ` · ${strings.chipSameModel}` : ""}`
+			: state.config.runtime === "agent"
+			? `${strings.chipAppraisal(waiting, budget)}${sameModelWarning(state) ? ` · ${strings.chipSameModel}` : ""}`
+			: `${strings.chipAppraisal(waiting, budget)}${sameModelWarning(state) ? ` · ${strings.chipSameModel}` : ""}`,
+	);
 }
 
 /** Clear the slot. Idempotent; called from session_shutdown. */

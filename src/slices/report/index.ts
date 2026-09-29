@@ -15,6 +15,7 @@ import { isSilent } from "../../shared/appraisal-enforce.js";
 import { effectiveAgentModel } from "../../shared/config.js";
 import { stringsFor, type Locale } from "../../shared/i18n.js";
 import { MAP_STALE_TURNS } from "../../shared/repo-map.js";
+import { sameModelWarning } from "../../shared/same-model.js";
 import { effectByKind, type OutcomeRecord } from "../../shared/outcome.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
 import { PLUGIN_VERSION } from "../../shared/version.js";
@@ -80,6 +81,8 @@ export function renderReport(input: ReportInput): string {
 		const effective = effectiveAgentModel(state.config);
 		lines.push(`${s.reportAgentModel} ${effective.length > 0 ? effective : s.notSet}`);
 	}
+	// The observer is only an observer if it is a different model; say so when it is not.
+	if (sameModelWarning(state)) lines.push(`⚠ ${s.reportSameModel}`);
 	lines.push(
 		`${s.reportBudget(state.appraisalsThisSession, cap === 0 ? "∞" : String(cap))}`,
 		`cadence   ${state.turnsSinceAppraisal}/${state.config.cadenceTurns} turns since the last attempt`,

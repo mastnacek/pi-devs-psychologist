@@ -57,6 +57,11 @@ export interface DevsPsychologistState {
 	config: DevsPsychologistConfig;
 	/** Overridable so tests never write the developer's real ~/.pi/agent file. */
 	globalFile: string;
+	/**
+	 * The working session's model as `provider/id`, from `ctx.model` (T: same-model warning). `""`
+	 * until a context exposes one, so a headless session simply never warns rather than guessing.
+	 */
+	sessionModelRef: string;
 
 	// --- observation window ---
 	/** Events in append order. Index position is the clock for the signal fold. */
@@ -226,6 +231,7 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		track,
 		config: { ...DEFAULT_CONFIG },
 		globalFile: GLOBAL_CONFIG_FILE,
+		sessionModelRef: "",
 		observations: [],
 		pendingTools: new Map(),
 		modelCatalog: [],

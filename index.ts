@@ -38,6 +38,7 @@ import { readHistory } from "./src/shared/history.js";
 import { noteFollowed, noteQuickWin, restoreOutcomes } from "./src/shared/outcome.js";
 import { stringsFor } from "./src/shared/i18n.js";
 import { extractSignals } from "./src/shared/signals.js";
+import { modelRefOf } from "./src/shared/same-model.js";
 import { refreshModelCatalog, createDevsPsychologistState, reloadConfig, restoreAppraisal, signalOptions, type DevsPsychologistState } from "./src/shared/state.js";
 import { clearChip, paintChip, stopResearchingChip } from "./src/shared/status.js";
 import { parseChildLimits, parseChildRole } from "./src/shared/child-limits.js";
@@ -320,6 +321,7 @@ export default function devsPsychologistExtension(
 			// Refreshed on every invocation, so adding an OpenRouter account mid-session is picked
 			// up by the next Tab press instead of needing a restart.
 			refreshModelCatalog(state, ctx.modelRegistry);
+			state.sessionModelRef = modelRefOf(ctx.model);
 			const signals = extractSignals(state.observations, signalOptions(state));
 			// Width comes from the terminal so the report truncates rather than wraps (T27).
 			const columns = process.stdout?.columns ?? 0;
