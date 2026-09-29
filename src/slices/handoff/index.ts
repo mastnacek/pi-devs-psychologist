@@ -78,6 +78,8 @@ export function registerHandoff(pi: ExtensionAPI, state: DevsPsychologistState, 
 						ledger.openLoops,
 						ledger.bookmarks,
 						ledger.failures,
+						// A previous ledger written before idea 5 has no `unverifiedFiles`; the top name is optional.
+						ledger.unverifiedFiles?.[0],
 					),
 					"info",
 				);

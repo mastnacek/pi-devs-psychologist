@@ -9,9 +9,10 @@
 export interface NoticeStrings {
 	/**
 	 * The one-line handoff summary offered at `session_start` of the next session: the counts left
-	 * by the previous one. Never a score, never a mood, never a claim about the person.
+	 * by the previous one. Never a score, never a mood, never a claim about the person. `topFile`
+	 * names the most-mutated still-unverified path when there is one — a fact about the work.
 	 */
-	handoffNotify: (unverified: number, openLoops: number, bookmarks: number, failing: number) => string;
+	handoffNotify: (unverified: number, openLoops: number, bookmarks: number, failing: number, topFile?: string) => string;
 	/**
 	 * One line after held items are released (flow shield): how many cards/notices were held while a
 	 * `protect_flow` intervention was unresolved. Counts only.
@@ -20,13 +21,13 @@ export interface NoticeStrings {
 }
 
 export const NOTICE_EN: NoticeStrings = {
-	handoffNotify: (unverified, openLoops, bookmarks, failing) =>
-		`Last session: ${unverified} unverified change(s), ${openLoops} open loop(s), ${bookmarks} bookmark(s), ${failing} failing tool(s).`,
+	handoffNotify: (unverified, openLoops, bookmarks, failing, topFile) =>
+		`Last session: ${unverified} unverified change(s)${topFile ? ` (top: ${topFile})` : ""}, ${openLoops} open loop(s), ${bookmarks} bookmark(s), ${failing} failing tool(s).`,
 	flowShieldReleased: (count) => `Flow protection ended before I interrupted: released ${count} held notice(s).`,
 };
 
 export const NOTICE_CS: NoticeStrings = {
-	handoffNotify: (unverified, openLoops, bookmarks, failing) =>
-		`Poslední relace: ${unverified} neověřených změn, ${openLoops} otevřených smyček, ${bookmarks} záložek, ${failing} selhávajících nástrojů.`,
+	handoffNotify: (unverified, openLoops, bookmarks, failing, topFile) =>
+		`Poslední relace: ${unverified} neověřených změn${topFile ? ` (nejvíc: ${topFile})` : ""}, ${openLoops} otevřených smyček, ${bookmarks} záložek, ${failing} selhávajících nástrojů.`,
 	flowShieldReleased: (count) => `Ochrana toku skončila, než jsem stihl rušit: uvolněno ${count} čekajících oznámení.`,
 };

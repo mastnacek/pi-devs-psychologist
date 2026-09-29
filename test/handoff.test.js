@@ -43,7 +43,7 @@ function seedSession(state) {
 
 /** A ledger as the shutdown writer would have written it, for the disk-path tests. */
 function ledgerFixture() {
-  return { unverifiedMutations: 1, lastFailure: { tool: "bash", signature: "test_failure" }, bookmarks: 2, openLoops: 1, toolCalls: 2, failures: 1 };
+  return { unverifiedMutations: 1, unverifiedFiles: ["a.ts"], lastFailure: { tool: "bash", signature: "test_failure" }, bookmarks: 2, openLoops: 1, toolCalls: 2, failures: 1 };
 }
 
 function entriesOf(pi, customType) {
@@ -58,6 +58,7 @@ test("shutdown writes the exact ledger shape as a custom entry", async () => {
   assert.ok(entry, "a handoff entry was written");
   assert.deepEqual(entry.data, {
     unverifiedMutations: 1,
+    unverifiedFiles: ["a.ts"],
     lastFailure: { tool: "bash", signature: "test_failure" },
     bookmarks: 2,
     openLoops: 1,
@@ -92,7 +93,7 @@ test("the next session_start notifies once, and not again", async () => {
   const ctx = makeCtx({ sessionManager: { getEntries: () => pi.entries } });
   await pi.emit("session_start", {}, ctx);
   assert.equal(ctx.notes.length, 1);
-  assert.match(ctx.notes[0].message, /Last session: 1 unverified change\(s\), 1 open loop\(s\), 2 bookmark\(s\), 1 failing tool\(s\)\./);
+  assert.match(ctx.notes[0].message, /Last session: 1 unverified change\(s\) \(top: a\.ts\), 1 open loop\(s\), 2 bookmark\(s\), 1 failing tool\(s\)\./);
   // The marker is written with the offer, so the second start stays silent.
   assert.equal(entriesOf(pi, HANDOFF_NOTIFIED_ENTRY).length, 1);
   await pi.emit("session_start", {}, ctx);
@@ -113,6 +114,33 @@ test("the notification line is localized", async () => {
   const ctx = makeCtx({ sessionManager: { getEntries: () => pi.entries } });
   await pi.emit("session_start", {}, ctx);
   assert.match(ctx.notes[0].message, /Poslední relace:/);
+  // The top file is named in Czech too, so a localized line still says which file is at risk.
+  assert.match(ctx.notes[0].message, /\(nejvíc: a\.ts\)/);
+});
+
+test("the notification names the top unverified file (idea 5)", async () => {
+  const { pi, state } = wire();
+  seedSession(state);
+  await pi.emit("session_shutdown", {}, makeCtx());
+  const ctx = makeCtx({ sessionManager: { getEntries: () => pi.entries } });
+  await pi.emit("session_start", {}, ctx);
+  assert.match(ctx.notes[0].message, /\(top: a\.ts\)/);
+});
+
+test("a ledger with nothing unverified has an empty list and no parenthetical", async () => {
+  const { pi, state } = wire();
+  state.appraisalsThisSession = 1;
+  // A verified run with no mutation after it: nothing is unverified.
+  state.observations = [
+    { kind: "tool", at: T0, toolName: "edit", path: "a.ts", ok: true },
+    { kind: "tool", at: T0 + 1, toolName: "bash", command: "npm test", ok: true },
+  ];
+  await pi.emit("session_shutdown", {}, makeCtx());
+  const [entry] = entriesOf(pi, HANDOFF_ENTRY);
+  assert.deepEqual(entry.data.unverifiedFiles, []);
+  const ctx = makeCtx({ sessionManager: { getEntries: () => pi.entries } });
+  await pi.emit("session_start", {}, ctx);
+  assert.doesNotMatch(ctx.notes[0].message, /top:/);
 });
 
 // --- the new-session path (the one a live run proved the first build missed) -------------
