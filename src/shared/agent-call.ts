@@ -16,6 +16,7 @@ import { effectiveAgentModel } from "./agent-config.js";
 import { runAgent, defaultAgentRunIo, type AgentRunIo } from "./agent-runner.js";
 import { parseModelRef, resolveModel, type ModelCallRequest, type ModelCallResult } from "./model-call.js";
 import type { DevsPsychologistState } from "./state.js";
+import { stringsFor } from "./i18n.js";
 import { PI_VERSION } from "./version.js";
 
 /** Everything the agent call needs that is not in state: facts resolved once by the root (T24). */
@@ -51,6 +52,19 @@ export function createAgentCall(state: DevsPsychologistState, options: AgentCall
 				: effectiveAgentModel(state.config);
 		// A registry may be absent (headless fakes); the run does not need it, only the label does.
 		const resolved = registry && parseModelRef(modelRef) ? resolveModel(registry, modelRef) : undefined;
+		// Pre-flight: a ref the registry does not know means the CHILD dies at startup with a raw
+		// `Model ... not found` exit-1 (observed in the field: a free-tier id disappeared from the
+		// provider's catalog after the config was written). Refuse BEFORE spawning and name the fix;
+		// the parent's registry is the same surface the child's --list-models reads.
+		if (registry && parseModelRef(modelRef) && !resolved) {
+			return {
+				ok: false,
+				// The same stage the API path reports for an unknown ref, so the report and the
+				// failure ledger need no new stage to understand it.
+				stage: "resolve",
+				error: stringsFor(state.config.lang).agentModelUnknown(modelRef),
+			};
+		}
 		// One agent run started this session; the report budgets the session against it (T27).
 		state.agentRunsThisSession += 1;
 		const result = await runAgent(

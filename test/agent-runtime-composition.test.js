@@ -118,6 +118,31 @@ function ctxFor(cwd, over = {}) {
   });
 }
 
+test("a model ref the registry does not know refuses BEFORE spawning, naming the fix", async () => {
+  // Field regression: a persisted free-tier id disappeared from the provider's catalog; the
+  // child died at startup with a raw `Model ... not found` exit-1. The parent's registry is the
+  // same surface the child's --list-models reads, so the pre-flight here can never disagree.
+  const { io, record } = fakeIo([scriptedChild()]);
+  const { pi, globalFile } = load(io);
+  const world = sandbox();
+  try {
+    writeConfig(globalFile, { runtime: "agent", model: "gone/stale:free" });
+    const registry = {
+      find: () => undefined,
+      getAll: () => [],
+    };
+    const ctx = ctxFor(world.cwd, { modelRegistry: registry });
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    await pi.commands.get("psych").handler("now", ctx);
+    const line = ctx.notes.at(-1)?.message ?? "";
+    assert.ok(line.includes("not in the registry"), "the refusal names the state");
+    assert.match(line, /\/psych agent-model|\/psych model/, "the refusal names the fix");
+    assert.equal(record.spawn.length, 0, "no child was spawned");
+  } finally {
+    world.cleanup();
+  }
+});
+
 test("runtime 'agent' spawns the child runner; the API call is not used", async () => {
   const { io, record } = fakeIo([scriptedChild()]);
   const { pi, globalFile } = load(io);

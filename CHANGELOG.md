@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 0.9.1
+
+- **fix(agent): a model ref the registry does not know refuses BEFORE spawning, naming the fix.**
+  Field failure: the project layer held `openrouter-soukr/nvidia/nemotron-3-ultra-550b-a55b:free`,
+  an id that has since left the provider's catalog. The child pi died at startup with a raw
+  `Error: Model ... not found. Use --list-models` (exit 1) and the operator saw an engine stack,
+  not a fix. The `agent-call` seam already resolved the ref for the label and then spawned anyway;
+  now an unknown ref returns the same `resolve` stage the API path uses, with a message that
+  names `/psych agent-model <provider/id>` (or `/psych model`, or `/psych help model`). The
+  parent's registry is the same surface the child's `--list-models` reads, so the pre-flight can
+  never disagree with it. 759 tests pass, tsc clean.
+
 ## 0.9.0
 
 - **feat(commands): `/psych role scout|reviewer on|off` — the consent gates get a command path.**

@@ -36,6 +36,13 @@ export interface RoleStrings {
 	contextEvidence: string;
 	contextDigest: string;
 	contextFork: string;
+	/**
+	 * The pre-flight refusal when the resolved model ref is not in the engine's registry: the
+	 * child would die at startup with a raw exit-1 (`Model ... not found. Use --list-models`),
+	 * so the plugin refuses BEFORE spawning and names the fix instead. The parent's registry is
+	 * the same surface the child's `--list-models` would read, so this cannot disagree with it.
+	 */
+	agentModelUnknown: (ref: string) => string;
 	/** The role gates' refusal notices: the command path now, not the config file. */
 	scoutDisabled: string;
 	reviewDisabled: string;
@@ -62,6 +69,9 @@ export const ROLE_EN: RoleStrings = {
 	contextEvidence: "evidence — facts only; nothing raw leaves the machine",
 	contextDigest: "digest — cleaned excerpts of the conversation (asks for confirmation)",
 	contextFork: "fork — the whole session including tool outputs (widest consent)",
+	agentModelUnknown: (ref) =>
+		`Model ${ref} is not in the registry — the child would die at startup. ` +
+		`Set a valid one with: /psych agent-model <provider/id> (or /psych model <provider/id>, or /psych help model)`,
 	scoutDisabled: "The scout role is off. Turn it on with: /psych role scout on",
 	reviewDisabled: "The reviewer role is off. Turn it on with: /psych role reviewer on",
 	welcomeFirstRun: (hasModel) =>
@@ -84,6 +94,9 @@ export const ROLE_CS: RoleStrings = {
 	contextEvidence: "evidence — jen fakta; nic syrového neopouští stroj",
 	contextDigest: "digest — očištěné výňatky z konverzace (žádá potvrzení)",
 	contextFork: "fork — celá relace včetně výstupů nástrojů (nejširší souhlas)",
+	agentModelUnknown: (ref) =>
+		`Model ${ref} není v registru — podřízený proces by spadl hned při startu. ` +
+		`Nastav platný přes: /psych agent-model <provider/id> (nebo /psych model <provider/id>, nebo /psych help model)`,
 	scoutDisabled: "Role scout je vypnutá. Zapni ji: /psych role scout on",
 	reviewDisabled: "Role reviewer je vypnutá. Zapni ji: /psych role reviewer on",
 	welcomeFirstRun: (hasModel) =>
