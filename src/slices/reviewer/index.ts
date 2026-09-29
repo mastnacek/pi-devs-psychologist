@@ -21,6 +21,7 @@ import { parseReview, type EnforcedReview } from "../../shared/appraisal-enforce
 import { effectiveAgentModel } from "../../shared/config.js";
 import { environmentEvidence } from "../../shared/environment.js";
 import type { SessionHistory } from "../../shared/history.js";
+import { guardNotification, guardPresentation } from "../../shared/flow-shield.js";
 import { stringsFor } from "../../shared/i18n.js";
 import { callModel, summarizeUsage, type ModelCallResult } from "../../shared/model-call.js";
 import { buildReviewUserText, REVIEW_SYSTEM_PROMPT } from "../../shared/prompt.js";
@@ -202,13 +203,13 @@ export async function reviewObserver(
 
 		let shown = false;
 		try {
-			shown = await deps.present(ctx, input);
+			shown = await guardPresentation(state, () => deps.present(ctx, input));
 		} catch {
 			shown = false;
 		}
 		if (!shown) {
 			try {
-				deps.notify(ctx, fallbackText(state, input));
+				guardNotification(state, () => deps.notify(ctx, fallbackText(state, input)));
 			} catch {
 				// A dead UI must not fail the command.
 			}

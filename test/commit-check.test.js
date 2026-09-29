@@ -27,7 +27,7 @@ function wired(over = {}) {
   const ctx = makeCtx();
   registerObserver(pi, state, {
     // The real delivery function, so the notification text and its hasUI guard are exercised.
-    notifyUnverifiedCommit: (c, count) => notifyUnverifiedCommit(c, state.config.lang, count),
+    notifyUnverifiedCommit: (c, count) => notifyUnverifiedCommit(c, state, count),
   });
   return { pi, state, ctx };
 }

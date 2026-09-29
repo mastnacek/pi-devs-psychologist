@@ -18,6 +18,7 @@ import {
 	type OutcomeRecord,
 } from "../../shared/outcome.js";
 import { extractSignals, type SessionSignals } from "../../shared/signals.js";
+import { refreshFlowShield } from "../../shared/flow-shield.js";
 import { signalOptions, type DevsPsychologistState } from "../../shared/state.js";
 import type { AppraiserDeps } from "./types.js";
 
@@ -65,6 +66,8 @@ export function recordDelivery(
 	};
 	state.outcomes.push(record);
 	pi.appendEntry("psych-outcome", record);
+	// A delivered `protect_flow` raises the shield; any resolution lowers it (idea 6).
+	refreshFlowShield(state);
 }
 
 /**
@@ -91,4 +94,6 @@ export function settleOutcomes(
 	)) {
 		pi.appendEntry("psych-outcome", record);
 	}
+	// A resolved `protect_flow` clears the shield, so held items are dropped rather than replayed.
+	refreshFlowShield(state);
 }

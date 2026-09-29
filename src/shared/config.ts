@@ -98,6 +98,11 @@ export interface DevsPsychologistConfig {
 	 * ON by default: zero tokens, TUI-only, no score. `false` disables both the write and the offer.
 	 */
 	handoff: boolean;
+	/**
+	 * Flow shield (idea 6): while this session's delivered `protect_flow` intervention is unresolved,
+	 * hold the plugin's own cards and notifications until the next `agent_end`. ON by default.
+	 */
+	flowShield: boolean;
 	/** Hard ceiling on appraisals per session. 0 = unlimited (not recommended). */
 	maxAppraisalsPerSession: number;
 	/**
@@ -164,6 +169,7 @@ export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	estimateTokens: { ...DEFAULT_ESTIMATE_TOKENS },
 	commitCheck: true,
 	handoff: true,
+	flowShield: true,
 	maxAppraisalsPerSession: 12,
 	outcomeWindowTurns: DEFAULT_OUTCOME_WINDOW_TURNS,
 	cooldownTurns: DEFAULT_COOLDOWN_TURNS,
@@ -300,6 +306,7 @@ export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsych
 		// with a missing or nonsense key keeps the better behaviour.
 		commitCheck: cfg.commitCheck !== false,
 		handoff: cfg.handoff !== false,
+		flowShield: cfg.flowShield !== false,
 		// 0 is meaningful here (unlimited), so the floor is 0 and the default is a
 		// real cap.
 		maxAppraisalsPerSession: positiveInt(

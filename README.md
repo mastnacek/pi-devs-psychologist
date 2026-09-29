@@ -185,6 +185,7 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `estimateTokens` | `{"input":1500,"output":400}` | **Live.** The assumed prompt size, in tokens, for the model picker's `~$X.XX per appraisal` preview. Override per key; the real prompt grows with the session |
 | `commitCheck` | `true` | **Live.** On a successful commit (`git commit`, `git push`, `gh pr create`, `npm publish`) with unverified changes, name it in one notification and one evidence line. Observes only — never blocks; `false` silences it entirely |
 | `handoff` | `true` | **Live.** Write a factual session ledger at shutdown (TUI-only, zero tokens) and offer it as one line at the start of the next session. Counts only — no score, no person-level claim. `false` disables both |
+| `flowShield` | `true` | **Live.** While this session's delivered `protect_flow` intervention is unresolved, hold the plugin's own cards and notifications until the next `agent_end` (then release them; drop them if the shield clears first). The chip is never held. `false` behaves as before |
 | `maxAppraisalsPerSession` | `12` | **Live.** Hard ceiling on *attempts* per session; `0` = unlimited |
 | `outcomeWindowTurns` | `5` | **Live.** Turns an intervention is given to prove itself before its outcome (per metric, no aggregate score) is judged. See `/psych effect` |
 | `cooldownTurns` | `6` | **Live.** Turns a delivered kind stays "cooling", so the model is warned `do not repeat` it. A kind whose outcomes fail to improve twice is muted outright |
@@ -351,7 +352,7 @@ from repeating it). Config `handoff` (default `true`) turns both the write and t
 ## Status
 
 `0.7.0` — **complete.** It observes, appraises when the evidence carries something new, names unverified commits, measures whether its interventions help, can run the observer as a read-only pi agent (`runtime: "agent"`) with web, MCP, skills and pi docs, shows the appraisal as a card,
-answers `/psych`, `/psych ask`, `/psych scout` and `/psych review`. 651 tests.
+answers `/psych`, `/psych ask`, `/psych scout` and `/psych review`. 679 tests.
 
 Live today: the observation window, the session-history fold, the appraiser with its budget, the
 appraisal card, the delivery policy (card → notification → steering, off by default), the

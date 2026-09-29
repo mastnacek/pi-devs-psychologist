@@ -37,6 +37,7 @@ import { coolingKinds, doNotRepeatLines, mutedKinds } from "../../shared/outcome
 import { evaluateTriggers, snapshotTriggers, type TriggerReason } from "../../shared/triggers.js";
 import { signalOptions, type DevsPsychologistState } from "../../shared/state.js";
 import { paintChip, startResearchingChip, stopResearchingChip } from "../../shared/status.js";
+import { flushFlowShield } from "../../shared/flow-shield.js";
 import { STALE_DELIVERY_TURNS, type DeliveryOutcome } from "../../shared/delivery.js";
 import { effectiveAgentModel } from "../../shared/config.js";
 import { SCOUT_TRIGGER_MIN_COUNT, topRecurringTopic } from "../../shared/scout.js";
@@ -374,6 +375,8 @@ export function registerAppraiser(
 		pi.on("agent_end", async (_event, ctx) => {
 			state.agentStreaming = false;
 			await flushPendingAppraisal(pi, state, ctx, deps);
+			// Release anything the flow shield held, now that the agent has paused (idea 6).
+			await flushFlowShield(state, ctx);
 		}),
 	);
 }

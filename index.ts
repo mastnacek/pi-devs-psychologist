@@ -39,6 +39,7 @@ import { noteFollowed, noteQuickWin, restoreOutcomes } from "./src/shared/outcom
 import { stringsFor } from "./src/shared/i18n.js";
 import { extractSignals } from "./src/shared/signals.js";
 import { modelRefOf } from "./src/shared/same-model.js";
+import { guardNotification, refreshFlowShield } from "./src/shared/flow-shield.js";
 import { refreshModelCatalog, createDevsPsychologistState, reloadConfig, restoreAppraisal, signalOptions, type DevsPsychologistState } from "./src/shared/state.js";
 import { clearChip, paintChip, stopResearchingChip } from "./src/shared/status.js";
 import { parseChildLimits, parseChildRole } from "./src/shared/child-limits.js";
@@ -246,6 +247,8 @@ export default function devsPsychologistExtension(
 			const entries = ctx.sessionManager.getEntries();
 			restoreAppraisal(state, entries);
 			state.outcomes = restoreOutcomes(entries);
+			// A session that resumed mid-`protect_flow` raises the shield again from the restored ledger.
+			refreshFlowShield(state);
 			// Keep the outcome clock sane across a reload: a restored delivery must not read as
 			// "negative turns ago", so the turn counter resumes at least where the ledger left it.
 			state.turnCount = state.outcomes.reduce((max, record) => Math.max(max, record.deliveredAtTurn), state.turnCount);
@@ -261,7 +264,7 @@ export default function devsPsychologistExtension(
 	registerObserver(pi, state, {
 		// The commit check's notification text comes from the delivery slice; the observer only
 		// records the fact. The composition root is the only place that knows both.
-		notifyUnverifiedCommit: (ctx, count) => notifyUnverifiedCommit(ctx, state.config.lang, count),
+		notifyUnverifiedCommit: (ctx, count) => notifyUnverifiedCommit(ctx, state, count),
 		// Ledger reactions (T16): the observer forwards the raw prompt and tool name, the pure ledger
 		// decides whether either follows an intervention. The observer stays outcome-free.
 		outcome: {
@@ -341,7 +344,7 @@ export default function devsPsychologistExtension(
 				mapAgeTurns: map.ageTurns,
 				...(columns > 0 ? { width: columns } : {}),
 			});
-			if (ctx.hasUI) ctx.ui.notify(text, "info");
+			if (ctx.hasUI) guardNotification(state, () => ctx.ui.notify(text, "info"));
 		},
 		effect: (ctx) => {
 			// The outcome table is width-safe and session-scoped only (full cross-session ledger is T10).

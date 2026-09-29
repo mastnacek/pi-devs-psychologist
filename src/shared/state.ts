@@ -167,6 +167,13 @@ export interface DevsPsychologistState {
 	agentForkConsent: ForkConsent;
 	/** True once the fork → digest fallback has been announced; the notice fires at most once. */
 	agentForkNotified: boolean;
+	/**
+	 * Flow shield (idea 6): on while a delivered `protect_flow` intervention is unresolved, so this
+	 * plugin holds its own cards and notifications. Recomputed by `refreshFlowShield`.
+	 */
+	flowShield: boolean;
+	/** Cards and notifications held while the shield is up, released in order at the next `agent_end`. */
+	flowShieldQueue: Array<() => Promise<void>>;
 	/** Summed cost (USD) of agent-runtime runs this session, compared with `agent.maxCostUsdPerSession`. */
 	agentSessionCostUsd: number;
 	/** Agent-runtime runs started this session, shown by the report (T27). */
@@ -253,6 +260,8 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		agentTrusted: false,
 		agentForkConsent: "unknown",
 		agentForkNotified: false,
+		flowShield: false,
+		flowShieldQueue: [],
 		agentSessionCostUsd: 0,
 		agentRunsThisSession: 0,
 		agentChildKill: undefined,
@@ -305,6 +314,8 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 			// Consent is a session decision: a new session asks again (T29).
 			state.agentForkConsent = "unknown";
 			state.agentForkNotified = false;
+			state.flowShield = false;
+			state.flowShieldQueue = [];
 			state.lastRun = undefined;
 			state.pendingAppraisal = undefined;
 			// A new session starts at a possibly different cwd, so the map is recomputed on first use.

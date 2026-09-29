@@ -16,6 +16,11 @@
   loops, tool-call/failure totals) is written as a TUI-only entry at `session_shutdown` and offered
   as one notification line at the next `session_start`, once. Counts only; config `handoff`
   (default `true`) disables both.
+- **feat(flow-shield): the plugin holds its own cards while `protect_flow` is active (idea 6).**
+  While this session's delivered `protect_flow` intervention is unresolved, the appraisal card,
+  `/psych` report, review/scout/ask cards and the T15 commit notification are queued instead of
+  shown; they are released in order at the next `agent_end` while the shield is up, and dropped
+  (not replayed) when it clears. The chip is never held. Config `flowShield` (default `true`).
 
 ## 0.7.0 (unreleased)
 

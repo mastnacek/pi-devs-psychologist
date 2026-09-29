@@ -21,7 +21,8 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { isSilent } from "../../shared/appraisal-enforce.js";
 import type { Appraisal } from "../../shared/appraisal.js";
 import type { Intervention } from "../../shared/appraisal.js";
-import { stringsFor, type Locale } from "../../shared/i18n.js";
+import { stringsFor } from "../../shared/i18n.js";
+import { guardNotification, guardPresentation } from "../../shared/flow-shield.js";
 import { steerText } from "../../shared/prompt.js";
 import type { DevsPsychologistState } from "../../shared/state.js";
 
@@ -90,7 +91,7 @@ export async function deliverIntervention(
 		// overlay that cannot draw and a plugin that says nothing look identical from outside.
 		let shown = false;
 		try {
-			shown = await deps.present(ctx, appraisal, unmatched, options.staleTurns);
+			shown = await guardPresentation(state, () => deps.present(ctx, appraisal, unmatched, options.staleTurns));
 		} catch {
 			shown = false;
 		}
@@ -102,7 +103,8 @@ export async function deliverIntervention(
 				// rest wait for the card. Suggestions are never part of the agent steer below.
 				const suggestion = appraisal.suggestions?.[0];
 				const base = intervention ? intervention.text : s.cardNothingToAct;
-				deps.notify(ctx, suggestion ? `${base}\n${s.notifySuggestion(suggestion.text, suggestion.source)}` : base);
+				const text = suggestion ? `${base}\n${s.notifySuggestion(suggestion.text, suggestion.source)}` : base;
+				guardNotification(state, () => deps.notify(ctx, text));
 			} catch {
 				// A dead UI must not fail the turn.
 			}
@@ -153,7 +155,7 @@ export function defaultInterventionDeps(
  * Deliver the delivery-boundary notification (T15). One line, to the human only — never a card,
  * never steering into the working agent's context (D8). Ui copy from the locale table.
  */
-export function notifyUnverifiedCommit(ctx: ExtensionContext, lang: Locale, count: number): void {
+export function notifyUnverifiedCommit(ctx: ExtensionContext, state: DevsPsychologistState, count: number): void {
 	if (!ctx.hasUI) return;
-	ctx.ui.notify(stringsFor(lang).commitUnverified(count), "info");
+	guardNotification(state, () => ctx.ui.notify(stringsFor(state.config.lang).commitUnverified(count), "info"));
 }
