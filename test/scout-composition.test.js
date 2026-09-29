@@ -277,7 +277,7 @@ function ctxFor(cwd) {
   return makeCtx({
     cwd,
     isProjectTrusted: () => true,
-    sessionManager: { getEntries: () => [], getBranch: () => [], getSessionFile: () => join(cwd, "parent.jsonl") },
+    sessionManager: { getEntries: () => [], getBranch: () => [], getSessionFile: () => join(cwd, "parent.jsonl"), getSessionDir: () => ".sessions" },
   });
 }
 

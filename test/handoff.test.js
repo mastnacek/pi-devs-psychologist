@@ -10,6 +10,9 @@ import assert from "node:assert/strict";
 import { DEFAULT_CONFIG } from "../src/shared/config.js";
 import { HANDOFF_ENTRY, HANDOFF_NOTIFIED_ENTRY } from "../src/shared/handoff.js";
 import { registerHandoff } from "../src/slices/handoff/index.js";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { makeCtx, makePi, makeState } from "./fakes.js";
 
 const T0 = 1_700_000_000_000;
@@ -36,6 +39,11 @@ function seedSession(state) {
     { id: "1", kind: "thin_slice", deliveredAtTurn: 1, channel: "card", before: {}, text: "x" },
     { id: "2", kind: "stop", deliveredAtTurn: 2, channel: "card", before: {}, text: "y", verdicts: {} },
   ];
+}
+
+/** A ledger as the shutdown writer would have written it, for the disk-path tests. */
+function ledgerFixture() {
+  return { unverifiedMutations: 1, lastFailure: { tool: "bash", signature: "test_failure" }, bookmarks: 2, openLoops: 1, toolCalls: 2, failures: 1 };
 }
 
 function entriesOf(pi, customType) {
@@ -105,4 +113,66 @@ test("the notification line is localized", async () => {
   const ctx = makeCtx({ sessionManager: { getEntries: () => pi.entries } });
   await pi.emit("session_start", {}, ctx);
   assert.match(ctx.notes[0].message, /Poslední relace:/);
+});
+
+// --- the new-session path (the one a live run proved the first build missed) -------------
+
+test("a NEW session finds the previous session's ledger on disk", async () => {
+  // A session entry lives in ONE session file, so `getEntries()` never carries it into a new
+  // session. The unit test above fed the same list to both halves, which is why the feature
+  // passed its tests and did nothing in a real session.
+  const dir = mkdtempSync(join(tmpdir(), "psych-sessions-"));
+  try {
+    const previous = join(dir, "2026-09-29T06-00-00-000Z_aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jsonl");
+    const current = join(dir, "2026-09-29T07-00-00-000Z_11111111-2222-3333-4444-555555555555.jsonl");
+    writeFileSync(current, JSON.stringify({ type: "session" }) + "\n", "utf8");
+    writeFileSync(
+      previous,
+      [
+        JSON.stringify({ type: "session" }),
+        JSON.stringify({ type: "message", role: "user", content: "a prompt that must not be read" }),
+        JSON.stringify({ type: "custom", customType: HANDOFF_ENTRY, data: ledgerFixture() }),
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const { pi, state } = wire();
+    seedSession(state);
+    const ctx = makeCtx({
+      sessionManager: {
+        getEntries: () => [],            // the NEW session's own file: empty
+        getSessionDir: () => dir,
+        getSessionFile: () => current,
+        getBranch: () => [],
+      },
+    });
+    await pi.emit("session_start", {}, ctx);
+    assert.equal(ctx.notes.length, 1, "the previous session's ledger is offered");
+    assert.match(ctx.notes[0].message, /Last session:/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a session file that is not an engine session file is never parsed", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "psych-sessions-"));
+  try {
+    const current = join(dir, "2026-09-29T07-00-00-000Z_11111111-2222-3333-4444-555555555555.jsonl");
+    writeFileSync(current, "", "utf8");
+    // A hand-written file whose name the engine would never produce, holding a decoy ledger.
+    writeFileSync(
+      join(dir, "notes.jsonl"),
+      JSON.stringify({ type: "custom", customType: HANDOFF_ENTRY, data: ledgerFixture() }) + "\n",
+      "utf8",
+    );
+    const { pi } = wire();
+    const ctx = makeCtx({
+      sessionManager: { getEntries: () => [], getSessionDir: () => dir, getSessionFile: () => current, getBranch: () => [] },
+    });
+    await pi.emit("session_start", {}, ctx);
+    assert.deepEqual(ctx.notes, [], "an unrelated file in the directory is not a session");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

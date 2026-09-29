@@ -86,7 +86,15 @@ export function makeCtx(over = {}) {
       // Default: the operator confirms. A test can override `confirm` to model a refusal.
       confirm: async () => true,
     },
-    sessionManager: { getEntries: () => [] },
+    // The session surface the plugin reads. A fake that omits getSessionDir/getSessionFile is what
+    // let the handoff feature pass its tests while doing nothing in a real session.
+    sessionManager: {
+      getEntries: () => [],
+      getSessionDir: () => undefined,
+      getSessionFile: () => undefined,
+      getBranch: () => [],
+      getCwd: () => process.cwd(),
+    },
     isIdle: () => true,
     statusCalls: status,
     notes,

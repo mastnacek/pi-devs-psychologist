@@ -2,6 +2,20 @@
 
 ## 0.7.1 (unreleased)
 
+- **fix(handoff): the previous session's ledger is found on disk (idea 2).** A live run showed the
+  handoff never appears: a TUI-only session entry lives in ONE session file, so
+  `sessionManager.getEntries()` carries it on `/reload` or `--continue` and never into a new
+  session — and the unit test passed only because its fake handed the same list to both halves.
+  `src/shared/handoff-previous.ts` now reads the newest engine-named `.jsonl` in this project's
+  session directory, excluding the current one, and parses ONLY this plugin's `custom` entry, so no
+  message body in another session is read. Verified against the real composition root: a failing
+  tool call, a turn end and a shutdown write `{"unverifiedMutations":0,"lastFailure":
+  {"tool":"bash",…},"toolCalls":1,"failures":1}` as a `custom` entry, and a NEW session in the
+  same project offers "Last session: 3 unverified change(s), 2 open loop(s), …".
+- **fix(test fakes): the session surface is complete (this is what hid the handoff bug).** Six test
+  files declared their own `sessionManager` without `getSessionDir`/`getSessionFile`; they now carry
+  the full surface, and `test/fakes.js` documents why a partial fake is a defect rather than a shortcut.
+
 - **feat(same-model): the observer sharing the worker's model says so (idea 3).** When the session
   exposes its model (`ctx.model`) and it equals the observer model the effective runtime would
   call, the chip gains ` · same model` and `/psych` gains the full sentence. No behaviour change,

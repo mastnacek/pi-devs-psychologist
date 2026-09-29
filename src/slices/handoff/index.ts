@@ -17,6 +17,7 @@ import {
 	type HandoffLedger,
 } from "../../shared/handoff.js";
 import type { SessionHistory } from "../../shared/history.js";
+import { previousLedger } from "../../shared/handoff-previous.js";
 import { stringsFor } from "../../shared/i18n.js";
 import { extractSignals } from "../../shared/signals.js";
 import { signalOptions, type DevsPsychologistState } from "../../shared/state.js";
@@ -61,9 +62,14 @@ export function registerHandoff(pi: ExtensionAPI, state: DevsPsychologistState, 
 			// Offered at most once: the marker entry is written with the offer, so a reload or a
 			// resumed session does not repeat it.
 			if (entries.some((entry) => isCustom(entry, HANDOFF_NOTIFIED_ENTRY))) return;
-			const handoff = [...entries].reverse().find((entry) => isCustom(entry, HANDOFF_ENTRY));
-			if (!handoff || handoff.data === null || typeof handoff.data !== "object") return;
-			const ledger = handoff.data as HandoffLedger;
+			// A `/reload` or `--continue` still carries this session's own entries, so they are read
+			// first. A NEW session has its own file and never sees them, which is what the live run
+			// proved; the previous session's file is where a handoff actually lives.
+			const own = [...entries].reverse().find((entry) => isCustom(entry, HANDOFF_ENTRY));
+			const ledger = own
+				? (own.data as HandoffLedger | null | undefined) ?? undefined
+				: previousLedger(ctx.sessionManager.getSessionDir(), ctx.sessionManager.getSessionFile());
+			if (ledger === undefined || ledger === null || typeof ledger !== "object") return;
 			pi.appendEntry(HANDOFF_NOTIFIED_ENTRY, {});
 			if (ctx.hasUI) {
 				ctx.ui.notify(

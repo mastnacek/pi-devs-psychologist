@@ -33,7 +33,7 @@ function ctxFor({ branch = [], mode = "tui", sessionFile, registry, confirm } = 
   const prompts = [];
   const ctx = makeCtx({
     mode,
-    sessionManager: { getBranch: () => branch, getEntries: () => [], getSessionFile: () => sessionFile },
+    sessionManager: { getBranch: () => branch, getEntries: () => [], getSessionFile: () => sessionFile, getSessionDir: () => ".sessions" },
     ...(registry ? { modelRegistry: registry } : {}),
     ui: {
       setStatus: () => {},
@@ -154,7 +154,7 @@ function depsWithCapture(calls) {
 test("agent + digest puts the digest in the request; API runtime never does", async () => {
   const branch = [{ type: "message", message: { role: "user", content: "the operator prompt" } }];
   const ctx = makeCtx({
-    sessionManager: { getBranch: () => branch, getEntries: () => [], getSessionFile: () => undefined },
+    sessionManager: { getBranch: () => branch, getEntries: () => [], getSessionFile: () => undefined, getSessionDir: () => ".sessions" },
   });
 
   const agentCalls = [];

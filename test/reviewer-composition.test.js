@@ -101,7 +101,7 @@ function ctxFor(cwd) {
     cwd,
     model: { provider: "p", id: "m" },
     isProjectTrusted: () => true,
-    sessionManager: { getEntries: () => [], getBranch: () => [], getSessionFile: () => join(cwd, "parent.jsonl") },
+    sessionManager: { getEntries: () => [], getBranch: () => [], getSessionFile: () => join(cwd, "parent.jsonl"), getSessionDir: () => ".sessions" },
   });
 }
 

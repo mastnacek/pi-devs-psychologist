@@ -112,6 +112,7 @@ function ctxFor(cwd, over = {}) {
 			getEntries: () => [],
 			getBranch: () => [],
 			getSessionFile: () => join(cwd, "parent.jsonl"),
+			getSessionDir: () => join(cwd, ".sessions"),
 		},
     ...over,
   });
@@ -238,6 +239,7 @@ function forkCtx(cwd, { sessionFile, mode = "tui", confirm = async () => true } 
       getEntries: () => [],
       getBranch: () => [],
       getSessionFile: () => (typeof sessionFile === "function" ? sessionFile() : sessionFile),
+      getSessionDir: () => ".sessions",
     },
     ui: {
       setStatus: () => {},
