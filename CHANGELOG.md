@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## 0.9.0
+
+- **feat(commands): `/psych role scout|reviewer on|off` — the consent gates get a command path.**
+  The refusal notices told the operator to edit `roles.scout.enabled` in a JSON file, which is
+  studying the config schema before using the feature. Now bare `/psych role` lists both gates
+  with their states, and a role-and-state argument flips one, persisting a nested partial patch
+  with `--global` supported. **Prerequisite fix:** `mergeLayer` merged nested objects ONE level
+  deep, so a `{ roles: { scout: { enabled } } }` patch would have wiped `roles.reviewer` and the
+  scout's `workshopDir`; the merge now recurses, so "the layer wins where it speaks" means per
+  LEAF key at any depth. New `src/shared/i18n-roles.ts`.
+- **feat(ui): plain-word descriptions under every `runtime` and `context` picker value.** The
+  menu marked WHICH value was active but never what the words mean — a new user saw "api | agent"
+  and "evidence | digest | fork" with no way to choose. Each child row now carries its meaning
+  ("api — cheapest: one model call per appraisal, no tools", "evidence — facts only; nothing raw
+  leaves the machine"), so the choice is readable before descending.
+- **feat(startup): the first-run welcome, once per machine.** A fresh install already helps
+  (signals live, zero spend), and the one line at `session_start` says so, names the single step
+  that changes anything (`/psych model <provider/id>`), and points at `/psych help`. The marker
+  is a companion file (`.onboarded`) next to the global config — never a key inside it, so the
+  config file stays the documented schema. With a model already set it says that instead. New
+  `src/shared/startup.ts` hosts it with the runtime-flag override; `index.ts` back under the line
+  budget via `src/shared/config-normalize.ts` (defaults + coercion split out of `config.ts`) and
+  the model picker split into `completions-model.ts`. 758 tests pass, tsc clean.
+- **docs:** README command table gains `/psych role`; the role key rows name the command path.
+
 ## 0.8.2
 
 - **feat(commands): `/psych help [item]` — setup help that answers "what is this" and "what

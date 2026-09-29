@@ -83,6 +83,7 @@ function renderHelp(state: DevsPsychologistState, item: string): string {
 		runtime: state.config.runtime,
 		context: state.config.agent.context,
 		"agent-model": effectiveAgentModel(state.config) || s.notSet,
+		role: `scout ${state.config.roles.scout.enabled ? "on" : "off"} · reviewer ${state.config.roles.reviewer.enabled ? "on" : "off"}`,
 		on: state.config.enabled ? "on" : "off",
 		global: s.notSet,
 	};
@@ -287,6 +288,34 @@ export function registerPsychCommand(
 					}
 					state.config.agent.model = value;
 					apply({ agent: { model: value } }, stringsFor(state.config.lang).agentModelSet(value));
+					return;
+				}
+
+				case "role": {
+					// `/psych role` — the consent gates of the two optional roles, from the menu and not
+					// from a JSON file. Bare, it lists both gates with their states; with a role and a
+					// state it persists `{ roles: { <role>: { enabled } } }` to the chosen layer (the
+					// per-key merge keeps the other role and the role's other keys intact).
+					const s = stringsFor(state.config.lang);
+					const parts = value.trim().split(/\s+/).filter((p) => p.length > 0);
+					if (parts.length === 0) {
+						notify(
+							s.roleList(
+								state.config.roles.scout.enabled ? s.roleStateOn : s.roleStateOff,
+								state.config.roles.reviewer.enabled ? s.roleStateOn : s.roleStateOff,
+							),
+						);
+						return;
+					}
+					const role = parts[0].toLowerCase();
+					const action = (parts[1] ?? "").toLowerCase();
+					if ((role !== "scout" && role !== "reviewer") || (action !== "on" && action !== "off")) {
+						notify(s.roleUnknown(value.trim(), "role scout on|off · role reviewer on|off"), "warning");
+						return;
+					}
+					const enabled = action === "on";
+					state.config.roles[role].enabled = enabled;
+					apply({ roles: { [role]: { enabled } } }, s.roleSet(role, action));
 					return;
 				}
 

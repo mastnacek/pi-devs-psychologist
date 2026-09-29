@@ -8,6 +8,7 @@ import { CARD_CS, CARD_EN, type CardStrings } from "./i18n-card.js";
 import { CS_LABELS, EN_LABELS, type Labels } from "./i18n-labels.js";
 import { HELP_CS, HELP_EN, type HelpStrings } from "./i18n-help.js";
 import { HISTORY_CS, HISTORY_EN, type HistoryStrings } from "./i18n-history.js";
+import { ROLE_CS, ROLE_EN, type RoleStrings } from "./i18n-roles.js";
 import { NOTICE_CS, NOTICE_EN, type NoticeStrings } from "./i18n-notices.js";
 import { REPLAY_CS, REPLAY_EN, type ReplayStrings } from "./i18n-replay.js";
 import { RUN_CS, RUN_EN, type RunStrings } from "./i18n-runs.js";
@@ -16,7 +17,7 @@ export const LOCALES = ["en", "cs"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 
-export interface Strings extends RunStrings, CardStrings, NoticeStrings, ReplayStrings, HistoryStrings, HelpStrings {
+export interface Strings extends RunStrings, CardStrings, NoticeStrings, ReplayStrings, HistoryStrings, HelpStrings, RoleStrings {
 	/** Statusline. The product name (`psych`) is identical across locales; the state is not. */
 	chipOff: string;
 	/** Shown when no model is configured: observation is live, the spend is zero. */
@@ -92,14 +93,11 @@ export interface Strings extends RunStrings, CardStrings, NoticeStrings, ReplayS
 	cmdReview: string;
 	/** The reviewer role needs the agent runtime (T32a). */
 	reviewNeedsAgent: string;
-	/** The reviewer role's consent gate is off (T32a). */
-	reviewDisabled: string;
+	// The role gates' refusal notices (scoutDisabled / reviewDisabled) live in i18n-roles.ts.
 	/** `/psych review` outside a git repository: nothing to review (T32a). */
 	reviewNoGit: string;
 	/** The scout role needs the agent runtime (T31); the reason is named, not the failure. */
 	scoutNeedsAgent: string;
-	/** The scout role's consent gate is off (T31). */
-	scoutDisabled: string;
 	/** One scout candidate in the notification fallback: name, fit, why, install spec and url. */
 	notifyScoutCandidate: (name: string, fit: string, why: string, installSpec: string, url: string) => string;
 	/** An unset setting, shown in a parent row rather than a bare dash. */
@@ -174,6 +172,7 @@ export const EN: Strings = {
 	...REPLAY_EN,
 	...HISTORY_EN,
 	...HELP_EN,
+	...ROLE_EN,
 	chipOff: "psych: off",
 	chipSignals: "psych: signals",
 	chipConfigError: "psych: check model",
@@ -222,16 +221,14 @@ export const EN: Strings = {
 	cmdScout: "find an existing plugin for recurring friction, or a gap worth building",
 	cmdReview: "review the change since the last delivery against the stated conventions",
 	reviewNeedsAgent: "Reviewing needs the agent runtime. Set it with: /psych runtime agent",
-	reviewDisabled: "The reviewer role is off. Set roles.reviewer.enabled in the config file to enable it.",
 	reviewNoGit: "This project is not a git repository, so there is no delivery to review.",
 	scoutNeedsAgent: "Scouting needs the agent runtime. Set it with: /psych runtime agent",
-	scoutDisabled: "The scout role is off. Set roles.scout.enabled in the config file to enable it.",
 	notifyScoutCandidate: (name, fit, why, installSpec, url) => `${name} (${fit}) — ${why}\n${installSpec}\n${url}`,
 	notSet: "(not set)",
 	nowValue: (value) => `(now: ${value})`,
 	// The help must not advertise a `global` subcommand: it is a trailing flag, and a user who
 	// followed the old text got "Unknown option: global".
-	usage: "Usage: /psych [status|now|stop|effect|history|ask <question>|scout [topic]|review|help [item]|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Usage: /psych [status|now|stop|effect|history|ask <question>|scout [topic]|review|help [item]|role <scout|reviewer> <on|off>|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Unknown option",
 	configWritten: (path) => `Config written to ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
@@ -284,6 +281,7 @@ export const CS: Strings = {
 	...REPLAY_CS,
 	...HISTORY_CS,
 	...HELP_CS,
+	...ROLE_CS,
 	chipOff: "psych: vyp",
 	chipSignals: "psych: signály",
 	chipConfigError: "psych: zkontroluj model",
@@ -332,14 +330,12 @@ export const CS: Strings = {
 	cmdScout: "najít existující plugin pro opakující se tření, nebo mezeru k postavení",
 	cmdReview: "posoudit změnu od poslední dodávky vuči uvedeným konvencím",
 	reviewNeedsAgent: "Posuzování vyžaduje agent runtime. Nastav: /psych runtime agent",
-	reviewDisabled: "Role recenzenta je vypnutá. Zapni ji přes roles.reviewer.enabled v konfiguračním souboru.",
 	reviewNoGit: "Tento projekt není git repozitář, takže není žádná dodávka k posouzení.",
 	scoutNeedsAgent: "Skauting vyžaduje agent runtime. Nastav: /psych runtime agent",
-	scoutDisabled: "Role skauta je vypnutá. Zapni ji přes roles.scout.enabled v konfiguračním souboru.",
 	notifyScoutCandidate: (name, fit, why, installSpec, url) => `${name} (${fit}) — ${why}\n${installSpec}\n${url}`,
 	notSet: "(nenastaveno)",
 	nowValue: (value) => `(nyní: ${value})`,
-	usage: "Použití: /psych [status|now|stop|effect|history|ask <dotaz>|scout [téma]|review|help [položka]|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Použití: /psych [status|now|stop|effect|history|ask <dotaz>|scout [téma]|review|help [položka]|role <scout|reviewer> <on|off>|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Neznámá volba",
 	configWritten: (path) => `Konfigurace zapsána do ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,

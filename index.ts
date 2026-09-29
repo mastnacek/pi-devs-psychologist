@@ -30,6 +30,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { loadConfig, saveConfig, seedGlobalConfig } from "./src/shared/config.js";
+import { applyStartupOverrides } from "./src/shared/startup.js";
 import { createAgentCall, type AgentCall } from "./src/shared/agent-call.js";
 import { type AgentRunIo } from "./src/shared/agent-runner.js";
 import { callModel } from "./src/shared/model-call.js";
@@ -225,17 +226,7 @@ export default function devsPsychologistExtension(
 		pi.on("session_start", async (_event, ctx) => {
 			const created = seedGlobalConfig(state.globalFile);
 			reloadConfig(state, ctx.cwd);
-			// The runtime flag overrides the persisted runtime for THIS process only. An invalid value is
-			// ignored with a notification rather than silently doing nothing, so a typo is not invisible.
-			const runtimeFlag = pi.getFlag("psych-runtime");
-			if (typeof runtimeFlag === "string" && runtimeFlag.length > 0) {
-				if (runtimeFlag === "api" || runtimeFlag === "agent") {
-					state.runtimeOverride = runtimeFlag;
-					state.config.runtime = runtimeFlag;
-				} else if (ctx.hasUI) {
-					ctx.ui.notify(stringsFor(state.config.lang).runtimeFlagInvalid(runtimeFlag), "warning");
-				}
-			}
+			applyStartupOverrides(pi, state, ctx);
 			// The catalog must be cached here: the completion callback receives only the argument
 			// prefix, so it cannot ask the registry itself.
 			refreshModelCatalog(state, ctx.modelRegistry);

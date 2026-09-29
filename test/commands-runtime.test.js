@@ -55,12 +55,15 @@ test("the subcommand menu offers the three switch commands with a trailing space
   assert.match(find(items, "context").description, /digest/);
 });
 
-test("runtime offers its two modes as soon as the token is typed, with the active one ticked", () => {
+test("runtime offers its two modes as soon as the token is typed, with the active one ticked and both meanings shown", () => {
   const items = completePsych(stateWith({ runtime: "agent" }), "runtime");
   assert.deepEqual(labels(items), ["api", "agent ✓"]);
   assert.deepEqual(items.map((item) => item.value), ["runtime api", "runtime agent"]);
   assert.match(find(items, "agent").description, /●/);
-  assert.equal(find(items, "api").description, undefined, "the inactive mode carries no marker");
+  // Every row carries its plain-word meaning — the point of the descriptions: a new user can
+  // choose between api and agent without leaving the menu or reading the README.
+  assert.match(find(items, "agent").description, /child pi|tools/, "the active row keeps its meaning");
+  assert.match(find(items, "api").description, /one model call|cheapest/, "the inactive row explains itself too");
 });
 
 test("context offers its three levels at the token and after the space, with the active one ticked", () => {

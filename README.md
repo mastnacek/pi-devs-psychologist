@@ -109,7 +109,8 @@ sections, cost totals, other plugins' state, cross-session history) and why — 
 
 Not sure what a setting does? **`/psych help <item>`** (or just `/psych help`) explains every
 item in the picker: what it is, what happens once it is set, and how to verify it took — without
-leaving the session.
+leaving the session. Out of the box the plugin is already useful: signals are live at zero model
+spend, and the first session says exactly that plus the one step that changes anything.
 
 `model` is a `provider/modelId` handle, so it selects a provider **account** as well
 as a model. This workshop runs several OpenRouter accounts side by side via
@@ -236,9 +237,9 @@ once per fingerprint per session, and never in the same turn as an appraisal.
 
 | Key | Default | Effect today |
 |---|---|---|
-| `roles.scout.enabled` | `false` | **Live.** Consent gate for the scout role. Off, it runs neither on `/psych scout` nor from a trigger. Agent runtime only |
+| `roles.scout.enabled` | `false` | **Live.** Consent gate for the scout role. Off, it runs neither on `/psych scout` nor from a trigger. Settable from the menu: `/psych role scout on`. Agent runtime only |
 | `roles.scout.workshopDir` | `"D:\\01_programovani\\pi\\plugins"` | **Live.** The operator's plugin monorepo the scout is told to read (README files only, never edit). `""` omits the sentence from the child's brief |
-| `roles.reviewer.enabled` | `false` | **Live.** Consent gate for the reviewer role. Off, it runs neither on `/psych review` nor on a delivery boundary. Agent runtime only. It is its own gate because the reviewer reads the repo's source code with a model that leaves the machine (ADR 0001) |
+| `roles.reviewer.enabled` | `false` | **Live.** Consent gate for the reviewer role. Off, it runs neither on `/psych review` nor on a delivery boundary. Settable from the menu: `/psych role reviewer on`. Agent runtime only. It is its own gate because the reviewer reads the repo's source code with a model that leaves the machine (ADR 0001) |
 | `roles.reviewer.model` | `""` | **Live.** `provider/id` for the review. Empty = the shared `model`, and the card then says "same model as the working agent" (a reviewer on the worker's model shares its blind spots) |
 | `roles.reviewer.maxDiffBytes` | `200000` | **Live.** The cap on the combined diff the child is told to read. Past it, it reviews the last `maxDiffBytes` and says in `text` what it left out |
 | `roles.reviewer.conventionFiles` | `["AGENTS.md","CLAUDE.md","CONTRIBUTING.md",".pi/rules.md"]` | **Live.** The repo's stated rules the child reads. `[]` means it cannot check convention adherence |
@@ -286,6 +287,7 @@ spots is not an observer. A different *account* is not automatically a different
 | `/psych runtime <api\|agent>` | Which runtime forms the appraisal. `agent` runs the observer as a headless read-only pi child |
 | `/psych context <evidence\|digest\|fork>` | How much session context the child agent may see. `digest`/`fork` open a confirm stating what leaves the machine; outside a TUI they are refused — set `agent.context` in the config file |
 | `/psych agent-model <provider/id>` | Model for the child agent (empty = the shared `model`). Completes from the engine's registered models |
+| `/psych role` | List the scout and reviewer consent gates with their states. `/psych role scout\|reviewer on\|off` flips a gate — no config-file edit needed. Accepts `--global` |
 | `--global` (trailing) | On any setting command: write to `~/.pi/agent` instead of the project |
 
 When an appraisal has an intervention, it arrives as a **card** — verdicts with the evidence

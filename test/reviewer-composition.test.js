@@ -139,7 +139,7 @@ test("the reviewer's consent gate being off means nothing runs", async () => {
     await pi.emit("session_start", { type: "session_start" }, ctx);
     await pi.commands.get("psych").handler("review", ctx);
     assert.equal(record.spawn.length, 0, "no child without consent");
-    assert.match(ctx.notes.at(-1).message, /roles\.reviewer\.enabled/);
+    assert.match(ctx.notes.at(-1).message, /\/psych role reviewer on/);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

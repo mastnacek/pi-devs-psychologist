@@ -20,6 +20,7 @@ export type HelpTopic =
 	| "runtime"
 	| "context"
 	| "agent-model"
+	| "role"
 	| "on"
 	| "global";
 
@@ -49,7 +50,7 @@ export const HELP_EN: HelpStrings = {
 		"With none set it observes and reports signals but never spends a token. " +
 		"Everything else ships with a default that is safe to keep.",
 	helpFooter: "/psych help <item> — the full text for one item.",
-	helpTopics: ["model", "budget", "lang", "runtime", "context", "agent-model", "on", "global"],
+	helpTopics: ["model", "budget", "lang", "runtime", "context", "agent-model", "role", "on", "global"],
 	helpLine: {
 		model: "the observer model (provider/modelId); empty = no model call ever",
 		budget: "max appraisal attempts per session; 0 = unlimited (not recommended)",
@@ -57,6 +58,7 @@ export const HELP_EN: HelpStrings = {
 		runtime: "api = one completion call per appraisal; agent = a child pi with tools",
 		context: "what the child agent may see (agent runtime): evidence | digest | fork",
 		"agent-model": "model for the child agent; empty = the shared observer model",
+		role: "turn the scout or reviewer role on/off: /psych role scout|reviewer on|off",
 		on: "the master switch; off observes nothing and spends nothing",
 		global: "trailing flag: write the setting for every project, not just this one",
 	},
@@ -125,6 +127,18 @@ export const HELP_EN: HelpStrings = {
 			"  · The picker and /psych status show the RESOLVED model — agent-model when set,\n" +
 			"    otherwise the shared one — so there is never a hidden default.\n\n" +
 			"CHECK: /psych status — the agent row names the resolved model.",
+		role:
+			"WHAT\n" +
+			"  The consent gates of the two optional roles, both OFF by default:\n" +
+			"  · scout — /psych scout finds an existing plugin for recurring friction. It costs model\n" +
+			"    money, so nothing runs until you turn it on.\n" +
+			"  · reviewer — /psych review reads the repo's source code with a model that leaves the\n" +
+			"    machine, so it is its own gate, separate from the psychologist's model.\n\n" +
+			"AFTER YOU SET IT\n" +
+			"  · /psych role scout on — /psych scout runs (it also needs runtime: agent).\n" +
+			"  · /psych role reviewer on — /psych review runs (also needs runtime: agent).\n" +
+			"  · off — the role refuses with a notice naming this command; nothing runs, nothing spends.\n\n" +
+			"CHECK: bare /psych role lists both gates with their states.",
 		on:
 			"WHAT\n" +
 			"  The master switch. OFF: the plugin observes nothing, spends nothing, and the chip\n" +
@@ -155,7 +169,7 @@ export const HELP_CS: HelpStrings = {
 		"Bez něj jen sleduje a hlásí signály, ale neutratí ani token. " +
 		"Všechno ostatní má výchozí hodnotu, se kterou lze spokojeně zůstat.",
 	helpFooter: "/psych help <položka> — celý text pro jednu položku.",
-	helpTopics: ["model", "budget", "lang", "runtime", "context", "agent-model", "on", "global"],
+	helpTopics: ["model", "budget", "lang", "runtime", "context", "agent-model", "role", "on", "global"],
 	helpLine: {
 		model: "model pozorovatele (provider/modelId); prázdné = nikdy žádné volání modelu",
 		budget: "maximální počet pokusů o posouzení za relaci; 0 = bez limitu (nedoporučuje se)",
@@ -163,6 +177,7 @@ export const HELP_CS: HelpStrings = {
 		runtime: "api = jedno volání modelu na posouzení; agent = podřízený pi s nástroji",
 		context: "co uvidí podřízený agent (agent runtime): evidence | digest | fork",
 		"agent-model": "model pro podřízeného agenta; prázdné = společný model pozorovatele",
+		role: "zapnout nebo vypnout roli scout nebo reviewer: /psych role scout|reviewer on|off",
 		on: "hlavní vypínač; vypnuto = nic nesleduje a nic neutratí",
 		global: "příznak na konci: uložit nastavení pro všechny projekty, ne jen tenhle",
 	},
@@ -231,6 +246,18 @@ export const HELP_CS: HelpStrings = {
 			"  · Výběr modelů i /psych status ukazují VYŘEŠENÝ model — agent-model, když je nastaven,\n" +
 			"    jinak ten společný — takže skrytá výchozí hodnota neexistuje.\n\n" +
 			"KONTROLA: /psych status — řádek agenta pojmenovává vyřešený model.",
+		role:
+			"CO\n" +
+			"  Souhlasové brány dvou volitelných rolí, obě výchozí vypnuté:\n" +
+			"  · scout — /psych scout najde existující plugin pro opakující se tření. Stojí peníze\n" +
+			"    za model, takže nic neběží, dokud ho nezapneš.\n" +
+			"  · reviewer — /psych review čte zdrojový kód repozitáře modelem, který opouští stroj,\n" +
+			"    takže má vlastní bránu, oddělenou od modelu psychologa.\n\n" +
+			"PO NASTAVENÍ\n" +
+			"  · /psych role scout on — /psych scout poběží (potřebuje taky runtime: agent).\n" +
+			"  · /psych role reviewer on — /psych review poběží (také potřebuje runtime: agent).\n" +
+			"  · vyp — role odmítne s upozorněním, které pojmenovává tenhle příkaz; nic neběží, nic neutratí.\n\n" +
+			"KONTROLA: samotné /psych role vypíše obě brány s jejich stavy.",
 		on:
 			"CO\n" +
 			"  Hlavní vypínač. VYP: plugin nic nesleduje, nic neutratí a čip čte `psych: off`.\n" +

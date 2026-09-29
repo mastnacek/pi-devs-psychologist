@@ -305,7 +305,9 @@ test("RPC refuses fork and degrades to digest with a notice", async () => {
 
     assert.ok(record.spawn[0].args.includes("--no-session"), "RPC cannot confirm a fork");
     assert.ok(!record.spawn[0].args.includes("--fork"));
-    assert.equal(notes[0].message, stringsFor("en").contextForkNeedsTui);
+    // notes[0] may be the first-run welcome (once per machine); the refusal notice is the one
+    // about the fork, wherever it sits.
+    assert.ok(notes.some((n) => n.message === stringsFor("en").contextForkNeedsTui), "the fork refusal is announced");
   } finally {
     world.cleanup();
   }

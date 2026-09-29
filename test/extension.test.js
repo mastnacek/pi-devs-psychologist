@@ -211,13 +211,16 @@ test("an existing config file is never overwritten, not even a broken one", asyn
     await pi.emit("session_start", { type: "session_start" }, ctx);
 
     assert.equal(readFileSync(globalFile, "utf8"), handWritten, "the operator's file wins");
-    assert.equal(ctx.notes.length, 0, "nothing was created, so nothing is announced");
+    // The welcome is the one thing that IS announced here (once per machine, independent of the
+    // seed): an install whose defaults do not say "start here" leaves the operator guessing.
+    assert.equal(ctx.notes.filter((n) => /psych help/.test(n.message)).length, 1, "the welcome, not the seed, is announced");
 
     // And a file that cannot be parsed is still left alone: corrupt input must not
     // be silently replaced with defaults, because that would destroy a real edit.
     writeFileSync(globalFile, "{ not json", "utf8");
     await pi.emit("session_start", { type: "session_start" }, ctx);
     assert.equal(readFileSync(globalFile, "utf8"), "{ not json");
+    assert.equal(ctx.notes.filter((n) => /psych help/.test(n.message)).length, 1, "the welcome shows once, not every start");
   } finally {
     world.cleanup();
     restore();
@@ -252,7 +255,10 @@ test("an unwritable config path is not an error", async () => {
 
     const ctx = makeCtx({ cwd: world.cwd });
     await pi2.emit("session_start", { type: "session_start" }, ctx);
-    assert.equal(ctx.notes.length, 0, "nothing was created, so nothing is announced");
+    // The unwritable path kills the marker write too, so the welcome still shows (and would
+    // repeat); nothing throws. The seed says nothing, because nothing was created.
+    assert.equal(ctx.notes.filter((n) => /config created/.test(n.message)).length, 0);
+    assert.ok(ctx.notes.every((n) => /psych help/.test(n.message)), "only the welcome is announced");
     // The session still works: the chip painted from the defaults.
     assert.equal(ctx.statusCalls.at(-1).text, "psych: signals");
   } finally {
