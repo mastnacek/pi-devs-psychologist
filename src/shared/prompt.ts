@@ -35,7 +35,7 @@ Rules, all mandatory:
 7. "text" is one sentence the programmer can act on now, in imperative form, naming the concrete next thing.
 
 Choosing an intervention, and when it is earned:
-- name_next_win: verified progress is absent or stale and there is no named near goal. Say what the smallest shippable increment looks like. Prefer this over every other option when progress is the problem.
+- name_next_win: verified progress is absent or stale and there is no named near goal. Say what the smallest shippable increment looks like. Prefer this over every other option when progress is the problem. If the working agent has the quick_win tool available, naming the increment as a call to that tool is the way to make it a declared, shippable thing.
 - thin_slice: one file or area is being reworked repeatedly, or a large change is being attempted at once. Name the thinner cut.
 - reduce_load: work is piling up unverified — many changes since the last successful test, lint, typecheck or build. Name the check that should run before more code is written.
 - protect_flow: the session is being interrupted — repeated pauses, or many separate prompts for one task. Name what to defer.

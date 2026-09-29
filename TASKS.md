@@ -115,7 +115,7 @@ render test asserts no line exceeds the mocked terminal width.
 
 ---
 
-## . T7 — Persistence **(partially done: appraisal restore shipped with T16)**
+## x T7 — Persistence **(partially done: appraisal restore shipped with T16)**
 
 Store the last appraisal as a TUI-only entry via `pi.appendEntry` and restore it
 on `session_start`, so `/reload` and compaction never lose a report — and never
@@ -126,7 +126,7 @@ let an appraisal re-enter the observation window.
 ledger uses the same mechanism. `persistence.test.js` asserts restore returns the
 same appraisal and contributes zero observations.
 
-**Remaining:** none identified beyond the ledger, which also persists.
+**Remaining:** none. The ledger persists through the same entry mechanism, so T7 is complete.
 
 **Validation:** test asserts restore-after-reload returns the same appraisal and
 that restored text contributes zero observations.
@@ -157,13 +157,18 @@ a repo, collect-once caching, the staleness line, and evidence present in prompt
 
 ---
 
-## . T9 — Integration contract with pi-quick-win
+## x T9 — Integration contract with pi-quick-win
 
 The psychologist detects "long stretch, no delivered increment" and the working
 agent is told to ask `pi-quick-win` for the smallest shippable increment.
 
-**Validation:** no import between the two plugins; the coupling is a documented
-prompt policy, and a test asserts neither package imports the other.
+**Delivered:** `test/quick-win-contract.test.js` walks both packages’ source trees and fails if
+either imports the other, and pins the two sentences that carry the contract: the prompt must name
+the smallest shippable increment AND point at the `quick_win` tool. The prompt line was extended
+to say so (one clause, no new dependency); the reaction is matched by tool name in `outcome.ts`,
+which needs no import.
+
+**Validation:** `npm test` — the contract test passes; 654 tests total.
 
 ---
 
