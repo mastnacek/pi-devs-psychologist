@@ -15,7 +15,7 @@
  *   anything over the caps is counted in `skippedLarge` and never measured.
  */
 
-import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { RepoFile } from "../../shared/repo-map.js";
 
@@ -25,7 +25,6 @@ export interface MapperIo {
 	/** MUST be `lstat` semantics: never resolve a symlink. */
 	stat(path: string): { size: number; isDirectory(): boolean; isFile(): boolean; isSymbolicLink(): boolean };
 	readFile(path: string): string;
-	exists(path: string): boolean;
 }
 
 /** The real filesystem. `stat` is `lstatSync` so a symlink is seen as a link, not as its target. */
@@ -34,7 +33,6 @@ export function defaultMapperIo(): MapperIo {
 		readdir: (path) => readdirSync(path),
 		stat: (path) => lstatSync(path),
 		readFile: (path) => readFileSync(path, "utf8"),
-		exists: (path) => existsSync(path),
 	};
 }
 
