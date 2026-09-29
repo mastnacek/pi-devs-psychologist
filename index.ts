@@ -53,9 +53,10 @@ import {
 import { registerChildSlice } from "./src/slices/child/index.js";
 import { registerPsychCommand } from "./src/slices/commands/index.js";
 import { askCommandHandler, type AskDeps } from "./src/slices/ask/index.js";
+import { runScoutTrigger, scoutCommandHandler, type ScoutDeps } from "./src/slices/scout/index.js";
 import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
 import { registerObserver } from "./src/slices/observer/index.js";
-import { presentAppraisal, presentAsk } from "./src/slices/overlay/index.js";
+import { presentAppraisal, presentAsk, presentScout } from "./src/slices/overlay/index.js";
 import { renderReport, renderEffect } from "./src/slices/report/index.js";
 
 export interface DevsPsychologistOptions {
@@ -173,6 +174,21 @@ export default function devsPsychologistExtension(
 		},
 		sourcePolicy: () => ({ docsDir, nlmNotebooks: state.config.agent.nlmNotebooks }),
 	};
+
+	// `/psych scout` (T31): the same seams again, plus the scout card. The scout is agent-runtime
+	// only, behind its own consent gate, and it can also be started by the appraiser's trigger below.
+	const scoutDeps: ScoutDeps = {
+		readHistory,
+		callModel: callModelDep,
+		present: (ctx, input) => presentScout(ctx, input, state.config.lang),
+		notify: (ctx, text) => {
+			if (ctx.hasUI) ctx.ui.notify(text, "info");
+		},
+	};
+
+	// The scout trigger (T31): reaches the scout slice without the appraiser importing it. The
+	// appraiser has already consumed the budget and moved the baseline before this is called.
+	appraiserDeps.runScout = (ctx, topic) => runScoutTrigger(state, ctx, scoutDeps, topic);
 
 	// Session init: seed the config file if it is missing (so the plugin is self-describing and
 	// there is something to edit), reload the cascade — which needs a cwd that does not exist at
@@ -306,6 +322,8 @@ export default function devsPsychologistExtension(
 		},
 		// The ask slice owns the mapping from a skip/failure to the status line; this root only wires it.
 		ask: askCommandHandler(state, askDeps),
+		// The scout slice owns the same mapping for /psych scout (T31).
+		scout: scoutCommandHandler(state, scoutDeps),
 		save: (patch, isGlobal, ctx) => {
 			// An explicit runtime choice supersedes the one-run flag; any other setting keeps it.
 			if (patch && typeof patch === "object" && "runtime" in patch) state.runtimeOverride = undefined;

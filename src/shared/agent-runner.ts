@@ -37,6 +37,8 @@ export interface AgentRunRequest {
 	digest?: string;
 	/** The operator's question for the `ask` role (T30), placed as a `QUESTION — …` block. */
 	question?: string;
+	/** The friction being scouted, for the `scout` role (T31), placed as a `TOPIC — …` block. */
+	topic?: string;
 	/** The parent session's abort signal; aborting it kills the child. */
 	signal?: AbortSignal;
 }
@@ -62,6 +64,8 @@ export interface AgentRunOptions {
 	nlmNotebooks: string[];
 	extraArgs: string[];
 	keepTranscript: boolean;
+	/** The operator's plugin monorepo for the `scout` role (T31); `""` omits the workshop sentence. */
+	workshopDir?: string;
 	baseEnv?: NodeJS.ProcessEnv;
 	/**
 	 * Called with a kill handle when the child is spawned, and `undefined` when the run ends. The
@@ -200,6 +204,8 @@ export async function runAgent(
 		nlmNotebooks: options.nlmNotebooks,
 		...(request.digest ? { digest: request.digest } : {}),
 		...(request.question ? { question: request.question } : {}),
+		...(request.topic ? { topic: request.topic } : {}),
+		...(options.workshopDir ? { workshopDir: options.workshopDir } : {}),
 	});
 	const launch = buildChildLaunch({
 		cliPath: options.cliPath,

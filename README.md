@@ -137,6 +137,12 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
     "extraArgs": [],
     "keepTranscript": false
   },
+  "roles": {
+    "scout": {
+      "enabled": false,
+      "workshopDir": "D:\\01_programovani\\pi\\plugins"
+    }
+  },
   "trigger": "signals",
   "cadenceTurns": 3,
   "triggerThresholds": {
@@ -186,6 +192,7 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `envFacts` | `true` | **Live.** Include the parent-computed environment lines (pi version, pi-lens LSP/format/guard state) among the citable evidence |
 | `runtime` | `"api"` | **Live.** `api` \| `agent` — which runtime forms the appraisal. `agent` spawns a headless read-only `pi` child with the selected model, pi docs, packages, web, MCP, skills and nlm (see ADR 0002) |
 | `agent` | see below | **Live.** Settings for the `agent` runtime. Normalised key by key and merged per key across layers |
+| `roles` | see below | **Live.** The optional roles that share the agent runtime. Each has its own consent gate |
 
 #### `agent` keys (runtime `"agent"`)
 
@@ -204,6 +211,18 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `agent.nlmNotebooks` | `[]` | **Live.** NotebookLM notebook ids the child may query |
 | `agent.extraArgs` | `[]` | **Live.** Extra argv tokens appended verbatim. An escape hatch |
 | `agent.keepTranscript` | `false` | **Live.** Keep the child's JSONL transcript in a temp file for debugging |
+
+#### `roles` keys
+
+The scout role (`/psych scout`, T31) finds whether the pi ecosystem already solves a recurring
+friction before anything is built. It is OFF by default: a run spends model money, and it can also
+be started automatically when a recurring failure reaches count ≥ 3 on the `agent` runtime — at most
+once per fingerprint per session, and never in the same turn as an appraisal.
+
+| Key | Default | Effect today |
+|---|---|---|
+| `roles.scout.enabled` | `false` | **Live.** Consent gate for the scout role. Off, it runs neither on `/psych scout` nor from a trigger. Agent runtime only |
+| `roles.scout.workshopDir` | `"D:\\01_programovani\\pi\\plugins"` | **Live.** The operator's plugin monorepo the scout is told to read (README files only, never edit). `""` omits the sentence from the child's brief |
 
 Coercion, so a typo degrades instead of breaking the session: junk numbers fall back to
 the default; `model` must be a string, and an unparsable one becomes `""` rather than a
@@ -224,6 +243,7 @@ spots is not an observer. A different *account* is not automatically a different
 | `/psych` | Report: the observed signals and the last appraisal |
 | `/psych now` | Form an appraisal immediately, consuming budget |
 | `/psych ask <question>` | Consult the observer directly. Runs the agent runtime (falls back to a tool-less API call on `runtime: api`, and says so). One card: the answer, its cited evidence, researched suggestions. Consumes budget; an uncited answer is marked unsupported, never hidden |
+| `/psych scout [topic]` | Find an existing plugin for recurring friction, or a gap worth building. Agent runtime only, behind `roles.scout.enabled`. The topic defaults to the top recurring fingerprint. One card: candidates (name, fit, why, install spec, url) and, when nothing fits, a paste-ready SPAI idea line. When nothing is found and the operator asked, it says so — never silently |
 | `/psych effect` | Table of delivered interventions per kind: delivered, improved, unchanged, worse, followed. Session-scoped, width-safe |
 | `/psych on` / `off` | Master switch |
 | `/psych model <provider/id>` | Choose the psychologist. The value completes from the engine's registered models and providers (use `--global` to make it machine-wide) |

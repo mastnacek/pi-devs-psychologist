@@ -23,6 +23,8 @@ export type SkipReason =
 	| "in_flight"
 	| "cadence"
 	| "no_trigger"
+	/** This turn's appraisal was replaced by a scout run (T31): the two never run in the same turn. */
+	| "scout"
 	| "budget"
 	/** The session agent cost cap is reached (T27). */
 	| "cost";

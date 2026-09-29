@@ -47,4 +47,11 @@ export interface AppraiserDeps {
 	 * slice must not import either. Absent means "no docs dir, no notebooks".
 	 */
 	sourcePolicy?(): SourcePolicy;
+	/**
+	 * The scout role's trigger (T31). When present and the role is enabled on the agent runtime, a
+	 * `recurring_failure` at count ≥ 3 runs the scout INSTEAD of the appraisal for that turn — the two
+	 * never run together. Injected, so this slice imports no other slice; the appraiser owns the
+	 * budget, the trigger baseline and the once-per-session guard.
+	 */
+	runScout?(ctx: ExtensionContext, topic: string): Promise<void>;
 }

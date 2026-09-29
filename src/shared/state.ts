@@ -120,6 +120,11 @@ export interface DevsPsychologistState {
 	/** Reasons that fired the last appraisal, for the report. Empty until one fires. */
 	lastTriggerReasons: TriggerReason[];
 	/**
+	 * Fingerprint keys (`toolName signature`) the scout has already run for this session (T31), so a
+	 * recurring failure is scouted at most once rather than on every turn it keeps recurring.
+	 */
+	scoutDone: Set<string>;
+	/**
 	 * Token and cost figures for the last appraisal.
 	 *
 	 * Kept here because the engine cannot be told about the call: extensions get a
@@ -239,6 +244,7 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		triggerBaseline: { ...EMPTY_TRIGGER_BASELINE },
 		appraisalsSkipped: 0,
 		lastTriggerReasons: [],
+		scoutDone: new Set(),
 		ifLive,
 		observe(observation) {
 			state.observations.push(observation);
@@ -261,6 +267,7 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 			state.triggerBaseline = { ...EMPTY_TRIGGER_BASELINE };
 			state.appraisalsSkipped = 0;
 			state.lastTriggerReasons = [];
+			state.scoutDone = new Set();
 			// The agent-runtime cost is per session; the run itself is owned by the child handle, which
 			// `session_shutdown` kills before it drains.
 			state.agentSessionCostUsd = 0;

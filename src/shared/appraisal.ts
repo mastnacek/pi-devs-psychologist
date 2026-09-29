@@ -158,6 +158,68 @@ export interface AskAnswer {
 	suggestions: Suggestion[];
 }
 
+/**
+ * How well an existing package fits the friction the evidence names (T31). `solves` is reserved for
+ * a package that clearly covers it; `partial` covers part of it; `inspiration` is worth studying
+ * but does not solve it. The distinction is the whole point of the scout: a plausible package
+ * mislabelled `solves` sends the operator to install something that does not help.
+ */
+export const SCOUT_FITS = ["solves", "partial", "inspiration"] as const;
+export type ScoutFit = (typeof SCOUT_FITS)[number];
+
+/** One existing package the scout found, with its install spec and its real page. */
+export interface ScoutCandidate {
+	name: string;
+	/** `npm:<name>` or `git:github.com/<owner>/<repo>` — enforced like a suggestion source (T25). */
+	installSpec: string;
+	/** The `https://` page for it; install specs are not links. */
+	url: string;
+	/** One sentence on why it fits, ≤ 160 chars. */
+	why: string;
+	fit: ScoutFit;
+}
+
+/** A plugin worth building, when nothing existing fits — the operator pastes it as an SPAI idea. */
+export interface ScoutBuild {
+	title: string;
+	oneLine: string;
+}
+
+/** The `scout` role's submission (T31): existing candidates, or a build idea, or neither. */
+export interface ScoutAnswer {
+	candidates: ScoutCandidate[];
+	build?: ScoutBuild;
+	cited: string[];
+}
+
+/**
+ * The `scout` role's contract (`/psych scout`, T31).
+ *
+ * A recurring-friction question has three honest answers: an existing package solves it, a package
+ * partly helps, or nothing exists and a small plugin is worth building. `candidates` carries the
+ * first two as one list, ordered by fit; `build` carries the third. Both empty is a valid answer —
+ * "nothing found" — and must be shown, not silently swallowed, when the operator asked.
+ */
+export const SCOUT_SCHEMA: TSchema = Type.Object({
+	candidates: Type.Array(
+		Type.Object({
+			name: Type.String({ description: "the package or project name" }),
+			installSpec: Type.String({ description: "npm:<name> or git:github.com/<owner>/<repo>" }),
+			url: Type.String({ description: "the https:// page for it" }),
+			why: Type.String({ maxLength: 160, description: "one sentence on why it fits the friction" }),
+			fit: StringEnum(SCOUT_FITS, { description: SCOUT_FITS.join(" | ") }),
+		}),
+		{ maxItems: 3, description: "at most 3; empty means nothing existing fits" },
+	),
+	build: Type.Optional(
+		Type.Object({
+			title: Type.String({ maxLength: 80, description: "a short plugin name" }),
+			oneLine: Type.String({ maxLength: 200, description: "one sentence on what it does" }),
+		}),
+	),
+	cited: Cited,
+});
+
 export interface NeedVerdict {
 	state: (typeof NEED_STATES)[number];
 	cited: string[];

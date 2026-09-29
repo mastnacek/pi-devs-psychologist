@@ -57,6 +57,7 @@ export function createAgentCall(state: DevsPsychologistState, options: AgentCall
 				signal: req.signal,
 				...(req.digest ? { digest: req.digest } : {}),
 				...(req.question ? { question: req.question } : {}),
+				...(req.topic ? { topic: req.topic } : {}),
 			},
 			{
 				cliPath: options.cliPath,
@@ -78,6 +79,8 @@ export function createAgentCall(state: DevsPsychologistState, options: AgentCall
 				nlmNotebooks: cfg.nlmNotebooks,
 				extraArgs: cfg.extraArgs,
 				keepTranscript: cfg.keepTranscript,
+				// The scout role is told where the operator's own plugins live (T31).
+				workshopDir: state.config.roles.scout.workshopDir,
 				onChild: (handle) => {
 					state.agentChildKill = handle ? handle.kill : undefined;
 				},

@@ -26,10 +26,13 @@ import {
 	type AgentConfig,
 	type RuntimeMode,
 } from "./agent-config.js";
+import { DEFAULT_ROLES_CONFIG, normalizeRoles, type RolesConfig } from "./role-config.js";
 
 // Re-exported so `config.ts` stays the one import for the plugin's settings vocabulary.
 export { DEFAULT_AGENT_CONFIG, effectiveAgentModel, normalizeAgent, THINKING_LEVELS } from "./agent-config.js";
 export type { AgentConfig, AgentContextLevel, RuntimeMode } from "./agent-config.js";
+export { DEFAULT_ROLES_CONFIG, DEFAULT_WORKSHOP_DIR, normalizeRoles } from "./role-config.js";
+export type { RolesConfig, ScoutRoleConfig } from "./role-config.js";
 
 /** How the appraiser decides when to run: on new evidence (D7) or on a turn clock. */
 export type TriggerMode = "signals" | "cadence";
@@ -47,6 +50,8 @@ export interface DevsPsychologistConfig {
 	runtime: RuntimeMode;
 	/** Settings for the `agent` runtime. Normalised key by key, and merged per key across layers. */
 	agent: AgentConfig;
+	/** The optional roles that share the agent runtime (T31). Each has its own consent gate. */
+	roles: RolesConfig;
 	/**
 	 * The model that plays the psychologist, as `provider/modelId`. It should be
 	 * a DIFFERENT model than the one doing the work: an observer sharing the
@@ -118,6 +123,7 @@ export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	lang: "en",
 	runtime: "api",
 	agent: { ...DEFAULT_AGENT_CONFIG },
+	roles: { scout: { ...DEFAULT_ROLES_CONFIG.scout } },
 	model: "",
 	trigger: "signals",
 	cadenceTurns: 3,
@@ -236,6 +242,7 @@ export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsych
 		lang: normalizeLocale(cfg.lang),
 		runtime: runtimeMode(cfg.runtime),
 		agent: normalizeAgent(cfg.agent),
+		roles: normalizeRoles(cfg.roles),
 		// An unparsable model id must fail to "no model", never to a guess: a typo
 		// that silently selects some other model would spend money on the wrong
 		// observer.

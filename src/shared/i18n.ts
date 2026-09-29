@@ -87,6 +87,14 @@ export interface Strings extends RunStrings, CardStrings {
 	cmdEffect: string;
 	/** `/psych ask <question>` (T30). */
 	cmdAsk: string;
+	/** `/psych scout [topic]` (T31). */
+	cmdScout: string;
+	/** The scout role needs the agent runtime (T31); the reason is named, not the failure. */
+	scoutNeedsAgent: string;
+	/** The scout role's consent gate is off (T31). */
+	scoutDisabled: string;
+	/** One scout candidate in the notification fallback: name, fit, why, install spec and url. */
+	notifyScoutCandidate: (name: string, fit: string, why: string, installSpec: string, url: string) => string;
 	/** An unset setting, shown in a parent row rather than a bare dash. */
 	notSet: string;
 	/** `(now: 12)` — a parent row's value, labelled. */
@@ -186,11 +194,15 @@ const EN: Strings = {
 	cmdNow: "run an appraisal now",
 	cmdEffect: "show whether the interventions helped",
 	cmdAsk: "ask the observer a direct question",
+	cmdScout: "find an existing plugin for recurring friction, or a gap worth building",
+	scoutNeedsAgent: "Scouting needs the agent runtime. Set it with: /psych runtime agent",
+	scoutDisabled: "The scout role is off. Set roles.scout.enabled in the config file to enable it.",
+	notifyScoutCandidate: (name, fit, why, installSpec, url) => `${name} (${fit}) — ${why}\n${installSpec}\n${url}`,
 	notSet: "(not set)",
 	nowValue: (value) => `(now: ${value})`,
 	// The help must not advertise a `global` subcommand: it is a trailing flag, and a user who
 	// followed the old text got "Unknown option: global".
-	usage: "Usage: /psych [status|now|stop|effect|ask <question>|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Usage: /psych [status|now|stop|effect|ask <question>|scout [topic]|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Unknown option",
 	configWritten: (path) => `Config written to ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
@@ -279,9 +291,13 @@ const CS: Strings = {
 	cmdNow: "spustit posouzení teď",
 	cmdEffect: "zobrazit, zda zásahy pomohly",
 	cmdAsk: "zeptat se pozorovatele přímo",
+	cmdScout: "najít existující plugin pro opakující se tření, nebo mezeru k postavení",
+	scoutNeedsAgent: "Skauting vyžaduje agent runtime. Nastav: /psych runtime agent",
+	scoutDisabled: "Role skauta je vypnutá. Zapni ji přes roles.scout.enabled v konfiguračním souboru.",
+	notifyScoutCandidate: (name, fit, why, installSpec, url) => `${name} (${fit}) — ${why}\n${installSpec}\n${url}`,
 	notSet: "(nenastaveno)",
 	nowValue: (value) => `(nyní: ${value})`,
-	usage: "Použití: /psych [status|now|stop|effect|ask <dotaz>|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Použití: /psych [status|now|stop|effect|ask <dotaz>|scout [téma]|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Neznámá volba",
 	configWritten: (path) => `Konfigurace zapsána do ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,

@@ -1,5 +1,40 @@
 # CHANGELOG
 
+## 0.6.0 (unreleased)
+
+T31. The scout role turns recurring friction into a question asked before anything is built: does the
+pi ecosystem already solve this, or is a small plugin worth building? It runs on the agent runtime,
+behind its own consent gate, and never writes to the working agent.
+
+### Added
+
+- **`roles.scout.enabled` and `roles.scout.workshopDir` (T31).** New `src/shared/role-config.ts`. The
+  scout is OFF by default (a run spends model money). `workshopDir` defaults to this workshop monorepo,
+  which the child is told to read (README files only, never edit); `""` omits the sentence from the
+  brief. Every key normalised on its own, like the rest of the cascade.
+- **`SCOUT_SCHEMA` (T31).** Up to 3 `candidates` `{ name, installSpec, url, why (≤160), fit }`, an
+  optional `build` `{ title, oneLine }`, and up to 4 `cited`. `psych_submit` validates it for role
+  `scout` (`schemaForRole`). `installSpec` must match the T25 forms (`npm:<name>` or
+  `git:github.com/<owner>/<repo>`), `url` must be `https://`, `fit` must be one of
+  `solves|partial|inspiration` — a candidate failing any rule is DROPPED and counted (`scout-enforce.ts`).
+- **`/psych scout [topic]` (T31).** New slice `src/slices/scout/`, a card (`ScoutView`,
+  `layoutScoutCard`/`measureScoutCard`) and a notification fallback. The topic defaults to the top
+  recurring fingerprint; with none it answers with the usage line. The `build` block becomes a
+  paste-ready SPAI idea line (`? <title> — <oneLine> @<project> :scout:`), never recorded automatically.
+  When nothing survives and there is no build, the operator-triggered run says "nothing found"; the
+  automatic run stays silent.
+- **Automatic scout trigger (T31).** On `turn_end`, a `recurring_failure` at fingerprint count ≥ 3,
+  with `roles.scout.enabled` and the agent runtime, replaces that turn's appraisal — the two never run
+  together. At most once per fingerprint per session (tracked in state), consuming one budget unit,
+  honouring the session cost cap, sharing single flight and the researching chip, and cancelled by
+  `/psych stop`.
+- **Scout role paragraph in the child brief (T31).** `pi list` first, then `https://pi.dev/packages?name=<terms>`
+  (2–3 terms), npm and GitHub; prefer an existing package; `fit: "solves"` only for a clear fit. The
+  `TOPIC — …` block is placed before the final line, leaving the evidence prefix byte-identical (D2).
+- **i18n** keys for the scout card, the command description and the scout notices, in `en` and `cs`,
+  plus a `scoutFits` label group.
+
+
 ## 0.5.1
 
 T28, T29 and T30. The two wider consent levels start to carry data: `digest` sends a bounded,

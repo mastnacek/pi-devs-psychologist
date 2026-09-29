@@ -110,6 +110,41 @@ export function buildAskUserText(
  * the evidence alone. In agent runtime the child instead gets the full brief (T23), whose role
  * paragraph says the same thing at greater length.
  */
+/** The `ask` user message's final line for the scouting question (T31), API-runtime safety net. */
+export const SCOUT_JSON_FINAL_LINE = "Scout now. JSON only.";
+
+/** The `TOPIC — …` block the scout user message puts immediately before the final line (T31). */
+export function scoutTopicBlock(topic: string): string {
+	return `TOPIC — ${topic}\n\n`;
+}
+
+/**
+ * The scout user message for the API runtime (T31). The scout is agent-runtime only, so this is a
+ * safety net rather than a path that runs; it keeps the evidence prefix byte-identical (D2).
+ */
+export function buildScoutUserText(
+	liveLines: readonly string[],
+	sessionLines: readonly string[],
+	topic: string,
+): string {
+	const base = buildUserText(liveLines, sessionLines);
+	const evidence = base.slice(0, base.length - JSON_ONLY_FINAL_LINE.length);
+	return `${evidence}${scoutTopicBlock(topic)}${SCOUT_JSON_FINAL_LINE}`;
+}
+
+/**
+ * The scout role's system prompt for the API runtime (T31). The scout is agent-runtime only, so a
+ * tool-less completion cannot research; it exists so the request stays well-formed whatever runs.
+ */
+export const SCOUT_SYSTEM_PROMPT = `You are the pi-devs-psychologist scout, hunting for an existing plugin before anything is built.
+
+You are NOT the agent doing the work. You receive factual evidence lines; you may not invent a fact, package, URL or install command.
+
+Research is impossible in this runtime: there are no tools, so submit an empty candidate list and no build.
+
+Answer with ONE JSON object and nothing else, no prose and no code fences:
+{"candidates":[],"cited":[]}`;
+
 export const ASK_SYSTEM_PROMPT = `You are the engineering psychologist an operator has asked a direct question.
 
 You are NOT the agent doing the work. You never comment on code, style, architecture, design or correctness. Your subject is the session and the operator's pi setup.

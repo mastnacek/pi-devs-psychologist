@@ -120,6 +120,13 @@ export interface AgentBriefInput {
 	digest?: string;
 	/** The operator's question, for the `ask` role (T30): placed as a `QUESTION — …` block. */
 	question?: string;
+	/** The friction being scouted, for the `scout` role (T31): placed as a `TOPIC — …` block. */
+	topic?: string;
+	/**
+	 * The operator's plugin monorepo, for the `scout` role (T31). Resolved from config and passed in,
+	 * so the brief stays pure; `""` omits the workshop sentence entirely.
+	 */
+	workshopDir?: string;
 }
 
 export interface AgentBrief {
@@ -145,14 +152,38 @@ const ASK_ROLE_PARAGRAPH = [
 ].join("\n");
 
 /**
- * The role paragraph. The psychologist gets its full prompt, `ask` its own contract (T30); the two
- * remaining roles get a short placeholder that shares every section below.
- *
- * TODO(T31/T32): give `scout` and `pair` their own role paragraphs.
+ * The `scout` role paragraph (T31). Friction keeps recurring, so the child answers one question:
+ * does the ecosystem already solve this, or is a small plugin worth building? It is told to prefer
+ * an existing package over building, to reserve `fit: "solves"` for a clear fit, and where the
+ * operator's own plugin monorepo is (read-only) when one is configured.
  */
-function roleParagraph(role: ChildRole): string {
+const SCOUT_ROLE_PARAGRAPH = [
+	"You are the pi-devs-psychologist extension running headless in the `scout` role. Friction in this session keeps recurring, and your job is to find out whether the pi ecosystem already solves it before anyone builds anything new.",
+	"The evidence names the friction (and a `TOPIC — …` line names it directly when the operator gave one). Start with `pi list` so you never propose something already installed. Then search: `https://pi.dev/packages?name=<terms>` with 2–3 distinct terms (fetch with `fetch_content`), `npm search`, and GitHub. A package page is `https://pi.dev/packages/<name>` and shows its manifest, install command and README.",
+	"Prefer an existing package over building. Report each real one as a candidate with its `name`, an `installSpec` (`npm:<name>` or `git:github.com/<owner>/<repo>`), an `url` (https only), a `why` (one sentence, ≤ 160 chars) and a `fit`.",
+	"`fit` is `solves` ONLY when the package clearly covers the friction the evidence names; use `partial` when it covers part of it, and `inspiration` when it is worth studying but does not solve it. Mislabelling a plausible package `solves` sends the operator to install something that does not help.",
+	"If no existing package fits, fill `build` with `{ title, oneLine }` describing the smallest plugin worth building. If nothing fits and nothing is worth building, submit an empty `candidates` list and no `build` — that is a valid, honest answer.",
+	"You are an observer: you never edit, never install, never commit. You may propose a package with its source link; you never install it. Your only output is one `psych_submit` call.",
+].join("\n");
+
+/** The one scout sentence that depends on config: where the operator's own plugins live (T31). */
+function scoutWorkshopSentence(workshopDir: string | undefined): string {
+	const dir = (workshopDir ?? "").trim();
+	if (dir.length === 0) return "";
+	return `The operator keeps their own pi plugins in the monorepo at \`${dir}\`. Read the \`README.md\` of the plugins there to see what already exists; NEVER edit anything under it.`;
+}
+
+/**
+ * The role paragraph. The psychologist gets its full prompt, `ask` its own contract (T30), `scout`
+ * its hunting contract (T31); `pair` still gets the short placeholder until T32.
+ */
+function roleParagraph(role: ChildRole, workshopDir: string | undefined): string {
 	if (role === "psychologist") return PSYCHOLOGIST_SYSTEM_PROMPT;
 	if (role === "ask") return ASK_ROLE_PARAGRAPH;
+	if (role === "scout") {
+		const sentence = scoutWorkshopSentence(workshopDir);
+		return sentence.length > 0 ? `${SCOUT_ROLE_PARAGRAPH}\n${sentence}` : SCOUT_ROLE_PARAGRAPH;
+	}
 	return (
 		`You are the pi-devs-psychologist extension running headless in the \`${role}\` role. ` +
 		"You are an observer: you never change files, never commit, never install, and your only " +
@@ -263,6 +294,14 @@ export const SUBMIT_FINAL_LINE = "Appraise the session now. Submit with psych_su
 /** The final line the child sees when it was asked a question (T30). */
 export const ASK_FINAL_LINE = "Answer the question now. Submit with psych_submit.";
 
+/** The final line the child sees when it was sent to scout the ecosystem (T31). */
+export const SCOUT_FINAL_LINE = "Scout now. Submit with psych_submit.";
+
+/** The `TOPIC — …` block the scout role puts immediately before the final line (T31). */
+export function scoutTopicBlock(topic: string): string {
+	return `TOPIC — ${topic}\n\n`;
+}
+
 /**
  * Build the user message: `buildUserText`'s evidence portion byte for byte (D2), the optional
  * digest block, the optional `QUESTION — …` block (T30), and the submit instruction in place of
@@ -280,14 +319,16 @@ function buildAgentUserText(input: AgentBriefInput): string {
 	const evidence = base.slice(0, base.length - JSON_ONLY_FINAL_LINE.length);
 	const digestBlock = input.digest ? `DIGEST — ${input.digest}\n\n` : "";
 	const questionBlock = input.role === "ask" && input.question ? askQuestionBlock(input.question) : "";
-	const finalLine = input.role === "ask" ? ASK_FINAL_LINE : SUBMIT_FINAL_LINE;
-	return evidence + digestBlock + questionBlock + finalLine;
+	const topicBlock = input.role === "scout" && input.topic ? scoutTopicBlock(input.topic) : "";
+	const finalLine =
+		input.role === "ask" ? ASK_FINAL_LINE : input.role === "scout" ? SCOUT_FINAL_LINE : SUBMIT_FINAL_LINE;
+	return evidence + digestBlock + questionBlock + topicBlock + finalLine;
 }
 
 /** Assemble both strings the runner writes to files. Pure: same input, same output. */
 export function buildAgentBrief(input: AgentBriefInput): AgentBrief {
 	const systemAppend = [
-		roleParagraph(input.role),
+		roleParagraph(input.role, input.workshopDir),
 		whereYouAre(input.piVersion),
 		piDocumentation(input.docsDir),
 		piPackages(),

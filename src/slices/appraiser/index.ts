@@ -39,6 +39,7 @@ import { signalOptions, type DevsPsychologistState } from "../../shared/state.js
 import { paintChip, startResearchingChip, stopResearchingChip } from "../../shared/status.js";
 import { STALE_DELIVERY_TURNS, type DeliveryOutcome } from "../../shared/delivery.js";
 import { effectiveAgentModel } from "../../shared/config.js";
+import { SCOUT_TRIGGER_MIN_COUNT, topRecurringTopic } from "../../shared/scout.js";
 import { resolveAgentContext } from "../../shared/agent-context.js";
 import { buildRunAccount } from "../../shared/run-account.js";
 import type { AppraiserDeps, AppraiseOutcome } from "./types.js";
@@ -148,6 +149,21 @@ export async function maybeAppraise(
 			}
 			firedReasons = evaluated.reasons;
 			state.lastTriggerReasons = firedReasons;
+		}
+
+		// Scout (T31): a recurring friction at count ≥ 3, on the agent runtime with the scout role
+		// enabled, replaces this turn's appraisal — never both in one turn. The appraiser owns the
+		// budget, the baseline move and the once-per-session guard; the slice owns the run.
+		if (!force && state.config.runtime === "agent" && state.config.roles.scout.enabled && deps.runScout) {
+			const pick = topRecurringTopic(signals.failureFingerprints, SCOUT_TRIGGER_MIN_COUNT);
+			if (pick && firedReasons.includes("recurring_failure") && !state.scoutDone.has(pick.key)) {
+				state.scoutDone.add(pick.key);
+				state.appraisalsThisSession += 1;
+				state.turnsSinceAppraisal = 0;
+				state.triggerBaseline = snapshotTriggers({ signals, history });
+				await deps.runScout(ctx, pick.topic);
+				return { ran: false, reason: "scout" };
+			}
 		}
 
 		// Counted before the call, and the cadence restarts here: both are about *attempts*.

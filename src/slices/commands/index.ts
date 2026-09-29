@@ -35,6 +35,11 @@ export interface CommandDeps {
 	 * skip/failure cases; an empty string when the answer was already shown as a card or notification.
 	 */
 	ask(ctx: ExtensionCommandContext, question: string): Promise<string>;
+	/**
+	 * Scout the ecosystem for recurring friction (`/psych scout [topic]`, T31). The topic defaults to
+	 * the top recurring fingerprint. Same status-line contract as `ask`.
+	 */
+	scout(ctx: ExtensionCommandContext, topic: string): Promise<string>;
 	/** Persist a patch to the chosen layer; returns the path written. */
 	save(patch: Record<string, unknown>, isGlobal: boolean, ctx: ExtensionCommandContext): string;
 	/** Re-read the config cascade after a write, so the effect is immediate. */
@@ -98,6 +103,14 @@ export function registerPsychCommand(
 						return;
 					}
 					const line = await deps.ask(ctx, value);
+					if (line.length > 0) notify(line);
+					return;
+				}
+
+				case "scout": {
+					// The topic is optional: with none, the slice derives one from the top recurring
+					// fingerprint and answers with the usage line when there is nothing to derive from.
+					const line = await deps.scout(ctx, value);
 					if (line.length > 0) notify(line);
 					return;
 				}

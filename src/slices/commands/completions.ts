@@ -70,6 +70,9 @@ function subcommands(state: DevsPsychologistState): Completion[] {
 		// A non-terminal that takes free text (T30): the trailing space opens the question, and there is
 		// nothing enumerable to complete after it, so no further items are offered.
 		branch("ask", "ask", s.cmdAsk),
+		// The scout takes free text too, and its topic is optional (T31): the trailing space opens it,
+		// and running it with no topic scouts the top recurring fingerprint.
+		branch("scout", "scout", s.cmdScout),
 		// The marker goes in `label` (display-only, the primary column) as well as the description:
 		// a settings menu that does not show which choice is in effect makes the user run `status`
 		// first to find out. `value` stays a clean token because it is inserted verbatim.

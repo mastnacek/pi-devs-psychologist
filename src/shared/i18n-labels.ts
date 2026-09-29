@@ -14,8 +14,10 @@ import {
 	NEED_STATES,
 	NEEDS,
 	PROGRESS_STATES,
+	SCOUT_FITS,
 	type InterventionKind,
 	type NeedKey,
+	type ScoutFit,
 } from "./appraisal.js";
 
 type NeedState = (typeof NEED_STATES)[number];
@@ -30,6 +32,8 @@ export interface Labels {
 	progressStates: Record<ProgressState, string>;
 	flowStates: Record<FlowState, string>;
 	interventionKinds: Record<InterventionKind, string>;
+	/** How well a scout candidate fits the friction (T31). */
+	scoutFits: Record<ScoutFit, string>;
 }
 
 export const EN_LABELS: Labels = {
@@ -68,6 +72,11 @@ export const EN_LABELS: Labels = {
 		close_loop: "close the loop",
 		return_autonomy: "hand the decision back",
 		stop: "stop",
+	},
+	scoutFits: {
+		solves: "solves it",
+		partial: "partial fit",
+		inspiration: "inspiration",
 	},
 };
 
@@ -108,6 +117,11 @@ export const CS_LABELS: Labels = {
 		return_autonomy: "vrať rozhodnutí člověku",
 		stop: "skonči",
 	},
+	scoutFits: {
+		solves: "řeší to",
+		partial: "částečně sedí",
+		inspiration: "inspirace",
+	},
 };
 
 /** Every label key, for the completeness test and for the command's `lang` help. */
@@ -118,6 +132,7 @@ export const LABEL_GROUPS = [
 	"progressStates",
 	"flowStates",
 	"interventionKinds",
+	"scoutFits",
 ] as const;
 
 /** Compile-time proof that the label maps name every enum member. Unused at runtime. */
@@ -128,4 +143,5 @@ export const LABEL_SOURCES = {
 	progressStates: PROGRESS_STATES,
 	flowStates: FLOW_STATES,
 	interventionKinds: INTERVENTION_KINDS,
+	scoutFits: SCOUT_FITS,
 } as const;

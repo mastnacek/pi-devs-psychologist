@@ -33,6 +33,14 @@ export interface CardStrings {
 	askUnsupported: string;
 	/** Shown on the API runtime, which has no tools: research was impossible. */
 	askNoResearch: string;
+
+	/** The `scout` card (`/psych scout`, T31). */
+	scoutTopic: string;
+	scoutCandidates: string;
+	/** The paste-ready SPAI idea line from a `build` block. */
+	scoutIdea: string;
+	/** Shown when no candidate survived and there is no build — an outcome, not a failure. */
+	scoutNothingFound: string;
 }
 
 export const CARD_EN: CardStrings = {
@@ -51,6 +59,11 @@ export const CARD_EN: CardStrings = {
 	askAnswer: "Answer",
 	askUnsupported: "Unsupported: this answer cites no evidence line.",
 	askNoResearch: "api runtime — no research",
+
+	scoutTopic: "Topic",
+	scoutCandidates: "Existing packages",
+	scoutIdea: "Idea — paste it into your tracker",
+	scoutNothingFound: "Nothing found: no existing package fits and nothing is worth building.",
 };
 
 export const CARD_CS: CardStrings = {
@@ -69,4 +82,9 @@ export const CARD_CS: CardStrings = {
 	askAnswer: "Odpověď",
 	askUnsupported: "Nepodloženo: tato odpověď necituje žádnou řádku důkazů.",
 	askNoResearch: "api runtime — bez rešerše",
+
+	scoutTopic: "Téma",
+	scoutCandidates: "Existující balíčky",
+	scoutIdea: "Nápad — vlož si ho do svého trackeru",
+	scoutNothingFound: "Nic nalezeno: žádný existující balíček nesedí a není co stavět.",
 };

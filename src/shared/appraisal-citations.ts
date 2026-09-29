@@ -104,11 +104,23 @@ function isDocsPath(source: string, docsDir: string | undefined): boolean {
 	return inside(root, resolve(root, normalized));
 }
 
+/** True for an `https://` URL and nothing else. The scout's `url` field is judged by this (T31). */
+export function isHttpsUrl(source: string): boolean {
+	return /^https:\/\/\S+$/.test(source);
+}
+
+/**
+ * True for an install spec: `npm:<name>` or `git:github.com/<owner>/<repo>`. Shared with the scout
+ * (T31), whose `installSpec` must name something the operator can actually install.
+ */
+export function isInstallSpec(source: string): boolean {
+	return /^npm:[@\w./-]+$/.test(source) || /^git:github\.com\/[\w.-]+\/[\w.-]+$/.test(source);
+}
+
 /** The one place a suggestion's `source` is judged. Anything unrecognised is a fabrication. */
 function sourceAllowed(source: string, policy: SourcePolicy): boolean {
-	if (/^https:\/\/\S+$/.test(source)) return true;
-	if (/^npm:[@\w./-]+$/.test(source)) return true;
-	if (/^git:github\.com\/[\w.-]+\/[\w.-]+$/.test(source)) return true;
+	if (isHttpsUrl(source)) return true;
+	if (isInstallSpec(source)) return true;
 	const notebook = /^nlm:(.+)$/.exec(source);
 	if (notebook) return policy.nlmNotebooks.includes(notebook[1]);
 	return isDocsPath(source, policy.docsDir);

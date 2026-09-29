@@ -108,6 +108,8 @@ export interface ModelCallRequest {
 	agentRole?: import("./child-limits.js").ChildRole;
 	/** Agent runtime only: the operator's question, placed in the child's message (T30). */
 	question?: string;
+	/** Agent runtime only: the friction the `scout` role is asked about (T31). */
+	topic?: string;
 }
 
 /** Split `provider/modelId` on the first slash only. */
