@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.5.1 (unreleased)
+## 0.5.1
 
 T28, T29 and T30. The two wider consent levels start to carry data: `digest` sends a bounded,
 scrubbed transcript excerpt, and `fork` hands the child the whole session after a one-time

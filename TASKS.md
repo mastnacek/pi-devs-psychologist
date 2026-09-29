@@ -236,9 +236,9 @@ Full specifications (goal, files, behaviour, acceptance, non-goals) live in
 - `x T25` Schema `suggestions` with enforced sources
 - `x T26` Async delivery, deliver at a natural pause, `/psych stop`
 - `x T27` Accounting in `/psych`, session cost cap
-- `. T28` Context level `digest` (scrubbed, no tool outputs)
-- `. T29` Context level `fork` (full session, confirm on first use)
-- `. T30` `/psych ask <question>`
+- `x T28` Context level `digest` (scrubbed, no tool outputs)
+- `x T29` Context level `fork` (full session, confirm on first use)
+- `x T30` `/psych ask <question>`
 - `. T31` Scout role — recurring friction → existing plugin or a SPAI idea
 - `. T32` Pair role — revises T12, only if pi-pair leaves a gap
 - `. T33` NotebookLM research grounding
