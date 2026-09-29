@@ -638,8 +638,11 @@ small wins?"` returns an answer; a fake-run test shows a `research` suggestion w
    `/psych` say so.
 4. **Cost preview in the model picker.** Show an estimated cost per appraisal (prompt
    tokens × registry price) next to each model in `/psych model`.
-5. **Session-start line from the ledger (needs T10 opt-in).** "Last session ended with 5
-   unverified changes in `layout.ts`" — the cheapest possible re-entry help.
+5. **Per-file unverified changes in the handoff (partly shipped, no T10 needed).** The 0.7.1 handoff
+   offers a count of unverified changes; naming the top file is a fold over the same observations
+   and needs no cross-session record. T10 stays gated: a per-person record is not a convenience.
+   ~~"Last session ended with 5 unverified changes in `layout.ts`"~~ — the count is live, the file
+   name is not, and adding it does NOT require T10.
 6. **Flow shield.** When `protect_flow` is the active intervention, hold every *other*
    plugin-owned notification of this plugin until the next `agent_end` — the plugin
    practises what it preaches.
