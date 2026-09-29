@@ -2,6 +2,20 @@
 
 ## 0.8.0 (unreleased)
 
+- **fix(replay): `precision` measured nothing (idea 1).** It was "windows whose every KEPT verdict
+  cites a supplied line", but enforcement deletes an uncited verdict and leaves a neutral one, so
+  the ratio was 1 by construction — a run that asserted three verdicts and matched none scored as
+  perfect. It is now "windows with a surviving verdict ÷ windows the response asserted one in",
+  read from the response text BEFORE enforcement, because the enforced result cannot tell "said
+  nothing" from "said something unsupported". Measured on a real session: a cited window scores 1,
+  an invented-citation window 0, and a silent window is not counted (0.50 across the three).
+- **fix(replay): a window with no trigger says so plainly.** `triggered by: none` read as a defect;
+  it is the policy working — that window is replayed on purpose, to measure the fold over every
+  window rather than only the ones the live plugin would appraise. It now reads
+  `would not have appraised (no trigger)`.
+- **fix(replay): the aggregate gained `citationRate`.** The renderer asked for it and the module did
+  not compute it, so `tsc` failed mid-build. It is the mean of the per-window rates.
+
 - **feat(replay): replay a past session offline, and eval two runs against each other (idea 1).**
   `src/shared/replay.ts` folds a finished session file's parsed lines into the SAME `Observation[]`
   the live observer produces — reusing the observer's own extractors (`src/shared/tool-args.ts`, now

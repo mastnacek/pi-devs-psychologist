@@ -25,7 +25,11 @@ export interface ReplayStrings {
 	replayWindow: (n: number) => string;
 	/** `triggered by: failure_streak, restatement`. */
 	replayTrigger: (reasons: string) => string;
-	/** `triggered by: none`. */
+	/**
+	 * A window the trigger would have REFUSED. Replaying it is deliberate — the fold is measured over
+	 * every window, not only the ones the live plugin would have appraised — so the label says so,
+	 * otherwise "triggered by: none" reads as a defect rather than as the policy working.
+	 */
 	replayNoTrigger: string;
 	/** `evidence: 12 live · 8 session line(s)`. */
 	replayEvidence: (live: number, session: number) => string;
@@ -76,7 +80,7 @@ export const REPLAY_EN: ReplayStrings = {
 	replayModel: (ref) => `model    ${ref}`,
 	replayWindow: (n) => `window ${n}`,
 	replayTrigger: (reasons) => `triggered by: ${reasons}`,
-	replayNoTrigger: "triggered by: none",
+	replayNoTrigger: "would not have appraised (no trigger)",
 	replayEvidence: (live, session) => `evidence: ${live} live · ${session} session line(s)`,
 	replayEnforcement: (kept, dropped, kind) =>
 		`enforcement: verdicts kept ${kept} · claims dropped ${dropped} · intervention ${kind}`,
@@ -114,7 +118,7 @@ export const REPLAY_CS: ReplayStrings = {
 	replayModel: (ref) => `model    ${ref}`,
 	replayWindow: (n) => `okno ${n}`,
 	replayTrigger: (reasons) => `spuštěno: ${reasons}`,
-	replayNoTrigger: "spuštěno: nic",
+	replayNoTrigger: "nebylo by vyhodnoceno (žádný spouštěč)",
 	replayEvidence: (live, session) => `důkazy: ${live} živých · ${session} řádků relace`,
 	replayEnforcement: (kept, dropped, kind) =>
 		`vynucení: ponechaná hodnocení ${kept} · zahozené nároky ${dropped} · zásah ${kind}`,

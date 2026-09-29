@@ -243,6 +243,12 @@ test("the eval aggregates over windows (precision, abstention, citations per fin
   const result = evaluateRuns(before, after);
   assert.equal(result.windows.length, 2);
   assert.ok(result.before.precision >= 0 && result.before.precision <= 1);
+  // The metric that matters: the fixture asserts three non-neutral verdicts and only one is cited,
+  // so precision is BELOW 1. A definition of "every KEPT verdict cites" would read 1 here forever,
+  // because enforcement deletes an uncited verdict and leaves a neutral one behind — the metric
+  // would measure nothing while looking respectable.
+  assert.ok(result.before.precision < 1, `precision must move below 1 when claims are dropped (got ${result.before.precision})`);
+  assert.ok(result.before.claimsDropped >= 1, "the uncited load verdict was dropped");
   assert.ok(result.after.meanCitationsPerFinding > 0, "two findings, so citations per finding is > 0");
   assert.equal(result.after.claimsDropped, 2, "each of the two windows dropped one claim");
 });
@@ -329,4 +335,43 @@ test("a neutral window carries no fabricated verdicts", () => {
   const result = enforceEvidence(neutralAppraisal(), ["window: 1 prompt(s)"]);
   assert.equal(result.downgraded.length, 0);
   assert.equal(result.unmatched.length, 0);
+});
+
+test("precision discriminates: a run that asserts and matches nothing scores 0, a silent one is not counted", async () => {
+  // The property that makes the metric worth reading. `attempted` is read from the RESPONSE,
+  // before enforcement, because enforcement's output cannot distinguish "said nothing" from
+  // "said something unsupported" — both arrive as neutral.
+  const { aggregate } = await import("../src/shared/replay-eval.js");
+  const evidence = ["window: 1 prompt(s), 0 tool call(s), 0 min"];
+  const build = (raw) => {
+    const parsed = parseAppraisal(JSON.stringify(raw), evidence);
+    assert.ok(parsed.ok);
+    return { index: 0, reasons: [], liveLines: evidence, sessionLines: [], responseText: JSON.stringify(raw), enforcement: parsed };
+  };
+  const good = build({
+    needs: { autonomy: { state: "met", cited: [evidence[0]] }, competence: { state: "unassessed", cited: [] }, relatedness: { state: "unassessed", cited: [] } },
+    load: { level: "unassessed", cited: [] }, progress: { state: "unassessed", cited: [] }, flow: { state: "unassessed", cited: [] }, interventions: [],
+  });
+  const invented = build({
+    needs: { autonomy: { state: "met", cited: ["a line nobody supplied"] }, competence: { state: "unassessed", cited: [] }, relatedness: { state: "unassessed", cited: [] } },
+    load: { level: "unassessed", cited: [] }, progress: { state: "unassessed", cited: [] }, flow: { state: "unassessed", cited: [] }, interventions: [],
+  });
+  const silent = build({
+    needs: { autonomy: { state: "unassessed", cited: [] }, competence: { state: "unassessed", cited: [] }, relatedness: { state: "unassessed", cited: [] } },
+    load: { level: "unassessed", cited: [] }, progress: { state: "unproven", cited: [] }, flow: { state: "unassessed", cited: [] }, interventions: [],
+  });
+
+  const mGood = measureWindow(good);
+  const mInv = measureWindow(invented);
+  const mSilent = measureWindow(silent);
+  assert.equal(mGood.attempted, true);
+  assert.equal(mGood.hasVerdict, true);
+  assert.equal(mInv.attempted, true, "the model DID assert a verdict, before enforcement removed it");
+  assert.equal(mInv.hasVerdict, false, "and enforcement left nothing behind");
+  assert.equal(mSilent.attempted, false, "a window where the model said nothing attempted nothing");
+
+  assert.equal(aggregate([mGood]).precision, 1, "a cited verdict scores 1");
+  assert.equal(aggregate([mInv]).precision, 0, "an invented verdict scores 0, not 1");
+  assert.equal(aggregate([mSilent]).precision, 0, "a silent window has nothing to be precise about");
+  assert.equal(aggregate([mGood, mInv, mSilent]).precision.toFixed(2), "0.50");
 });

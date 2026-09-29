@@ -14,7 +14,7 @@
  */
 
 import { NEEDS, NEUTRAL, type InterventionKind } from "./appraisal.js";
-import type { EnforcementResult } from "./appraisal-enforce.js";
+import { extractJson, type EnforcementResult } from "./appraisal-enforce.js";
 
 /** One replayed window's result: the prompt inputs, the raw answer, and what enforcement made of it. */
 export interface ReplayRunResult {
@@ -46,11 +46,22 @@ export interface WindowMetrics {
 	allVerdictsCited: boolean;
 	/** The window produced at least one non-neutral verdict. */
 	hasVerdict: boolean;
+	/**
+	 * The RESPONSE asserted at least one non-neutral verdict, kept or not. Read from the response
+	 * text before enforcement, which is the only place the difference is still visible.
+	 */
+	attempted: boolean;
 }
 
 /** The across-window numbers, computed from a run's window metrics. */
 export interface AggregateMetrics {
-	/** Windows whose every kept verdict cites a supplied line ÷ windows with a verdict. */
+	/**
+	 * Windows with at least one surviving verdict ÷ windows the model ATTEMPTED a verdict in
+	 * (a window counts as an attempt when the response carried a non-neutral state, whether or
+	 * not enforcement kept it). This is the number that actually moves: enforcement deletes an
+	 * uncited verdict outright, so a "every kept verdict cites" ratio would be 1 by construction
+	 * and would say nothing. Here, a model that asserts everything and matches nothing scores 0.
+	 */
 	precision: number;
 	/** Neutral verdicts ÷ all verdicts — how often the observer abstained. */
 	abstentionRate: number;
@@ -99,6 +110,48 @@ function verdicts(enforcement: EnforcementResult): { state: string; cited: strin
 	];
 }
 
+/** The neutral value for each of the six verdicts, as the model-facing schema spells it. */
+const NEUTRAL_STATE: Record<string, string> = {
+	autonomy: NEUTRAL.needs.autonomy,
+	competence: NEUTRAL.needs.competence,
+	relatedness: NEUTRAL.needs.relatedness,
+	load: NEUTRAL.load,
+	progress: NEUTRAL.progress,
+	flow: NEUTRAL.flow,
+};
+
+/**
+ * The states the RESPONSE asserted, read from its own text before enforcement ran.
+ *
+ * This is the whole point of the function: enforcement deletes an uncited verdict and leaves a
+ * neutral one behind, so the enforced result cannot tell "said nothing" from "said something
+ * unsupported". A run whose precision never drops below 1 measures nothing.
+ */
+function assertedStates(responseText: string): string[] {
+	const parsed = extractJson(responseText);
+	if (parsed === undefined || parsed === null || typeof parsed !== "object") return [];
+	const raw = parsed as Record<string, unknown>;
+	const read = (value: unknown): string | undefined => {
+		if (typeof value === "string") return value;
+		if (value !== null && typeof value === "object") {
+			const state = (value as { state?: unknown }).state;
+			return typeof state === "string" ? state : undefined;
+		}
+		return undefined;
+	};
+	const asserted: string[] = [];
+	const needs = (raw.needs ?? {}) as Record<string, unknown>;
+	for (const need of NEEDS) {
+		const state = read(needs[need]);
+		if (state !== undefined && state !== NEUTRAL_STATE[need]) asserted.push(need);
+	}
+	for (const key of ["load", "progress", "flow"] as const) {
+		const state = read(raw[key]);
+		if (state !== undefined && state !== NEUTRAL_STATE[key]) asserted.push(key);
+	}
+	return asserted;
+}
+
 /** Compute one window's numbers from its (already enforced) result. */
 export function measureWindow(run: ReplayRunResult): WindowMetrics {
 	const rows = verdicts(run.enforcement);
@@ -109,6 +162,7 @@ export function measureWindow(run: ReplayRunResult): WindowMetrics {
 	// The model "supplied" every citation it wrote; enforcement kept the ones that matched. So the
 	// denominator is what it kept plus what it lost, and the rate is honesty per attempted claim.
 	const supplied = citations + run.enforcement.unmatched.length;
+	const attempted = assertedStates(run.responseText);
 	return {
 		verdictsKept: kept.length,
 		claimsDropped: run.enforcement.downgraded.length,
@@ -117,21 +171,23 @@ export function measureWindow(run: ReplayRunResult): WindowMetrics {
 		citations,
 		allVerdictsCited: kept.every((row) => row.cited.length > 0),
 		hasVerdict: kept.length > 0,
+		attempted: attempted.length > 0,
 	};
 }
 
 /** Roll a run's window metrics into its aggregate numbers. */
 export function aggregate(metrics: readonly WindowMetrics[]): AggregateMetrics {
 	const withVerdict = metrics.filter((m) => m.hasVerdict);
+	const attempted = metrics.filter((m) => m.attempted);
 	const findings = metrics.filter((m) => m.interventionKind !== undefined);
 	const totalVerdicts = metrics.length * 6;
 	const neutral = metrics.reduce((sum, m) => sum + (6 - m.verdictsKept), 0);
 	const citations = metrics.reduce((sum, m) => sum + m.citations, 0);
 	return {
 		precision:
-			withVerdict.length === 0
+			attempted.length === 0
 				? 0
-				: withVerdict.filter((m) => m.allVerdictsCited).length / withVerdict.length,
+				: withVerdict.length / attempted.length,
 		abstentionRate: totalVerdicts === 0 ? 0 : neutral / totalVerdicts,
 		meanCitationsPerFinding: findings.length === 0 ? 0 : citations / findings.length,
 		citationRate: metrics.length === 0 ? 0 : metrics.reduce((sum, m) => sum + m.citationRate, 0) / metrics.length,
