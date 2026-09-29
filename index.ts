@@ -170,13 +170,14 @@ export default function devsPsychologistExtension(
 				modelRef,
 				evidence: req.evidence ?? { liveLines: [], sessionLines: [] },
 				signal: req.signal,
+				...(req.digest ? { digest: req.digest } : {}),
 			},
 			{
 				cliPath,
 				execPath: process.execPath,
 				role: "psychologist",
-				context: cfg.context,
-				parentSessionFile: state.agentSessionFile,
+				context: req.agentContext ?? cfg.context,
+				parentSessionFile: req.parentSessionFile,
 				piVersion: PI_VERSION,
 				docsDir,
 				thinking: cfg.thinking,
@@ -254,7 +255,6 @@ export default function devsPsychologistExtension(
 			state.sessionCwd = ctx.cwd;
 			state.agentTrusted =
 				typeof ctx.isProjectTrusted === "function" ? ctx.isProjectTrusted() : false;
-			state.agentSessionFile = ctx.sessionManager?.getSessionFile?.();
 			state.resetWindow();
 			// Restore the TUI-only ledger and the last appraisal (T7/T16). `getEntries` returns the whole
 			// session, so a reload - or a branch switch - brings back the outcome numbers and the report

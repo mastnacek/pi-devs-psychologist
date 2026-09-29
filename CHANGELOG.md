@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## 0.5.1 (unreleased)
+
+T28 and T29. The two wider consent levels start to carry data: `digest` sends a bounded, scrubbed
+transcript excerpt, and `fork` hands the child the whole session after a one-time confirmation.
+Both are agent-runtime only and both leave the API path byte-identical.
+
+### Added
+
+- **`digest` context level (T28).** New pure `src/shared/digest.ts`: `buildDigest(entries)` folds the
+  branch into the last 12 operator prompts (≤500 chars) and the assistant's *text* blocks (≤300
+  chars; never thinking) plus one line per tool call (`tool(<path|command>) ok|fail`, never the tool
+  output), chronological, capped at 6000 chars with the OLDEST items dropped first. `scrubSecrets`
+  runs last and redacts `sk-…`, `ghp_`/`gho_`/`ghu_`/`ghs_`…, `github_pat_…`, `AKIA…`, `xox[bp]-…`,
+  `Bearer …`, PEM `-----BEGIN … KEY-----` blocks, and `KEY=value` / `KEY: value` where the key names
+  a credential. The appraiser builds the digest from `getBranch()` only when `runtime: "agent"` and
+  `agent.context` is `digest`; the API request never carries one.
+- **`fork` context level (T29).** New `src/shared/agent-context.ts` resolves the run-time context.
+  `fork` reads `ctx.sessionManager.getSessionFile()` **at run time** (not the value seen at
+  `session_start`) and, on the first fork of a session in a TUI, asks once with a confirm stating the
+  estimated size (the latest assistant turn's `usage.input + cacheRead`) and its price at the child
+  model's input rate (tokens only when the rate is unknown). A decline, a missing session file
+  (ephemeral parent) or a non-TUI run (RPC) degrades `fork → digest` and says so once per session
+  (en + cs). The `<runTmp>/session` directory is removed together with `runTmp`.
+- **i18n** keys for the fork confirm and its two fallback notices, in `en` and `cs`.
+
+
 ## 0.5.0
 
 T20 and T21. The `agent` runtime is introduced as a switch: config, a one-run CLI flag, `/psych`

@@ -137,6 +137,15 @@ export interface Strings extends RunStrings {
 	contextConfirmBody: (level: string) => string;
 	/** Outside a terminal there is nobody to confirm consent for `digest`/`fork`. */
 	contextNeedsTui: string;
+	/** The run-time consent for the first `fork` of a session, with the size and price estimate. */
+	contextForkConfirmTitle: string;
+	contextForkConfirm: (tokens: string, price: string) => string;
+	/** The same confirm when the child model's price is unknown: tokens only. */
+	contextForkConfirmTokens: (tokens: string) => string;
+	/** `fork` was configured but this session has no file to fork (an ephemeral parent). */
+	contextForkNoSession: string;
+	/** `fork` was configured but there is no terminal to confirm it in. */
+	contextForkNeedsTui: string;
 	/** Report row labels for the runtime switch. */
 	reportRuntime: string;
 	reportContext: string;
@@ -233,6 +242,15 @@ const EN: Strings = {
 			? "The child agent will be given the entire session, tool outputs included, and sends it to the model provider."
 			: "The child agent will be given scrubbed excerpts of your prompts and the assistant's text, sent to the model provider.",
 	contextNeedsTui: "Setting digest or fork needs a terminal UI. Set agent.context in the config file instead.",
+	contextForkConfirmTitle: "Fork your session into the child agent?",
+	contextForkConfirm: (tokens, price) =>
+		`The child agent will be given the entire session, tool outputs included (~${tokens} input tokens, about $${price} at the observer's rate). Continue?`,
+	contextForkConfirmTokens: (tokens) =>
+		`The child agent will be given the entire session, tool outputs included (~${tokens} input tokens; the observer's price is unknown). Continue?`,
+	contextForkNoSession:
+		"Session context is set to fork, but this session has no file to fork. Using digest instead.",
+	contextForkNeedsTui:
+		"Fork needs a terminal UI to confirm. Using digest instead; set agent.context in the config file to change this.",
 	reportRuntime: "runtime  ",
 	reportContext: "context  ",
 	reportAgentModel: "agent    ",
@@ -322,6 +340,15 @@ const CS: Strings = {
 			? "Podřízený agent dostane celou relaci včetně výstupů nástrojů a pošle ji poskytovateli modelu."
 			: "Podřízený agent dostane očištěné výňatky z tvých zadání a textu asistenta a pošle je poskytovateli modelu.",
 	contextNeedsTui: "Nastavení digest nebo fork vyžaduje terminálové UI. Nastav agent.context v konfiguračním souboru.",
+	contextForkConfirmTitle: "Rozdělit relaci do podřízeného agenta?",
+	contextForkConfirm: (tokens, price) =>
+		`Podřízený agent dostane celou relaci včetně výstupů nástrojů (~${tokens} vstupních tokenů, asi $${price} za sazbu pozorovatele). Pokračovat?`,
+	contextForkConfirmTokens: (tokens) =>
+		`Podřízený agent dostane celou relaci včetně výstupů nástrojů (~${tokens} vstupních tokenů; cena pozorovatele není známa). Pokračovat?`,
+	contextForkNoSession:
+		"Úroveň kontextu je fork, ale tato relace nemá soubor k rozdělení. Použije se digest.",
+	contextForkNeedsTui:
+		"Fork vyžaduje terminálové UI pro potvrzení. Použije se digest; změň to přes agent.context v konfiguračním souboru.",
 	reportRuntime: "runtime  ",
 	reportContext: "kontext  ",
 	reportAgentModel: "agent    ",

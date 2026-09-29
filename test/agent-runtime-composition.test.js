@@ -14,6 +14,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_CONFIG } from "../src/shared/config.js";
+import { stringsFor } from "../src/shared/i18n.js";
 import devsPsychologistExtension from "../index.js";
 import { makeCtx, makePi } from "./fakes.js";
 
@@ -218,6 +219,108 @@ test("session_shutdown kills a running child (idempotent)", async () => {
     // Let the pending turn finish so nothing leaks into the next test file.
     child.emit("close", null);
     await pending;
+  } finally {
+    world.cleanup();
+  }
+});
+
+/**
+ * A context whose session file can change between `session_start` and the run, plus a recorded
+ * notice list. This is the only way to prove the fork path reads the file at run time (T29).
+ */
+function forkCtx(cwd, { sessionFile, mode = "tui", confirm = async () => true } = {}) {
+  const notes = [];
+  const ctx = makeCtx({
+    cwd,
+    mode,
+    isProjectTrusted: () => true,
+    sessionManager: {
+      getEntries: () => [],
+      getBranch: () => [],
+      getSessionFile: () => (typeof sessionFile === "function" ? sessionFile() : sessionFile),
+    },
+    ui: {
+      setStatus: () => {},
+      notify: (message, level) => notes.push({ message, level }),
+      confirm: async (title, body) => confirm(title, body),
+    },
+  });
+  return { ctx, notes };
+}
+
+test("fork reads the session file at run time, not the value seen at session_start", async () => {
+  const { io, record } = fakeIo([scriptedChild()]);
+  const { pi, globalFile } = load(io);
+  const world = sandbox();
+  try {
+    writeConfig(globalFile, { runtime: "agent" }, { context: "fork" });
+    let current = join(world.cwd, "old.jsonl");
+    const { ctx } = forkCtx(world.cwd, { sessionFile: () => current });
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    // The file changes AFTER session_start, so a value captured there would be stale.
+    current = join(world.cwd, "new.jsonl");
+    await pi.commands.get("psych").handler("now", ctx);
+
+    const args = record.spawn[0].args;
+    assert.ok(args.includes("--fork"), "a confirmed fork forks");
+    assert.ok(args.includes(current), "the run-time session file is used");
+    assert.ok(!args.includes(join(world.cwd, "old.jsonl")), "the stale path is not");
+  } finally {
+    world.cleanup();
+  }
+});
+
+test("an ephemeral parent (no session file) falls back to digest with one notice", async () => {
+  const { io, record } = fakeIo([scriptedChild(), scriptedChild()]);
+  const { pi, globalFile } = load(io);
+  const world = sandbox();
+  try {
+    writeConfig(globalFile, { runtime: "agent" }, { context: "fork" });
+    const { ctx, notes } = forkCtx(world.cwd, { sessionFile: undefined });
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    await pi.commands.get("psych").handler("now", ctx);
+    await pi.commands.get("psych").handler("now", ctx);
+
+    assert.equal(record.spawn.length, 2);
+    assert.ok(record.spawn[0].args.includes("--no-session"), "fell back to --no-session");
+    assert.ok(!record.spawn[0].args.includes("--fork"));
+    const digestNotices = notes.filter((n) => n.message === stringsFor("en").contextForkNoSession);
+    assert.equal(digestNotices.length, 1, "notified once for the whole session");
+  } finally {
+    world.cleanup();
+  }
+});
+
+test("RPC refuses fork and degrades to digest with a notice", async () => {
+  const { io, record } = fakeIo([scriptedChild()]);
+  const { pi, globalFile } = load(io);
+  const world = sandbox();
+  try {
+    writeConfig(globalFile, { runtime: "agent" }, { context: "fork" });
+    const { ctx, notes } = forkCtx(world.cwd, { mode: "rpc", sessionFile: join(world.cwd, "p.jsonl") });
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    await pi.commands.get("psych").handler("now", ctx);
+
+    assert.ok(record.spawn[0].args.includes("--no-session"), "RPC cannot confirm a fork");
+    assert.ok(!record.spawn[0].args.includes("--fork"));
+    assert.equal(notes[0].message, stringsFor("en").contextForkNeedsTui);
+  } finally {
+    world.cleanup();
+  }
+});
+
+test("a declined fork confirm degrades to digest for the session", async () => {
+  const { io, record } = fakeIo([scriptedChild()]);
+  const { pi, globalFile } = load(io);
+  const world = sandbox();
+  try {
+    writeConfig(globalFile, { runtime: "agent" }, { context: "fork" });
+    const { ctx } = forkCtx(world.cwd, { sessionFile: join(world.cwd, "p.jsonl"), confirm: async () => false });
+    await pi.emit("session_start", { type: "session_start" }, ctx);
+    await pi.commands.get("psych").handler("now", ctx);
+
+    assert.ok(record.spawn[0].args.includes("--no-session"), "a declined fork uses digest");
+    assert.ok(!record.spawn[0].args.includes("--fork"));
   } finally {
     world.cleanup();
   }

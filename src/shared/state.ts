@@ -15,6 +15,7 @@ import { DEFAULT_SIGNAL_OPTIONS, type Observation } from "./signals.js";
 import { EMPTY_TRIGGER_BASELINE, type TriggerBaseline, type TriggerReason } from "./triggers.js";
 import type { Appraisal } from "./appraisal.js";
 import type { AppraiseOutcome } from "./appraisal-outcome.js";
+import type { ForkConsent } from "./agent-context.js";
 import type { OutcomeRecord } from "./outcome.js";
 import type { UsageSummary } from "./model-call.js";
 import {
@@ -136,8 +137,14 @@ export interface DevsPsychologistState {
 	sessionCwd: string;
 	/** `ctx.isProjectTrusted()` at session start; mirrored as `--approve`/`--no-approve`. */
 	agentTrusted: boolean;
-	/** `ctx.sessionManager.getSessionFile()`; required for `context: "fork"`. */
-	agentSessionFile: string | undefined;
+	/**
+	 * The operator's answer to the fork confirm for this session (T29). `unknown` until the first
+	 * fork run asks; read and written by `resolveAgentContext`. The parent session FILE is read at
+	 * run time (not stored), because an ephemeral parent has none and a session can gain one later.
+	 */
+	agentForkConsent: ForkConsent;
+	/** True once the fork → digest fallback has been announced; the notice fires at most once. */
+	agentForkNotified: boolean;
 	/** Summed cost (USD) of agent-runtime runs this session, compared with `agent.maxCostUsdPerSession`. */
 	agentSessionCostUsd: number;
 	/** Agent-runtime runs started this session, shown by the report (T27). */
@@ -214,7 +221,8 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		lastAppraisalUsage: undefined,
 		sessionCwd: process.cwd(),
 		agentTrusted: false,
-		agentSessionFile: undefined,
+		agentForkConsent: "unknown",
+		agentForkNotified: false,
 		agentSessionCostUsd: 0,
 		agentRunsThisSession: 0,
 		agentChildKill: undefined,
@@ -257,6 +265,9 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 			// `session_shutdown` kills before it drains.
 			state.agentSessionCostUsd = 0;
 			state.agentRunsThisSession = 0;
+			// Consent is a session decision: a new session asks again (T29).
+			state.agentForkConsent = "unknown";
+			state.agentForkNotified = false;
 			state.lastRun = undefined;
 			state.pendingAppraisal = undefined;
 		},

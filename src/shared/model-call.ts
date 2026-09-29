@@ -20,6 +20,7 @@
 
 import type { AssistantMessage, Api, Context, Model, Usage } from "@earendil-works/pi-ai";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { AgentContextLevel } from "./agent-config.js";
 
 /** The registry surface this plugin uses, taken from the context rather than re-declared. */
 export type ModelRegistry = ExtensionContext["modelRegistry"];
@@ -90,6 +91,16 @@ export interface ModelCallRequest {
 	 * `userText` is authoritative there, so the API request stays byte-identical (D2).
 	 */
 	evidence?: { liveLines: readonly string[]; sessionLines: readonly string[] };
+	/**
+	 * Agent runtime only: the effective consent level for this run (T28/T29). Absent means "use the
+	 * configured `agent.context`"; present, it carries any fork → digest downgrade the run decided.
+	 * The API path ignores every field below, so its request is unchanged (D2).
+	 */
+	agentContext?: AgentContextLevel;
+	/** Agent runtime only: the scrubbed transcript excerpt for `digest`. Never sent by the API path. */
+	digest?: string;
+	/** Agent runtime only: `getSessionFile()` read at run time, required for a real `fork`. */
+	parentSessionFile?: string;
 }
 
 /** Split `provider/modelId` on the first slash only. */

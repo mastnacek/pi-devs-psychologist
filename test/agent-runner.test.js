@@ -9,6 +9,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { join } from "node:path";
 import { runAgent } from "../src/shared/agent-runner.js";
 
 /** A fake child: two stdout/stderr emitters plus the process events the runner listens to. */
@@ -232,7 +233,7 @@ test("keepTranscript keeps the run directory and names the JSONL in the result",
 
 test("the child is announced with a kill handle and cleared when the run ends", async () => {
   const child = fakeChild();
-  const { io, record } = fakeIo([child]);
+  const { io } = fakeIo([child]);
   const handles = [];
   const promise = runAgent(REQUEST, options({ onChild: (h) => handles.push(h) }), io);
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -275,4 +276,26 @@ test("onProgress reports the tool census and elapsed time as the child streams (
   const last = seen.at(-1);
   assert.equal(last.toolCalls, 2, "psych_submit and read are both counted");
   assert.equal(typeof last.elapsedMs, "number");
+});
+
+test("a fork run's <runTmp>/session dir is removed together with runTmp (T29)", async () => {
+  const child = fakeChild();
+  const { io, record } = fakeIo([child]);
+  const promise = runAgent(
+    REQUEST,
+    options({ context: "fork", parentSessionFile: "C:/sessions/parent.jsonl" }),
+    io,
+  );
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  emitLine(child, SUBMIT_START);
+  emitLine(child, SUBMIT_END);
+  child.emit("close", 0);
+  await promise;
+
+  const args = record.spawn[0].args;
+  const dirIndex = args.indexOf("--session-dir");
+  assert.ok(dirIndex >= 0, "the fork got its own --session-dir");
+  const sessionDir = args[dirIndex + 1];
+  assert.equal(record.rm.length, 1, "the run directory is removed");
+  assert.equal(sessionDir, join(record.rm[0], "session"), "the session dir lives inside it, so it goes with it");
 });

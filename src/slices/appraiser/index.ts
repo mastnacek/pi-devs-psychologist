@@ -39,6 +39,7 @@ import { signalOptions, type DevsPsychologistState } from "../../shared/state.js
 import { paintChip, startResearchingChip, stopResearchingChip } from "../../shared/status.js";
 import { STALE_DELIVERY_TURNS, type DeliveryOutcome } from "../../shared/delivery.js";
 import { effectiveAgentModel } from "../../shared/config.js";
+import { resolveAgentContext } from "../../shared/agent-context.js";
 import { buildRunAccount } from "../../shared/run-account.js";
 import type { AppraiserDeps, AppraiseOutcome } from "./types.js";
 import { recordDelivery, settleOutcomes } from "./ledger.js";
@@ -181,6 +182,19 @@ export async function maybeAppraise(
 		const lines = allowedEvidence(liveLines, sessionLines);
 		const modelRef = state.config.model;
 
+		// Session context (T28/T29) is agent-runtime only. The decision is made here, where a real
+		// context exists, because `fork` needs consent and the session FILE read at run time; the API
+		// runtime never reaches this branch, so its request stays byte-identical (D2).
+		let agentContext = state.config.agent.context;
+		let digest: string | undefined;
+		let parentSessionFile: string | undefined;
+		if (state.config.runtime === "agent" && state.config.agent.context !== "evidence") {
+			const resolved = await resolveAgentContext(state, ctx);
+			agentContext = resolved.context;
+			digest = resolved.digest;
+			parentSessionFile = resolved.parentSessionFile;
+		}
+
 		const result = await deps.callModel(ctx.modelRegistry, {
 			modelRef,
 			systemPrompt: SYSTEM_PROMPT,
@@ -193,6 +207,13 @@ export async function maybeAppraise(
 			// child's message via `buildAgentBrief` (D2). The API path ignores this field entirely, so
 			// the bytes it sends are unchanged: `userText` remains authoritative there.
 			evidence: { liveLines, sessionLines },
+			...(state.config.runtime === "agent"
+				? {
+						agentContext,
+						...(digest ? { digest } : {}),
+						...(parentSessionFile ? { parentSessionFile } : {}),
+					}
+				: {}),
 		});
 
 		// Accounting (T27) is recorded for BOTH runtimes and for success and failure alike: the
