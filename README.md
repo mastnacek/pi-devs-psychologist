@@ -184,7 +184,7 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `unscopedWordFloor` | `25` | **Live.** Word count above which an anchor-less prompt is reported unscoped |
 | `idleGapMs` | `600000` | **Live.** Gap between prompts counted as an interruption (10 min) |
 | `envFacts` | `true` | **Live.** Include the parent-computed environment lines (pi version, pi-lens LSP/format/guard state) among the citable evidence |
-| `runtime` | `"api"` | **Live.** `api` \| `agent` — which runtime forms the appraisal. `agent` is config, report and chip only until T24; the appraiser still uses the API call |
+| `runtime` | `"api"` | **Live.** `api` \| `agent` — which runtime forms the appraisal. `agent` spawns a headless read-only `pi` child with the selected model, pi docs, packages, web, MCP, skills and nlm (see ADR 0002) |
 | `agent` | see below | **Live.** Settings for the `agent` runtime. Normalised key by key and merged per key across layers |
 
 #### `agent` keys (runtime `"agent"`)
