@@ -227,15 +227,15 @@ Full specifications (goal, files, behaviour, acceptance, non-goals) live in
 - `x T16` Intervention outcome ledger — measures the plugin, never the person
 - `x T17` Anti-nag cooldown — per-kind cooldown, mute after two no-change repeats
 - `x T18` Recurring friction line from existing `FailureFingerprint`
-- `. T19` Spike: child `pi` launch facts on this machine (10 questions) — results in [`docs/agent-runtime-spike.md`](docs/agent-runtime-spike.md)
-- `. T20` ADR 0002 — agent runtime and the data boundary
-- `. T21` Config + `--psych-runtime` flag + `/psych runtime|context|agent-model`
-- `. T22` Child mode: `psych_submit` tool + read-only `tool_call` guard
-- `. T23` Agent brief: role prompt, pi docs map, pi.dev/packages, web/MCP/skills/nlm
-- `. T24` Runner: argv/env builder, JSONL stream, cost/time limits, tree kill
-- `. T25` Schema `suggestions` with enforced sources
-- `. T26` Async delivery, deliver at a natural pause, `/psych stop`
-- `. T27` Accounting in `/psych`, session cost cap
+- `x T19` Spike: child `pi` launch facts on this machine (10 questions) — results in [`docs/agent-runtime-spike.md`](docs/agent-runtime-spike.md)
+- `x T20` ADR 0002 — agent runtime and the data boundary
+- `x T21` Config + `--psych-runtime` flag + `/psych runtime|context|agent-model`
+- `x T22` Child mode: `psych_submit` tool + read-only `tool_call` guard
+- `x T23` Agent brief: role prompt, pi docs map, pi.dev/packages, web/MCP/skills/nlm
+- `x T24` Runner: argv/env builder, JSONL stream, cost/time limits, tree kill
+- `x T25` Schema `suggestions` with enforced sources
+- `x T26` Async delivery, deliver at a natural pause, `/psych stop`
+- `x T27` Accounting in `/psych`, session cost cap
 - `. T28` Context level `digest` (scrubbed, no tool outputs)
 - `. T29` Context level `fork` (full session, confirm on first use)
 - `. T30` `/psych ask <question>`

@@ -398,3 +398,18 @@ unless `agent.keepTranscript`.
   child's cwd on `session_start`. That is extension code, not a tool call, so the `tool_call`
   guard cannot see it. The child runs in the parent's cwd, where that plugin already writes,
   so nothing new is exposed — but "read-only" means read-only *tools*, not a read-only process.
+
+## Live verification after T26/T27 (2026-09-29, RPC driver, parent + child on deepseek-v4.1-flash)
+
+- `turn_end` no longer blocks: the chip read `psych: researching Ns · N tools` once per second
+  while the working agent kept streaming; `agent_end` arrived before the appraisal finished.
+- Child run 9–23 s. First run on a cold cache 36.6k input tokens ($0.0115); a warm repeat
+  285 uncached input tokens ($0.0007) — the prompt cache absorbs pi's core prompt.
+- **Bug found and fixed (`fix(enforce)`)**: the child copied citations with the prompt's `- `
+  list marker; all four were dropped and the appraisal came back empty. Markers are now
+  stripped before matching; the re-run matched every citation.
+- `/psych now` during an in-flight automatic run waited on that run instead of starting a second
+  one (T26 single-flight, as specified); `/psych` "Last run" block showed runtime, model,
+  duration, tools, tokens, cost and the session total against the $2.00 cap.
+- Another plugin's approval dialog (`select`) fires on every parent bash call in RPC; a driver
+  must answer `extension_ui_request` dialogs or the parent stalls.

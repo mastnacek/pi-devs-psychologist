@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.5.0 (unreleased)
+## 0.5.0
 
 T20 and T21. The `agent` runtime is introduced as a switch: config, a one-run CLI flag, `/psych`
 commands and an ADR. Nothing spawns yet — `runtime: "agent"` changes only the config, the
