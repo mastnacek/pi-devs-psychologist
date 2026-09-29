@@ -134,6 +134,14 @@ export interface Strings extends RunStrings, CardStrings, NoticeStrings, ReplayS
 	agentModelSet: (model: string) => string;
 	/** Shown when `--psych-runtime` carries something other than `api`/`agent`. */
 	runtimeFlagInvalid: (value: string) => string;
+	/**
+	 * The `pi --help` row for the `--psych-runtime` flag. The engine prints flag descriptions to the
+	 * OPERATOR, so this is user-facing text and belongs here; the `multilingual-ui` invariant caught
+	 * it hardcoded in `index.ts`. Registered at load, before the project layer of the config cascade
+	 * is known, so it is resolved from the saved machine-wide language (`loadConfig()` with no cwd)
+	 * rather than the default.
+	 */
+	flagPsychRuntime: string;
 	/** The consent dialog before `digest`/`fork` is persisted: it states what leaves the machine. */
 	contextConfirmTitle: string;
 	contextConfirmBody: (level: string) => string;
@@ -249,6 +257,7 @@ export const EN: Strings = {
 	contextSet: (level) => `Context level set to ${level}`,
 	agentModelSet: (model) => `Agent model set to ${model}`,
 	runtimeFlagInvalid: (value) => `Ignoring --psych-runtime ${value}: use api or agent`,
+	flagPsychRuntime: "override the psychologist runtime for this run (api|agent)",
 	contextConfirmTitle: "Send session context to the child agent?",
 	contextConfirmBody: (level) =>
 		level === "fork"
@@ -358,6 +367,7 @@ export const CS: Strings = {
 	contextSet: (level) => `Úroveň kontextu nastavena na ${level}`,
 	agentModelSet: (model) => `Model agenta nastaven na ${model}`,
 	runtimeFlagInvalid: (value) => `Přepínač --psych-runtime ${value} ignorován: použij api nebo agent`,
+	flagPsychRuntime: "přepsat běhový režim psychologa pro toto spuštění (api|agent)",
 	contextConfirmTitle: "Poslat kontext relace podřízenému agentovi?",
 	contextConfirmBody: (level) =>
 		level === "fork"

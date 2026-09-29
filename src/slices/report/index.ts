@@ -58,13 +58,19 @@ export function renderReport(input: ReportInput): string {
 	const s = stringsFor(input.lang);
 	const lines: string[] = [`${s.reportTitle} v${PLUGIN_VERSION}`];
 
+	// Both early returns clip like the main path does. They did not, and these are the two lines an
+	// operator meets FIRST — before a model is configured — while being the longest prose in the
+	// report: "⚠ No psychologist model configured…" measured 76 cells in a 40-column terminal, and
+	// the disabled notice overflowed at 20. (references/tui-and-components.md §1: always clip with
+	// truncateToWidth. A notification wraps rather than crashes, so this is presentation, not a
+	// crash — but the rule exists because a wrapped row is indistinguishable from a broken one.)
 	if (!state.config.enabled) {
 		lines.push("", `⚠ ${s.reportDisabled}`);
-		return lines.join("\n");
+		return clipRender(lines.join("\n"), input.width);
 	}
 	if (state.config.model.trim().length === 0 && effectiveAgentModel(state.config).trim().length === 0) {
 		lines.push("", `⚠ ${s.reportNoModel}`);
-		return lines.join("\n");
+		return clipRender(lines.join("\n"), input.width);
 	}
 
 	// Budget first: it is the number that explains every silence.

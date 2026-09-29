@@ -4,8 +4,12 @@ Investigation only; **no plugin source changed**. Every row below replaces an
 assumption in `docs/plan-0.4.md` with a fact observed on this machine.
 
 **Environment:** Windows 11, Git Bash, `pi` 0.87.1 on PATH.
-Engine root: `D:\02_knihovny_path\node-v22.17.1-win-x64\node_modules\@earendil-works\pi-coding-agent`.
-Node: `D:\02_knihovny_path\node-v22.17.1-win-x64\node.exe`.
+Engine root: the resolved `@earendil-works/pi-coding-agent` package root, i.e. the
+`node_modules` tree beside the running `node.exe` — written as `<engine root>` below rather
+than a literal machine path, which rots on the next node upgrade and is exactly what the
+`docs-portability` invariant flags. Re-derive it from `process.env.PI_PACKAGE_DIR`, or by
+walking up from `process.execPath`.
+Node: the `node.exe` beside that tree.
 All child runs used `--model openrouter/deepseek/deepseek-v4.1-flash`, tiny prompts,
 `timeout 120`, `--no-session` unless the question was about `--fork`. Throwaway probe
 extension and temp files lived under `%TEMP%/psych-spike/` (deleted at the end; the
@@ -27,10 +31,10 @@ cat %TEMP%/psych-spike/probe.json
 
 ```json
 {
-  "execPath": "D:\\02_knihovny_path\\node-v22.17.1-win-x64\\node.exe",
+  "execPath": "<node root>\\node.exe",
   "argv": [ "...\\node.exe", "...\\@earendil-works\\pi-coding-agent\\dist\\bundle\\cli.js", "-e", ... ],
-  "argv1": "...\\node_modules\\@earendil-works\\pi-coding-agent\\dist\\bundle\\cli.js",
-  "PI_PACKAGE_DIR": "D:\\02_knihovny_path\\node-v22.17.1-win-x64\\node_modules\\@earendil-works\\pi-coding-agent",
+  "argv1": "<engine root>\\dist\\bundle\\cli.js",
+  "PI_PACKAGE_DIR": "<engine root>",
   "cwd": "C:\\Users\\jaroslav\\AppData\\Local\\Temp\\psych-spike"
 }
 ```

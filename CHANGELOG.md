@@ -2,6 +2,22 @@
 
 ## 0.8.1
 
+- **Audit of three surfaces against the pi-plugin-dev skill (docs/audit-2026-09-29.md).** The
+  previous two fixes were found by reading a reference, so this one ran the surfaces instead.
+  **FAIL fixed:** the `--psych-runtime` flag description was hardcoded English, and the engine
+  prints flag descriptions into `pi --help` — the same sink class the reference names for
+  `registerCommand`. Now `flagPsychRuntime` in both locales, resolved at registration from the
+  saved machine-wide language, because a flag is registered before the project layer of the
+  config cascade is known. **Width defect fixed:** the report's two early returns (disabled, no
+  model) skipped `clipRender`; "⚠ No psychologist model configured…" measured 76 cells in a
+  40-column terminal, and those are the first two lines a new operator sees. **Portability fixed:**
+  `scripts/live-agent-check.mts` hardcoded a node-version path and the auditor cannot see `.mts`
+  at all, so it now resolves the engine at runtime. Ten warnings investigated and dismissed as
+  cross-file false positives, each verified by driving the real composition root — notably the
+  lifecycle drain (9 opened, 9 drained at the root) and the entry restore (the report renders the
+  restored verdict after a simulated reload). Card and report width sweeps are now permanent
+  tests over 2 locales x 6-9 widths with adversarial content: 4,478 lines, 0 violations.
+
 - **fix(commands): two settings-menu rows said the wrong thing (audit against the skill).**
   `/psych history` reused the master-switch strings, so a menu with the plugin ON showed
   `on ✓ · Psychologist on` directly above `history  Psychologist off` — one row contradicting the

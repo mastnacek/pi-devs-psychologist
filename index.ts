@@ -29,7 +29,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { saveConfig, seedGlobalConfig } from "./src/shared/config.js";
+import { loadConfig, saveConfig, seedGlobalConfig } from "./src/shared/config.js";
 import { createAgentCall, type AgentCall } from "./src/shared/agent-call.js";
 import { type AgentRunIo } from "./src/shared/agent-runner.js";
 import { callModel } from "./src/shared/model-call.js";
@@ -110,8 +110,13 @@ export default function devsPsychologistExtension(
 	// This process's runtime override, never written to disk: `--psych-runtime agent|api`. Consent for
 	// session context is deliberately NOT settable here — a one-run flag must never carry a persisted
 	// decision (T21). Read back at session_start; the value is applied to the in-memory config only.
+	// The engine prints a flag's description into `pi --help`, so the operator reads it: it is
+	// user-facing text and goes through the table (the `multilingual-ui` invariant caught it
+	// hardcoded here). `registerFlag` runs at load, before the config cascade knows the project, so
+	// the language is the saved machine-wide one — `loadConfig()` with no cwd reads the global layer
+	// over the defaults, which is exactly the preference a `--help` reader has.
 	pi.registerFlag("psych-runtime", {
-		description: "Override the psychologist runtime for this run (api|agent)",
+		description: stringsFor(loadConfig(undefined, options.globalFile).lang).flagPsychRuntime,
 		type: "string",
 	});
 

@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { stringsFor } from "../src/shared/i18n.js";
 import { makeCtx, makePi } from "./fakes.js";
 import { DEFAULT_CONFIG } from "../src/shared/config.js";
 import devsPsychologistExtension from "../index.js";
@@ -276,3 +277,29 @@ test("the seeded file is the file the plugin then reads", async () => {
   }
 });
 
+
+test("the --psych-runtime flag description comes from the string table", async () => {
+  // The engine prints a flag's description into `pi --help`, so the operator reads it: it is
+  // user-facing text and the `multilingual-ui` invariant failed it hardcoded in index.ts. Checked
+  // through the real registerFlag, in both locales.
+  const { default: extension } = await import("../index.js");
+  for (const [lang, file] of [["en", undefined], ["cs", undefined]]) {
+    const dir = mkdtempSync(join(tmpdir(), `psych-flag-${lang}-`));
+    try {
+      const globalFile = join(dir, "pi-devs-psychologist.json");
+      writeFileSync(globalFile, JSON.stringify({ lang }));
+      const flags = new Map();
+      const pi = makePi();
+      pi.registerFlag = (name, options) => flags.set(name, options);
+      extension(pi, { globalFile });
+      const described = flags.get("psych-runtime")?.description;
+      assert.equal(typeof described, "string");
+      assert.equal(described, stringsFor(lang).flagPsychRuntime);
+      // The saved machine-wide language decides it, because a flag is registered before the
+      // project layer of the cascade is known.
+      assert.notEqual(described, stringsFor(lang === "en" ? "cs" : "en").flagPsychRuntime);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
