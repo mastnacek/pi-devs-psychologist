@@ -165,7 +165,15 @@ abstention default, delivery-anchored cadence, and invariant 3.
 
 - **If fewer than half its findings are accepted**, it is noise, and the abstraction
   is not worth its surface. Delete the slice rather than tune it.
-- **If it duplicates `pi-lens` or `pi-architecture-watcher`**, it should not ship.
+- **If it duplicates `pi-lens`, `pi-architecture-watcher` or `pi-pair`**, it should not ship.
+  (Amended 2026-09-29 after the static source comparison in `docs/pi-pair-comparison.md`:
+  `pi-pair@1.0.77` is a decision-chain provenance auditor that already proves the commit-anchored
+  trigger and the read-only child. What it leaves open is exactly this ADR two claims: a
+  **different, stronger model** (pi-pair inherits the session model by design, `PI_PAIR_AUDITOR_MODEL`
+  aside) and **convention adherence against a stated rule** (no `AGENTS.md` read anywhere). So T32,
+  if built, is only those two things on the spawn seam this plugin already owns — and installing
+  pi-pair is not an alternative to it: it writes user prompt text to `convlog.md` on disk, injects
+  findings into the working agent context, and forks the whole session per audit round.)
   Those are deterministic and free. The reviewer's only justification is *semantic*
   judgement — convention mismatches, plan-versus-artifact drift, intent that the
   diff contradicts — which deterministic tools cannot express.

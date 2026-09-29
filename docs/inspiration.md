@@ -64,3 +64,12 @@ the *quick-win card*. It gets it **through prompt policy, not code**: the workin
 agent is instructed to call `quick_win`. No import, no shared state, no coupling
 between two repos — and either plugin works alone, which is the property a merge
 would destroy.
+
+## The reviewer role has prior art: `pi-pair` (2026-09-29)
+
+`npm:pi-pair` (Nuctori, 1.0.77, 428 downloads/mo) audits *decision provenance*, not artifacts by
+a stronger model: it extracts decisions from the conversation log, keeps an append-only chain
+with adversarial proof auditing, and gates on a git HEAD change. Read from the npm tarball, not
+installed — it writes user prompt text to `.pi/decision-auditor/convlog.md`, injects findings into
+the working agent context, and forks the whole session for every audit round. Full comparison with
+file:line evidence: `docs/pi-pair-comparison.md`. ADR 0001 kill criterion now names it.
