@@ -32,10 +32,8 @@ export interface SubmitState {
 
 /**
  * The schema the role submits. `psychologist` submits the appraisal contract itself (D1: both runtimes
- * return the same shape). The other three roles reuse the `ask` answer shape for now.
- *
- * TODO(T30/T31): give `ask`, `scout` and `pair` their own schemas — T25 adds `suggestions`, scout
- * returns candidates and pair a convention finding — instead of borrowing `ask`'s.
+ * return the same shape); `ask` submits its own answer contract (T30). `scout` and `pair` still
+ * borrow `ask`'s shape until T31/T32 give them theirs.
  */
 export function schemaForRole(role: ChildRole): TSchema {
 	return role === "psychologist" ? APPRAISAL_SCHEMA : ASK_SCHEMA;

@@ -15,7 +15,7 @@
 
 import { INTERVENTION_KINDS, LOAD_LEVELS, NEED_STATES, PROGRESS_STATES, FLOW_STATES } from "./appraisal.js";
 import type { ChildRole } from "./child-limits.js";
-import { buildUserText, SYSTEM_PROMPT } from "./prompt.js";
+import { askQuestionBlock, buildUserText, SYSTEM_PROMPT } from "./prompt.js";
 
 /**
  * The one paragraph of `SYSTEM_PROMPT` that tells the model to answer with JSON. In agent runtime
@@ -118,6 +118,8 @@ export interface AgentBriefInput {
 	nlmNotebooks: string[];
 	/** A bounded, scrubbed session excerpt (T28). Prepended to the final instruction when present. */
 	digest?: string;
+	/** The operator's question, for the `ask` role (T30): placed as a `QUESTION — …` block. */
+	question?: string;
 }
 
 export interface AgentBrief {
@@ -128,13 +130,29 @@ export interface AgentBrief {
 }
 
 /**
- * The role paragraph. Only the psychologist has a real one today; the other three get a short
- * placeholder that shares every section below.
+ * The `ask` role paragraph (T30). The operator asked a direct question, so the answer IS the product:
+ * it must stand alone, cite what supports it, say so when the evidence does not answer it, and put
+ * research into `suggestions` where a source can be checked. The prohibitions are the psychologist
+ * prompt's, verbatim where they apply, because a direct question is no licence to diagnose.
+ */
+const ASK_ROLE_PARAGRAPH = [
+	"You are the pi-devs-psychologist extension running headless in the `ask` role. The operator is asking you a direct question about their session or their pi setup, and your answer is the whole product.",
+	"Answer the question yourself, in at most 800 characters of plain prose. It is the only thing the operator reads, so it must stand on its own: no preamble, no restating the question, no list of caveats.",
+	"Cite the LIVE or SESSION lines that support any claim you make about the session, copied EXACTLY, at most 4. A claim you cannot cite is marked unsupported to the operator, so cite what decides it or leave it out.",
+	"If the evidence does not answer the question, say plainly that you cannot tell from the evidence, and name what is missing. Never guess a fact, number, timestamp, file name or event: if it is not in a line, you do not know it.",
+	"Facts you learned from research — a plugin, a doc, a notebook — belong in `suggestions`, not in the answer, and every suggestion needs a `source`.",
+	"Never mention scores, streaks, productivity, efficiency, burnout, fatigue, stress, or any diagnosis or mental-health condition. You answer a question; you do not assess a person's health.",
+].join("\n");
+
+/**
+ * The role paragraph. The psychologist gets its full prompt, `ask` its own contract (T30); the two
+ * remaining roles get a short placeholder that shares every section below.
  *
- * TODO(T30/T31/T32): give `ask`, `scout` and `pair` their own role paragraphs.
+ * TODO(T31/T32): give `scout` and `pair` their own role paragraphs.
  */
 function roleParagraph(role: ChildRole): string {
 	if (role === "psychologist") return PSYCHOLOGIST_SYSTEM_PROMPT;
+	if (role === "ask") return ASK_ROLE_PARAGRAPH;
 	return (
 		`You are the pi-devs-psychologist extension running headless in the \`${role}\` role. ` +
 		"You are an observer: you never change files, never commit, never install, and your only " +
@@ -239,12 +257,16 @@ function researchRule(): string {
 /** The exact final line `buildUserText` emits; replaced so the child is told to submit. */
 const JSON_ONLY_FINAL_LINE = "Appraise the session now. JSON only.";
 
-/** The final line the child sees. */
+/** The final line the child sees for an appraisal. */
 export const SUBMIT_FINAL_LINE = "Appraise the session now. Submit with psych_submit.";
+
+/** The final line the child sees when it was asked a question (T30). */
+export const ASK_FINAL_LINE = "Answer the question now. Submit with psych_submit.";
 
 /**
  * Build the user message: `buildUserText`'s evidence portion byte for byte (D2), the optional
- * digest block, and the submit instruction in place of the JSON-only line.
+ * digest block, the optional `QUESTION — …` block (T30), and the submit instruction in place of
+ * the JSON-only line.
  */
 function buildAgentUserText(input: AgentBriefInput): string {
 	const base = buildUserText(input.liveLines, input.sessionLines);
@@ -257,7 +279,9 @@ function buildAgentUserText(input: AgentBriefInput): string {
 	}
 	const evidence = base.slice(0, base.length - JSON_ONLY_FINAL_LINE.length);
 	const digestBlock = input.digest ? `DIGEST — ${input.digest}\n\n` : "";
-	return evidence + digestBlock + SUBMIT_FINAL_LINE;
+	const questionBlock = input.role === "ask" && input.question ? askQuestionBlock(input.question) : "";
+	const finalLine = input.role === "ask" ? ASK_FINAL_LINE : SUBMIT_FINAL_LINE;
+	return evidence + digestBlock + questionBlock + finalLine;
 }
 
 /** Assemble both strings the runner writes to files. Pure: same input, same output. */

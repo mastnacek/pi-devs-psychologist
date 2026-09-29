@@ -30,6 +30,11 @@ export interface CommandDeps {
 	report(ctx: ExtensionCommandContext): void;
 	/** Show the intervention-effect table (T16). Injected so this slice knows no other slice. */
 	effect(ctx: ExtensionCommandContext): void;
+	/**
+	 * Ask the observer a direct question (`/psych ask <question>`, T30). Returns a status line for the
+	 * skip/failure cases; an empty string when the answer was already shown as a card or notification.
+	 */
+	ask(ctx: ExtensionCommandContext, question: string): Promise<string>;
 	/** Persist a patch to the chosen layer; returns the path written. */
 	save(patch: Record<string, unknown>, isGlobal: boolean, ctx: ExtensionCommandContext): string;
 	/** Re-read the config cascade after a write, so the effect is immediate. */
@@ -85,6 +90,17 @@ export function registerPsychCommand(
 				case "effect":
 					deps.effect(ctx);
 					return;
+
+				case "ask": {
+					// An empty question is an incomplete command, not a silent no-op: say so.
+					if (value.length === 0) {
+						notify(stringsFor(state.config.lang).usage, "warning");
+						return;
+					}
+					const line = await deps.ask(ctx, value);
+					if (line.length > 0) notify(line);
+					return;
+				}
 
 				case "on":
 				case "off": {

@@ -56,6 +56,20 @@ export const LIVE_HEADER = "LIVE — the recent observation window:";
 export const SESSION_HEADER = "SESSION — the whole session's record:";
 
 /**
+ * The line `buildUserText` ends with. Exported so a caller that replaces it (the agent brief, the
+ * `ask` message) can splice the evidence part off byte-identically.
+ */
+export const JSON_ONLY_FINAL_LINE = "Appraise the session now. JSON only.";
+
+/** The `ask` user message's final line: a question was asked, not an appraisal. */
+export const ASK_JSON_FINAL_LINE = "Answer the question now. JSON only.";
+
+/** The QUESTION block both runtimes put immediately before the final line (T30). */
+export function askQuestionBlock(question: string): string {
+	return `QUESTION — ${question}\n\n`;
+}
+
+/**
  * The user message. Evidence lines are presented verbatim and unnumbered, so a citation the
  * model copies is byte-identical to the line the plugin produced and matches on the first
  * attempt. Numbering them would invite citations like "12. …" that fail enforcement.
@@ -68,9 +82,53 @@ export function buildUserText(liveLines: readonly string[], sessionLines: readon
 		SESSION_HEADER,
 		...sessionLines.map((line) => `- ${line}`),
 		"",
-		"Appraise the session now. JSON only.",
+		JSON_ONLY_FINAL_LINE,
 	].join("\n");
 }
+
+/**
+ * The `ask` user message for the API runtime (T30): the same evidence as `buildUserText`, the
+ * operator's question as a `QUESTION — …` block, and a final line that asks for what we want.
+ *
+ * The evidence prefix is byte-identical to `buildUserText`'s, because the question is inserted only
+ * in front of the final line — the same splice the agent brief performs.
+ */
+export function buildAskUserText(
+	liveLines: readonly string[],
+	sessionLines: readonly string[],
+	question: string,
+): string {
+	const base = buildUserText(liveLines, sessionLines);
+	const evidence = base.slice(0, base.length - JSON_ONLY_FINAL_LINE.length);
+	return `${evidence}${askQuestionBlock(question)}${ASK_JSON_FINAL_LINE}`;
+}
+
+/**
+ * The `ask` role's system prompt for the API runtime (T30).
+ *
+ * The API runtime has no tools, so research is impossible: the operator is told the answer rests on
+ * the evidence alone. In agent runtime the child instead gets the full brief (T23), whose role
+ * paragraph says the same thing at greater length.
+ */
+export const ASK_SYSTEM_PROMPT = `You are the engineering psychologist an operator has asked a direct question.
+
+You are NOT the agent doing the work. You never comment on code, style, architecture, design or correctness. Your subject is the session and the operator's pi setup.
+
+You receive two sets of factual lines, each computed from the session by arithmetic you cannot influence:
+- LIVE — what just happened, from the recent observation window.
+- SESSION — the whole session's recorded structure.
+
+You may not invent or estimate any fact, number, timestamp, file name or event. If it is not in a line, you do not know it.
+
+Answer with ONE JSON object and nothing else, no prose and no code fences:
+{"answer":"the answer, at most 800 characters of plain prose","cited":[]}
+
+Rules, all mandatory:
+1. Every claim about the session must cite LIVE or SESSION lines copied EXACTLY into "cited", at most 4.
+2. If the evidence does not answer the question, say plainly that you cannot tell from the evidence, and name what is missing.
+3. Research is impossible in this runtime: there are no tools, so leave out any "suggestions" field entirely.
+4. Never mention scores, streaks, productivity, efficiency, burnout, fatigue, stress, or any diagnosis or mental-health condition. You answer a question; you do not assess a person's health.
+5. "answer" is plain prose the operator can read on its own, at most 800 characters.`;
 
 /** Every line the appraiser may cite, in prompt order. Enforcement uses exactly this list. */
 export function allowedEvidence(

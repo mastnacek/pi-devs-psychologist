@@ -20,6 +20,7 @@
  * unreliable in containers. The persisted `lang` setting is the only source of truth.
  */
 
+import { CARD_CS, CARD_EN, type CardStrings } from "./i18n-card.js";
 import { CS_LABELS, EN_LABELS, type Labels } from "./i18n-labels.js";
 import { RUN_CS, RUN_EN, type RunStrings } from "./i18n-runs.js";
 
@@ -29,7 +30,7 @@ export const LOCALES = ["en", "cs"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 
-export interface Strings extends RunStrings {
+export interface Strings extends RunStrings, CardStrings {
 	/** Statusline. The product name (`psych`) is identical across locales; the state is not. */
 	chipOff: string;
 	/** Shown when no model is configured: observation is live, the spend is zero. */
@@ -41,25 +42,6 @@ export interface Strings extends RunStrings {
 	chipConfigError: string;
 	/** `psych 3t · 0/12`. `waiting` is turns since the last appraisal, `budget` is used/cap. */
 	chipAppraisal: (waiting: string, budget: string) => string;
-
-	/** The appraisal card. */
-	cardTitle: string;
-	cardVerdicts: string;
-	cardIntervention: string;
-	cardNothingToAct: string;
-	/**
-	 * Shown when no field carries a single citation, so the card reached no verdict at all.
-	 * Distinct from `cardNothingToAct`: that one says "appraised, nothing to do", this one says
-	 * "nothing was appraised". Presenting the second as the first reads as a clean bill of health.
-	 */
-	cardNoObservation: string;
-	cardCited: string;
-	cardUnmatched: (count: number) => string;
-	/** Header of the card's researched-suggestions section (T25); the section is omitted when empty. */
-	cardSuggestions: string;
-	/** One suggestion in the notification fallback: its text and its enforced source. */
-	notifySuggestion: (text: string, source: string) => string;
-	cardFooter: { close: string; scroll: string };
 
 	/** The `/psych` report. */
 	reportTitle: string;
@@ -103,6 +85,8 @@ export interface Strings extends RunStrings {
 	cmdStatus: string;
 	cmdNow: string;
 	cmdEffect: string;
+	/** `/psych ask <question>` (T30). */
+	cmdAsk: string;
 	/** An unset setting, shown in a parent row rather than a bare dash. */
 	notSet: string;
 	/** `(now: 12)` — a parent row's value, labelled. */
@@ -161,20 +145,12 @@ export interface Strings extends RunStrings {
 
 const EN: Strings = {
 	...RUN_EN,
+	...CARD_EN,
 	chipOff: "psych: off",
 	chipSignals: "psych: signals",
 	chipConfigError: "psych: check model",
 	chipAppraisal: (waiting, budget) => `psych ${waiting} · ${budget}`,
 
-	cardTitle: "DEVELOPER PSYCHOLOGIST",
-	cardVerdicts: "What the session shows",
-	cardIntervention: "One thing, if it helps",
-	cardNothingToAct: "Nothing to act on. That is a normal outcome.",
-	cardNoObservation: "The model cited nothing, so no verdict was reached. Not a statement about the session.",
-	cardCited: "from",
-	cardUnmatched: (count) => `${count} unsupported claim(s) dropped`,
-	cardSuggestions: "Researched suggestions",
-	notifySuggestion: (text, source) => `${text} (source: ${source})`,
 	cardFooter: { close: "close", scroll: "scroll" },
 
 	reportTitle: "DEVELOPER PSYCHOLOGIST",
@@ -209,11 +185,12 @@ const EN: Strings = {
 	cmdStatus: "show the report",
 	cmdNow: "run an appraisal now",
 	cmdEffect: "show whether the interventions helped",
+	cmdAsk: "ask the observer a direct question",
 	notSet: "(not set)",
 	nowValue: (value) => `(now: ${value})`,
 	// The help must not advertise a `global` subcommand: it is a trailing flag, and a user who
 	// followed the old text got "Unknown option: global".
-	usage: "Usage: /psych [status|now|stop|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Usage: /psych [status|now|stop|effect|ask <question>|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Unknown option",
 	configWritten: (path) => `Config written to ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
@@ -261,20 +238,12 @@ const EN: Strings = {
 
 const CS: Strings = {
 	...RUN_CS,
+	...CARD_CS,
 	chipOff: "psych: vyp",
 	chipSignals: "psych: signály",
 	chipConfigError: "psych: zkontroluj model",
 	chipAppraisal: (waiting, budget) => `psych ${waiting} · ${budget}`,
 
-	cardTitle: "VÝVOJÁŘSKÝ PSYCHOLOG",
-	cardVerdicts: "Co relace ukazuje",
-	cardIntervention: "Jedna věc, pokud pomůže",
-	cardNothingToAct: "Není co dělat. To je normální výsledek.",
-	cardNoObservation: "Model nic nedoložil, žádný výrok nepadl. Není to tvrzení o relaci.",
-	cardCited: "z",
-	cardUnmatched: (count) => `${count} nepodložených tvrzení zahozeno`,
-	cardSuggestions: "Prozkoumané náměty",
-	notifySuggestion: (text, source) => `${text} (zdroj: ${source})`,
 	cardFooter: { close: "zavřít", scroll: "posun" },
 
 	reportTitle: "VÝVOJÁŘSKÝ PSYCHOLOG",
@@ -309,9 +278,10 @@ const CS: Strings = {
 	cmdStatus: "zobrazit report",
 	cmdNow: "spustit posouzení teď",
 	cmdEffect: "zobrazit, zda zásahy pomohly",
+	cmdAsk: "zeptat se pozorovatele přímo",
 	notSet: "(nenastaveno)",
 	nowValue: (value) => `(nyní: ${value})`,
-	usage: "Použití: /psych [status|now|stop|effect|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Použití: /psych [status|now|stop|effect|ask <dotaz>|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Neznámá volba",
 	configWritten: (path) => `Konfigurace zapsána do ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,

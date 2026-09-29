@@ -2,9 +2,10 @@
 
 ## 0.5.1 (unreleased)
 
-T28 and T29. The two wider consent levels start to carry data: `digest` sends a bounded, scrubbed
-transcript excerpt, and `fork` hands the child the whole session after a one-time confirmation.
-Both are agent-runtime only and both leave the API path byte-identical.
+T28, T29 and T30. The two wider consent levels start to carry data: `digest` sends a bounded,
+scrubbed transcript excerpt, and `fork` hands the child the whole session after a one-time
+confirmation. Both are agent-runtime only and both leave the API path byte-identical. T30 adds
+`/psych ask`, the operator consulting the observer directly.
 
 ### Added
 
@@ -24,6 +25,17 @@ Both are agent-runtime only and both leave the API path byte-identical.
   (ephemeral parent) or a non-TUI run (RPC) degrades `fork → digest` and says so once per session
   (en + cs). The `<runTmp>/session` directory is removed together with `runTmp`.
 - **i18n** keys for the fork confirm and its two fallback notices, in `en` and `cs`.
+- **`/psych ask <question>` (T30).** The operator consults the observer directly. New slice
+  `src/slices/ask/`: always the agent runtime, falling back to a tool-less API call that says so on
+  the card (`api runtime — no research`). `ASK_SCHEMA` becomes the real `ask` contract — a ≤800-char
+  `answer`, up to 4 exactly-copied citations, and optional `suggestions` (the T25 source rule) — and
+  `psych_submit` validates it for role `ask`. The child's brief gains an `ask` role paragraph and a
+  `QUESTION — …` block placed before the final line, leaving the evidence prefix byte-identical. An
+  answer whose citations do not match is KEPT and marked unsupported, never hidden; the API runtime
+  uses no source policy, so only a URL or install spec can survive a suggestion. `/psych ask`
+  consumes one budget unit, honours the session cost cap and shares single-flight with appraisals; it
+  is never written into the working agent's context. The `ask` completion is non-terminal (`ask `)
+  with no further items.
 
 
 ## 0.5.0

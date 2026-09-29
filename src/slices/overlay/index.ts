@@ -17,6 +17,8 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { DEFAULT_LOCALE, stringsFor, type Locale } from "../../shared/i18n.js";
 import { AppraisalView } from "./appraisal-view.js";
+import { AskView } from "./ask-view.js";
+import { measureAskCard, type AskCardInput } from "./ask-layout.js";
 import { FRAME_LINES, measureCard, type CardInput } from "./layout.js";
 
 /** Preferred card width in columns; never wider than the terminal. */
@@ -81,4 +83,40 @@ export async function presentAppraisal(
 }
 
 export { AppraisalView } from "./appraisal-view.js";
+export { AskView } from "./ask-view.js";
+export { layoutAskCard, measureAskCard, type AskCardInput } from "./ask-layout.js";
 export { FRAME_LINES, measureCard, type CardInput } from "./layout.js";
+
+/**
+ * Show the `ask` card (`/psych ask`, T30). Returns whether it was displayed.
+ *
+ * Same contract as `presentAppraisal`: `false` where no interactive surface exists (RPC, non-TUI,
+ * or a failed overlay), so the caller falls back to a notification rather than losing the answer.
+ */
+export async function presentAsk(
+	ctx: ExtensionContext,
+	input: AskCardInput,
+	lang: Locale = DEFAULT_LOCALE,
+): Promise<boolean> {
+	if (ctx.mode !== "tui" || !ctx.hasUI) return false;
+
+	const term = terminalSize();
+	const width = Math.max(40, Math.min(CARD_WIDTH, term.columns));
+	const natural = measureAskCard(input, stringsFor(lang), width).total;
+	const maxHeight = Math.max(MIN_CARD_HEIGHT, Math.min(natural, term.rows - TERMINAL_MARGIN));
+
+	try {
+		await ctx.ui.custom<void>(
+			(tui, theme, _keybindings, done) =>
+				new AskView(input, theme, () => done(), {
+					locale: lang,
+					maxHeight,
+					requestRender: () => tui.requestRender(),
+				}),
+			{ overlay: true, overlayOptions: { anchor: "center", width, maxHeight } },
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}

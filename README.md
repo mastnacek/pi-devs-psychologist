@@ -223,6 +223,7 @@ spots is not an observer. A different *account* is not automatically a different
 |---|---|
 | `/psych` | Report: the observed signals and the last appraisal |
 | `/psych now` | Form an appraisal immediately, consuming budget |
+| `/psych ask <question>` | Consult the observer directly. Runs the agent runtime (falls back to a tool-less API call on `runtime: api`, and says so). One card: the answer, its cited evidence, researched suggestions. Consumes budget; an uncited answer is marked unsupported, never hidden |
 | `/psych effect` | Table of delivered interventions per kind: delivered, improved, unchanged, worse, followed. Session-scoped, width-safe |
 | `/psych on` / `off` | Master switch |
 | `/psych model <provider/id>` | Choose the psychologist. The value completes from the engine's registered models and providers (use `--global` to make it machine-wide) |

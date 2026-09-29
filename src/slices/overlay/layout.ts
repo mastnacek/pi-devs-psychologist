@@ -19,7 +19,7 @@
 
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import type { ThemeColor } from "@earendil-works/pi-coding-agent";
-import type { Appraisal, NeedKey } from "../../shared/appraisal.js";
+import type { Appraisal, NeedKey, Suggestion } from "../../shared/appraisal.js";
 import { NEEDS } from "../../shared/appraisal.js";
 import { STALE_DELIVERY_TURNS } from "../../shared/delivery.js";
 import type { Strings } from "../../shared/i18n.js";
@@ -213,18 +213,31 @@ export function layoutCard(input: CardInput, s: Strings, width: number, paint: P
 	// Researched suggestions (T25): the operator's alone. One clamped line per suggestion and its
 	// enforced source on its own dim line, so a narrow terminal truncates instead of wrapping into a
 	// count the frame does not expect. Omitted entirely when there are none.
-	const suggestions = input.appraisal.suggestions ?? [];
-	if (suggestions.length > 0) {
-		const clamp = Math.max(10, bodyWidth - 2);
-		tail.push({ text: paint.fg("dim", paint.bold(s.cardSuggestions)) });
-		for (const suggestion of suggestions) {
-			tail.push({ text: `  ${paint.bold(truncateToWidth(`• ${suggestion.text}`, clamp))}` });
-			tail.push({ text: `  ${paint.fg("dim", truncateToWidth(suggestion.source, clamp))}` });
-		}
-	}
+	tail.push(...suggestionLines(input.appraisal.suggestions ?? [], s, bodyWidth, paint));
 	tail.push({ text: paint.fg("border", rule(width)) });
 
 	return { head: flatten(head), tail: flatten(tail) };
+}
+
+/**
+ * The researched-suggestions section, shared by the appraisal card and the ask card (T25/T30). One
+ * clamped line per suggestion with its enforced `source` on the next dim line, so a narrow terminal
+ * truncates rather than wrapping into a line the frame did not measure. Empty when there are none.
+ */
+export function suggestionLines(
+	suggestions: readonly Suggestion[],
+	s: Strings,
+	bodyWidth: number,
+	paint: Painter,
+): LayoutLine[] {
+	if (suggestions.length === 0) return [];
+	const clamp = Math.max(10, bodyWidth - 2);
+	const lines: LayoutLine[] = [{ text: paint.fg("dim", paint.bold(s.cardSuggestions)) }];
+	for (const suggestion of suggestions) {
+		lines.push({ text: `  ${paint.bold(truncateToWidth(`• ${suggestion.text}`, clamp))}` });
+		lines.push({ text: `  ${paint.fg("dim", truncateToWidth(suggestion.source, clamp))}` });
+	}
+	return lines;
 }
 
 /** Expand embedded newlines so one entry is one row, as the frame expects. */

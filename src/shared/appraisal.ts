@@ -133,19 +133,30 @@ export const APPRAISAL_SCHEMA: TSchema = Type.Object({
 });
 
 /**
- * The `ask` role's answer, and the shape `scout` and `pair` borrow until they get their own (T22).
+ * The `ask` role's answer (`/psych ask <question>`, T30), and the shape `scout` and `pair` borrow
+ * until they get their own (T31/T32).
  *
- * A placeholder on purpose: it holds the two fields every role has in common — an answer and the
- * evidence lines it rests on — so the child-mode tool can be validated today without inventing the
- * role contracts early. `cited` mirrors the appraisal's citation rule, which T23 keeps in the brief.
- *
- * TODO(T30/T31): `ask` gains `suggestions` in T30, `scout` returns candidates with an `installSpec`,
- * `pair` a convention finding; each then gets a schema of its own instead of this shared stand-in.
+ * The same citation rule as the appraisal: `cited` holds LIVE/SESSION lines copied exactly, and
+ * enforcement keeps only those that match. `suggestions` is how research reaches the operator — a
+ * plugin, a doc, a notebook — and it stays optional, so an answer that needed no research is valid.
  */
 export const ASK_SCHEMA: TSchema = Type.Object({
 	answer: Type.String({ maxLength: 800, description: "the answer, in prose" }),
 	cited: Cited,
+	suggestions: Type.Optional(
+		Type.Array(SuggestionSchema, {
+			maxItems: 3,
+			description: "researched output for the operator; never sent to the working agent",
+		}),
+	),
 });
+
+/** The `ask` role's enforced answer. `suggestions` always an array; enforcement fills it or not. */
+export interface AskAnswer {
+	answer: string;
+	cited: string[];
+	suggestions: Suggestion[];
+}
 
 export interface NeedVerdict {
 	state: (typeof NEED_STATES)[number];

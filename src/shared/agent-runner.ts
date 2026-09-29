@@ -35,6 +35,8 @@ export interface AgentRunRequest {
 	evidence: { liveLines: readonly string[]; sessionLines: readonly string[] };
 	/** A bounded, scrubbed transcript excerpt (T28), prepended when present. */
 	digest?: string;
+	/** The operator's question for the `ask` role (T30), placed as a `QUESTION — …` block. */
+	question?: string;
 	/** The parent session's abort signal; aborting it kills the child. */
 	signal?: AbortSignal;
 }
@@ -197,6 +199,7 @@ export async function runAgent(
 		limits,
 		nlmNotebooks: options.nlmNotebooks,
 		...(request.digest ? { digest: request.digest } : {}),
+		...(request.question ? { question: request.question } : {}),
 	});
 	const launch = buildChildLaunch({
 		cliPath: options.cliPath,

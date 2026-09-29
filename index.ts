@@ -30,11 +30,10 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { saveConfig, seedGlobalConfig } from "./src/shared/config.js";
-import { effectiveAgentModel } from "./src/shared/agent-config.js";
-import { defaultAgentRunIo, runAgent, type AgentRunIo } from "./src/shared/agent-runner.js";
-import { callModel, parseModelRef, resolveModel, type ModelCallResult } from "./src/shared/model-call.js";
+import { createAgentCall, type AgentCall } from "./src/shared/agent-call.js";
+import { type AgentRunIo } from "./src/shared/agent-runner.js";
+import { callModel } from "./src/shared/model-call.js";
 import { resolvePiDocsDir } from "./src/shared/pi-paths.js";
-import { PI_VERSION } from "./src/shared/version.js";
 import { readHistory } from "./src/shared/history.js";
 import { noteFollowed, noteQuickWin, restoreOutcomes } from "./src/shared/outcome.js";
 import { stringsFor } from "./src/shared/i18n.js";
@@ -53,9 +52,10 @@ import {
 } from "./src/slices/appraiser/index.js";
 import { registerChildSlice } from "./src/slices/child/index.js";
 import { registerPsychCommand } from "./src/slices/commands/index.js";
+import { askCommandHandler, type AskDeps } from "./src/slices/ask/index.js";
 import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
 import { registerObserver } from "./src/slices/observer/index.js";
-import { presentAppraisal } from "./src/slices/overlay/index.js";
+import { presentAppraisal, presentAsk } from "./src/slices/overlay/index.js";
 import { renderReport, renderEffect } from "./src/slices/report/index.js";
 
 export interface DevsPsychologistOptions {
@@ -147,76 +147,10 @@ export default function devsPsychologistExtension(
 		exists: existsSync,
 	});
 
-	// The agent-runtime call (T24): same shape as `callModel`, so the appraiser never learns which
-	// runtime ran (D1). It owns the session cost cap and keeps the running child's kill handle in
-	// state so `session_shutdown` can end it.
-	const agentCallModel: AppraiserDeps["callModel"] = async (registry, req) => {
-		const cfg = state.config.agent;
-		const cap = cfg.maxCostUsdPerSession;
-		if (cap > 0 && state.agentSessionCostUsd >= cap) {
-			return {
-				ok: false,
-				stage: "budget",
-				error: `session cost cap reached ($${state.agentSessionCostUsd.toFixed(2)} of $${cap.toFixed(2)})`,
-			};
-		}
-		const modelRef = effectiveAgentModel(state.config);
-		// A registry may be absent (headless fakes); the run does not need it, only the label does.
-		const resolved = registry && parseModelRef(modelRef) ? resolveModel(registry, modelRef) : undefined;
-		// One agent run started this session; the report budgets the session against it (T27).
-		state.agentRunsThisSession += 1;
-		const result = await runAgent(
-			{
-				modelRef,
-				evidence: req.evidence ?? { liveLines: [], sessionLines: [] },
-				signal: req.signal,
-				...(req.digest ? { digest: req.digest } : {}),
-			},
-			{
-				cliPath,
-				execPath: process.execPath,
-				role: "psychologist",
-				context: req.agentContext ?? cfg.context,
-				parentSessionFile: req.parentSessionFile,
-				piVersion: PI_VERSION,
-				docsDir,
-				thinking: cfg.thinking,
-				trusted: state.agentTrusted,
-				cwd: state.sessionCwd,
-				timeoutMs: cfg.timeoutMs,
-				maxCostUsd: cfg.maxCostUsd,
-				maxToolCalls: cfg.maxToolCalls,
-				allowWeb: cfg.allowWeb,
-				allowMcp: cfg.allowMcp,
-				allowNlm: cfg.allowNlm,
-				nlmNotebooks: cfg.nlmNotebooks,
-				extraArgs: cfg.extraArgs,
-				keepTranscript: cfg.keepTranscript,
-				onChild: (handle) => {
-					state.agentChildKill = handle ? handle.kill : undefined;
-				},
-				// Live progress for the researching chip (T26): the child's tool census, fed by the stream
-				// reducer. The chip's own timer throttles the repaint, so this only updates the count.
-				onProgress: (progress) => {
-					state.appraisalToolCalls = progress.toolCalls;
-				},
-			},
-			options.agentIo ?? defaultAgentRunIo(),
-		);
-		// Attribute the run to the resolved model, so the report names the model that actually ran.
-		if (result.ok === true && resolved) {
-			const attributed: ModelCallResult = {
-				...result,
-				provider: resolved.model.provider,
-				modelId: resolved.model.id,
-				label: resolved.label,
-			};
-			if (result.run) state.agentSessionCostUsd += result.run.costUsd;
-			return attributed;
-		}
-		if (result.run) state.agentSessionCostUsd += result.run.costUsd;
-		return result;
-	};
+	// The agent-runtime call (T24), lifted into a shared factory so this root stays a wiring file. The
+	// role and question come from the request (T30): an appraisal runs as `psychologist`, `/psych ask`
+	// sets `"ask"`. It owns the session cost cap and keeps the running child's kill handle in state.
+	const agentCallModel: AgentCall = createAgentCall(state, { cliPath, docsDir, ...(options.agentIo ? { io: options.agentIo } : {}) });
 
 	const callModelDep: AppraiserDeps["callModel"] = (registry, req) =>
 		state.config.runtime !== "agent" ? apiCallModel(registry, req) : agentCallModel(registry, req);
@@ -227,6 +161,18 @@ export default function devsPsychologistExtension(
 		docsDir,
 		nlmNotebooks: state.config.agent.nlmNotebooks,
 	}));
+
+	// `/psych ask` (T30): the same seams as the appraiser (so a direct question shares the budget, the
+	// session cost cap and single flight), plus the ask card and the plain-notification fallback.
+	const askDeps: AskDeps = {
+		readHistory,
+		callModel: callModelDep,
+		present: (ctx, input) => presentAsk(ctx, input, state.config.lang),
+		notify: (ctx, text) => {
+			if (ctx.hasUI) ctx.ui.notify(text, "info");
+		},
+		sourcePolicy: () => ({ docsDir, nlmNotebooks: state.config.agent.nlmNotebooks }),
+	};
 
 	// Session init: seed the config file if it is missing (so the plugin is self-describing and
 	// there is something to edit), reload the cascade — which needs a cwd that does not exist at
@@ -358,6 +304,8 @@ export default function devsPsychologistExtension(
 			});
 			if (ctx.hasUI) ctx.ui.notify(text, "info");
 		},
+		// The ask slice owns the mapping from a skip/failure to the status line; this root only wires it.
+		ask: askCommandHandler(state, askDeps),
 		save: (patch, isGlobal, ctx) => {
 			// An explicit runtime choice supersedes the one-run flag; any other setting keeps it.
 			if (patch && typeof patch === "object" && "runtime" in patch) state.runtimeOverride = undefined;

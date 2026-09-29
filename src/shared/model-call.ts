@@ -101,6 +101,13 @@ export interface ModelCallRequest {
 	digest?: string;
 	/** Agent runtime only: `getSessionFile()` read at run time, required for a real `fork`. */
 	parentSessionFile?: string;
+	/**
+	 * Agent runtime only: which role the child runs as (T30). Absent means `psychologist`, so the
+	 * appraiser path is unchanged; `/psych ask` sets `"ask"` and fills `question`.
+	 */
+	agentRole?: import("./child-limits.js").ChildRole;
+	/** Agent runtime only: the operator's question, placed in the child's message (T30). */
+	question?: string;
 }
 
 /** Split `provider/modelId` on the first slash only. */

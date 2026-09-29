@@ -67,6 +67,9 @@ function subcommands(state: DevsPsychologistState): Completion[] {
 		leaf("stop", "stop", s.cmdStop),
 		// A terminal leaf: no trailing space, because Tab confirms it as final (T16).
 		leaf("effect", "effect", s.cmdEffect),
+		// A non-terminal that takes free text (T30): the trailing space opens the question, and there is
+		// nothing enumerable to complete after it, so no further items are offered.
+		branch("ask", "ask", s.cmdAsk),
 		// The marker goes in `label` (display-only, the primary column) as well as the description:
 		// a settings menu that does not show which choice is in effect makes the user run `status`
 		// first to find out. `value` stays a clean token because it is inserted verbatim.
