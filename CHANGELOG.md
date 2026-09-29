@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.7.1 (unreleased)
+## 0.7.1
 
 - **fix(handoff): the previous session's ledger is found on disk (idea 2).** A live run showed the
   handoff never appears: a TUI-only session entry lives in ONE session file, so
