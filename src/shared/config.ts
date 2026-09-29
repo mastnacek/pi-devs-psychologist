@@ -93,6 +93,11 @@ export interface DevsPsychologistConfig {
 	 * with unverified changes is named (T15). ON by default: it observes only, never blocks.
 	 */
 	commitCheck: boolean;
+	/**
+	 * Whether a factual session ledger is written at shutdown and offered at the next start (idea 2).
+	 * ON by default: zero tokens, TUI-only, no score. `false` disables both the write and the offer.
+	 */
+	handoff: boolean;
 	/** Hard ceiling on appraisals per session. 0 = unlimited (not recommended). */
 	maxAppraisalsPerSession: number;
 	/**
@@ -158,6 +163,7 @@ export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	triggerThresholds: { ...DEFAULT_TRIGGER_THRESHOLDS },
 	estimateTokens: { ...DEFAULT_ESTIMATE_TOKENS },
 	commitCheck: true,
+	handoff: true,
 	maxAppraisalsPerSession: 12,
 	outcomeWindowTurns: DEFAULT_OUTCOME_WINDOW_TURNS,
 	cooldownTurns: DEFAULT_COOLDOWN_TURNS,
@@ -293,6 +299,7 @@ export function normalizeConfig(cfg: Partial<DevsPsychologistConfig>): DevsPsych
 		// Default on, opt-out: `false` is the only value that disables it, so a hand-written config
 		// with a missing or nonsense key keeps the better behaviour.
 		commitCheck: cfg.commitCheck !== false,
+		handoff: cfg.handoff !== false,
 		// 0 is meaningful here (unlimited), so the floor is 0 and the default is a
 		// real cap.
 		maxAppraisalsPerSession: positiveInt(

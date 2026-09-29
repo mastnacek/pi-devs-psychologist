@@ -84,14 +84,17 @@ test("every subscription is tracked, and session_shutdown drains the tracked one
 
     await pi.emit("session_shutdown", { type: "session_shutdown" }, ctx);
 
-    // session_start, the observer's four, and the appraiser's three (turn_end, agent_start,
-    // agent_end). The shutdown handler itself is not tracked, because it is the drainer.
+    // session_start, the observer's four, the appraiser's three (turn_end, agent_start,
+    // agent_end), and the handoff's two (session_start, session_shutdown). The shutdown handler
+    // itself is not tracked, because it is the drainer in the composition root.
     assert.deepEqual(
       [...pi.unsubscribed].sort(),
       [
         "agent_end",
         "agent_start",
         "input",
+        "session_shutdown",
+        "session_start",
         "session_start",
         "tool_execution_end",
         "tool_execution_start",

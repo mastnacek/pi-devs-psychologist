@@ -59,6 +59,7 @@ import { reviewCommandHandler, runReviewTrigger, type ReviewDeps } from "./src/s
 import { resolveGitHead } from "./src/shared/review.js";
 import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
 import { registerObserver } from "./src/slices/observer/index.js";
+import { registerHandoff } from "./src/slices/handoff/index.js";
 import { presentAppraisal, presentAsk, presentReview, presentScout } from "./src/slices/overlay/index.js";
 import { repoMapEvidenceLines, repoMapReport } from "./src/slices/mapper/index.js";
 import { renderReport, renderEffect } from "./src/slices/report/index.js";
@@ -272,6 +273,8 @@ export default function devsPsychologistExtension(
 		onDeliveryBoundary: (ctx) => runReviewTrigger(state, ctx, reviewDeps),
 	});
 	registerAppraiser(pi, state, appraiserDeps);
+	// The zero-token handoff (idea 2): writes its ledger at shutdown and offers it at the next start.
+	registerHandoff(pi, state, { readHistory });
 
 	registerPsychCommand(pi, state, {
 		now: async (ctx) => {

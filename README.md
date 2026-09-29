@@ -184,6 +184,7 @@ Cascade: defaults ← `~/.pi/agent/pi-devs-psychologist.json` ← `<cwd>/.pi/pi-
 | `triggerThresholds` | see JSON | **Live.** Per-reason trigger thresholds. Each key normalised independently; junk → default |
 | `estimateTokens` | `{"input":1500,"output":400}` | **Live.** The assumed prompt size, in tokens, for the model picker's `~$X.XX per appraisal` preview. Override per key; the real prompt grows with the session |
 | `commitCheck` | `true` | **Live.** On a successful commit (`git commit`, `git push`, `gh pr create`, `npm publish`) with unverified changes, name it in one notification and one evidence line. Observes only — never blocks; `false` silences it entirely |
+| `handoff` | `true` | **Live.** Write a factual session ledger at shutdown (TUI-only, zero tokens) and offer it as one line at the start of the next session. Counts only — no score, no person-level claim. `false` disables both |
 | `maxAppraisalsPerSession` | `12` | **Live.** Hard ceiling on *attempts* per session; `0` = unlimited |
 | `outcomeWindowTurns` | `5` | **Live.** Turns an intervention is given to prove itself before its outcome (per metric, no aggregate score) is judged. See `/psych effect` |
 | `cooldownTurns` | `6` | **Live.** Turns a delivered kind stays "cooling", so the model is warned `do not repeat` it. A kind whose outcomes fail to improve twice is muted outright |
@@ -333,6 +334,19 @@ or `/psych review`. At most once per delivery (per commit head), agent runtime o
 the budget, the session cost cap and single-flight with the appraiser.
 
 ---
+
+## Handoff
+
+At `session_shutdown`, once the observer has run, the plugin writes one **factual ledger** of
+what the session left open — unverified mutations, the last failing tool and its failure
+signature, bookmarks still set, delivered interventions whose outcome window never closed, and
+the session's tool-call/failure totals. It is stored as a TUI-only session entry (never a file,
+never a message, never in model context) and costs zero tokens: it is arithmetic over what the
+session already recorded. No score, no mood word, no claim about the person.
+
+Nothing is said at shutdown. The ledger is offered at the **start of the next session** as one
+notification line with those counts, once (a marker entry stops a reload or a resumed session
+from repeating it). Config `handoff` (default `true`) turns both the write and the offer off.
 
 ## Status
 

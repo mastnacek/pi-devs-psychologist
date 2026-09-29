@@ -11,6 +11,11 @@
   `/psych agent-model` rows now show `(~$X.XX per appraisal)` from the registry rate and a new
   `estimateTokens` (input/output, default 1500/400, normalised per key). An unknown rate reads
   `price unknown` — never a guess.
+- **feat(handoff): a zero-token session ledger at shutdown (idea 2).** Once the observer has run,
+  a factual ledger (unverified mutations, last failing tool + signature, bookmarks still set, open
+  loops, tool-call/failure totals) is written as a TUI-only entry at `session_shutdown` and offered
+  as one notification line at the next `session_start`, once. Counts only; config `handoff`
+  (default `true`) disables both.
 
 ## 0.7.0 (unreleased)
 
