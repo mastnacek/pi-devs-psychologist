@@ -582,10 +582,21 @@ the T25 package source forms.
 
 ### T32 — Pair role (revises T12)
 
-**Before building:** install `npm:pi-pair` in a scratch session and compare (fresh-spawn
-forked auditor, decision chain, commit gate). Record the comparison in
-`docs/inspiration.md`. Add `pi-pair` to ADR 0001's kill criterion ("if it duplicates
-pi-lens, pi-architecture-watcher **or pi-pair**, do not ship").
+**Done 2026-09-29 (static, no install):** `docs/pi-pair-comparison.md` reads `pi-pair@1.0.77`
+from the npm tarball with file:line evidence. pi-pair audits decision provenance: it inherits the
+session model by design, never reads a stated convention, writes user prompt text to
+`.pi/decision-auditor/convlog.md`, injects findings into the working agent context, and forks the
+whole session per audit round. ADR 0001 kill criterion and `docs/inspiration.md` updated.
+
+**Narrowed build (T32a, needs an operator go):** the reviewer is NOT a second auditor. It is one
+run on the already-proven seams: trigger = T15 delivery boundary (commit / label / verified run);
+child = the existing agent runtime with a **stronger model** (`roles.reviewer.model`, own consent
+gate, may be empty = same model, which is then disclosed on the card); input = the diff since the
+last delivery (`git diff <lastHead>..HEAD` plus working tree, bounded, read by the child itself —
+never retained in the parent) + the repo stated conventions (`AGENTS.md` and equivalents, read by
+the child); output = at most one finding class: `convention_mismatch | intent_vs_artifact |
+unverified_claim`, each citing a rule line from `AGENTS.md` or an intent line from the session, and
+`insufficient_context` when neither exists (ADR 0001 invariants 1–7 apply unchanged).
 
 **What changes if it still ships:** agent runtime removes most of T12a/T12c — the child
 reads `git diff` and files itself, so the parent never retains change content in memory

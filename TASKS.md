@@ -240,5 +240,6 @@ Full specifications (goal, files, behaviour, acceptance, non-goals) live in
 - `x T29` Context level `fork` (full session, confirm on first use)
 - `x T30` `/psych ask <question>`
 - `x T31` Scout role — recurring friction → existing plugin or a SPAI idea
-- `. T32` Pair role — revises T12, only if pi-pair leaves a gap
+- `? T32a` Reviewer role — narrowed after the pi-pair comparison (docs/pi-pair-comparison.md):
+  delivery-boundary child on a stronger model, citing AGENTS.md rules; needs an operator go
 - `x T33` NotebookLM research grounding
