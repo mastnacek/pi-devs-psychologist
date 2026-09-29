@@ -11,6 +11,14 @@ export interface HistoryStrings {
 	historyTitle: string;
 	/** The `/psych history` picker description. */
 	cmdHistory: string;
+	/**
+	 * The picker row for the feature's own state. NOT the master switch's strings: the plugin can be
+	 * on while this record is off, and reusing "Psychologist off" made one row contradict the `on ✓`
+	 * row directly above it. The reference makes the same distinction (references/command-completions.md:
+	 * the parent row is annotated `· ○ VYPNUTO`, which says the SETTING is off, not the tool).
+	 */
+	historyRecordOn: string;
+	historyRecordOff: string;
 	/** One line when the feature is off: nothing written, nothing read, how to turn it on. */
 	historyOff: string;
 	/** `sessions recorded: N`. */
@@ -32,6 +40,8 @@ export interface HistoryStrings {
 export const HISTORY_EN: HistoryStrings = {
 	historyTitle: "LONGITUDINAL HISTORY (opt-in)",
 	cmdHistory: "show the opt-in cross-session delivery record",
+	historyRecordOn: "cross-session record on",
+	historyRecordOff: "cross-session record off (nothing kept)",
 	historyOff:
 		"The cross-session record is off. Nothing is written and nothing was read. Turn it on by setting history.enabled to true in your pi-devs-psychologist config.",
 	historySessions: (n) => `sessions recorded: ${n}`,
@@ -46,6 +56,8 @@ export const HISTORY_EN: HistoryStrings = {
 export const HISTORY_CS: HistoryStrings = {
 	historyTitle: "DLOUHODOBÁ HISTORIE (opt-in)",
 	cmdHistory: "zobrazit opt-in záznam předání mezi relacemi",
+	historyRecordOn: "záznam mezi relacemi zapnutý",
+	historyRecordOff: "záznam mezi relacemi vypnutý (nic se neuchovává)",
 	historyOff:
 		"Záznam mezi relacemi je vypnutý. Nic se nezapisuje a nic se nečetlo. Zapneš ho nastavením history.enabled na true v konfiguraci pi-devs-psychologist.",
 	historySessions: (n) => `zaznamenaných relací: ${n}`,

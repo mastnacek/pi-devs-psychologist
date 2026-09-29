@@ -70,7 +70,11 @@ function subcommands(state: DevsPsychologistState): Completion[] {
 		leaf("effect", "effect", s.cmdEffect),
 		// A terminal leaf (T10). The description names the record's state in effect, so the menu says
 		// whether anything is being kept without running the command.
-		leaf("history", "history", state.config.history.enabled ? `${MARK} ${s.enabled}` : s.disabled),
+		leaf(
+			"history",
+			"history",
+			state.config.history.enabled ? `${MARK} ${s.historyRecordOn}` : s.historyRecordOff,
+		),
 		// A non-terminal that takes free text (T30): the trailing space opens the question, and there is
 		// nothing enumerable to complete after it, so no further items are offered.
 		branch("ask", "ask", s.cmdAsk),
@@ -135,7 +139,7 @@ function replayOptions(state: DevsPsychologistState): Completion[] {
 		// The default mode is dry: no model call, zero spend. The value in effect is marked in the
 		// label (primary column) and the description, never in `value` (inserted verbatim).
 		leaf("replay --dry", "dry ✓", `${MARK} ${s.replayModeDry}`),
-		leaf("replay --eval", "eval", s.replayEvalTitle),
+		leaf("replay --eval", "eval", s.replayEvalOption),
 	];
 }
 

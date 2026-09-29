@@ -375,3 +375,51 @@ test("precision discriminates: a run that asserts and matches nothing scores 0, 
   assert.equal(aggregate([mSilent]).precision, 0, "a silent window has nothing to be precise about");
   assert.equal(aggregate([mGood, mInv, mSilent]).precision.toFixed(2), "0.50");
 });
+
+// --- the settings menu says what it means (2026-09-29 audit against references/command-completions.md) ---
+
+test("the history row names the record's state, not the plugin's", () => {
+  // It reused the master-switch strings, so a menu with the plugin ON showed `on ✓ · Psychologist
+  // on` directly above `history  Psychologist off` — one row contradicting the other. The record
+  // being off is not the plugin being off.
+  const state = makeState();
+  const off = completePsych(state, "").find((item) => item.label === "history");
+  assert.doesNotMatch(off.description, /Psychologist/, "the master switch is not what this row reports");
+  assert.match(off.description, /record off/i);
+  state.config = { ...state.config, history: { ...state.config.history, enabled: true } };
+  const on = completePsych(state, "").find((item) => item.label === "history");
+  assert.match(on.description, /· ●/);
+  assert.match(on.description, /record on/i);
+});
+
+test("the --eval row offers a sentence, not the report heading", () => {
+  // The en table shipped `replayEvalTitle` — an all-caps heading, written as the raw key — as the
+  // picker's description, so completing `/psych replay --` offered the string "REPLAY EVAL".
+  const state = makeState();
+  const evalRow = completePsych(state, "replay").find((item) => item.label === "eval");
+  assert.equal(evalRow.description, stringsFor("en").replayEvalOption);
+  assert.doesNotMatch(evalRow.description, /^[A-Z ]+$/, "not a shouted heading");
+  assert.match(evalRow.description, /before\.json/);
+  // The row renders in the state's locale, so the Czech check has to switch the state.
+  state.config = { ...state.config, lang: "cs" };
+  const csRow = completePsych(state, "replay").find((i) => i.label === "eval");
+  assert.equal(csRow.description, stringsFor("cs").replayEvalOption);
+  assert.notEqual(csRow.description, stringsFor("en").replayEvalOption, "and it is not the English row");
+});
+
+test("no locale value is a raw key or a shouted placeholder", () => {
+  // The i18n lint only checked that a key was present and non-empty, which is how "REPLAY EVAL"
+  // shipped as user-facing copy. This is the check that would have caught it.
+  for (const locale of ["en", "cs"]) {
+    const s = stringsFor(locale);
+    for (const [key, value] of Object.entries(s)) {
+      if (typeof value !== "string") continue;
+      assert.notEqual(value, key, `${locale}.${key} is the raw key, not copy`);
+      // A value that is exactly an upper-snake identifier is a placeholder: `REPLAY EVAL` and
+      // `REPLAY_EVAL` both read as a key, not as English.
+      if (/^[A-Z][A-Z ]*$/.test(value) && value.includes(" ")) {
+        assert.doesNotMatch(value, new RegExp(key, "i"), `${locale}.${key} is a shouted placeholder`);
+      }
+    }
+  }
+});

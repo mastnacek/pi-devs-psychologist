@@ -53,6 +53,12 @@ export interface ReplayStrings {
 	replayNeedsFile: string;
 	/** The usage line when `--eval` was given without two result files. */
 	replayEvalNeedsFiles: string;
+	/**
+	 * The `--eval` PICKER description. Deliberately not `replayEvalTitle`: that is an all-caps
+	 * heading for the rendered report, and the en table shipped it as the raw key in the menu, so a
+	 * completed `/psych replay --` offered the operator the string "REPLAY EVAL".
+	 */
+	replayEvalOption: string;
 	replayEvalTitle: string;
 	/** `windows compared: 4`. */
 	replayEvalHeader: (windows: number) => string;
@@ -94,6 +100,7 @@ export const REPLAY_EN: ReplayStrings = {
 	replayNeedsFile:
 		"Usage: /psych replay <session-file> [--run] [--model <provider/id>] [--cadence <n>] [--json <file>] | --eval <before.json> <after.json>",
 	replayEvalNeedsFiles: "Usage: /psych replay --eval <before.json> <after.json>",
+	replayEvalOption: "compare two result files: --eval before.json after.json",
 	replayEvalTitle: "REPLAY EVAL",
 	replayEvalHeader: (windows) => `windows compared: ${windows}`,
 	replayEvalColumns: { metric: "metric", before: "before", after: "after" },
@@ -132,6 +139,7 @@ export const REPLAY_CS: ReplayStrings = {
 	replayNeedsFile:
 		"Použití: /psych replay <soubor-relace> [--run] [--model <provider/id>] [--cadence <n>] [--json <soubor>] | --eval <před.json> <po.json>",
 	replayEvalNeedsFiles: "Použití: /psych replay --eval <před.json> <po.json>",
+	replayEvalOption: "porovnat dva výsledné soubory: --eval pred.json po.json",
 	replayEvalTitle: "VYHODNOCENÍ PŘEHRÁNÍ",
 	replayEvalHeader: (windows) => `porovnaná okna: ${windows}`,
 	replayEvalColumns: { metric: "metrika", before: "před", after: "po" },

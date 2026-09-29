@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 0.8.1 (unreleased)
+
+- **fix(commands): two settings-menu rows said the wrong thing (audit against the skill).**
+  `/psych history` reused the master-switch strings, so a menu with the plugin ON showed
+  `on ✓ · Psychologist on` directly above `history  Psychologist off` — one row contradicting the
+  other. The record being off is not the plugin being off, and the reference draws the same
+  distinction (`references/command-completions.md`: the parent row is annotated `· ○ VYPNUTO`,
+  which reports the SETTING). New `historyRecordOn` / `historyRecordOff` keys.
+- **fix(commands): the `--eval` row offered the raw i18n key.** The en table shipped
+  `replayEvalTitle` — an all-caps report heading — as the picker's description, so completing
+  `/psych replay --` offered the operator the string "REPLAY EVAL". New `replayEvalOption` for the
+  menu, heading kept for the render.
+- **test(i18n): the lint now rejects raw keys and shouted placeholders.** It only checked that a
+  key was present and non-empty, which is exactly how a placeholder shipped as user-facing copy.
+  Three regression tests cover both rows, and the Czech row is checked to differ from the English one.
+  The other three rules (trailing space, full prefix replacement, lazy parameter completion with
+  `✓` in `label` and `· ●` in `description` and never in `value`) were audited through the real code
+  path and were already correct.
+
 ## 0.8.0
 
 - **fix(history): the write-once guard was cleared by the very event it guards against (T10).**
