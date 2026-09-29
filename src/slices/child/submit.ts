@@ -15,7 +15,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { type TSchema } from "typebox";
 import { Check, Errors } from "typebox/value";
-import { APPRAISAL_SCHEMA, ASK_SCHEMA, SCOUT_SCHEMA } from "../../shared/appraisal.js";
+import { APPRAISAL_SCHEMA, ASK_SCHEMA, REVIEW_SCHEMA, SCOUT_SCHEMA } from "../../shared/appraisal.js";
 import type { ChildRole } from "../../shared/child-limits.js";
 import { CHILD_SUBMIT_TOOL } from "../../shared/lexicon.js";
 
@@ -33,11 +33,12 @@ export interface SubmitState {
 /**
  * The schema the role submits. `psychologist` submits the appraisal contract itself (D1: both runtimes
  * return the same shape); `ask` its own answer contract (T30); `scout` its candidate/build contract
- * (T31). `pair` still borrows `ask`'s shape until T32 gives it its own.
+ * (T31); `pair` the reviewer's finding contract (T32a).
  */
 export function schemaForRole(role: ChildRole): TSchema {
 	if (role === "psychologist") return APPRAISAL_SCHEMA;
 	if (role === "scout") return SCOUT_SCHEMA;
+	if (role === "pair") return REVIEW_SCHEMA;
 	return ASK_SCHEMA;
 }
 

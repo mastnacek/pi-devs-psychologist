@@ -16,6 +16,15 @@
 import { INTERVENTION_KINDS, LOAD_LEVELS, NEED_STATES, PROGRESS_STATES, FLOW_STATES } from "./appraisal.js";
 import type { ChildRole } from "./child-limits.js";
 import { askQuestionBlock, buildUserText, SYSTEM_PROMPT } from "./prompt.js";
+import {
+	budgetSection,
+	piDocumentation,
+	piPackages,
+	researchRule,
+	toolsYouMayUse,
+	whereYouAre,
+	type BriefLimits,
+} from "./agent-brief-sections.js";
 
 /**
  * The one paragraph of `SYSTEM_PROMPT` that tells the model to answer with JSON. In agent runtime
@@ -65,40 +74,26 @@ const PSYCHOLOGIST_SYSTEM_PROMPT: string = (() => {
 })();
 
 /**
- * The relative paths of the engine docs the brief points at, in the order they are listed.
- *
- * `docs.json` first (the navigation index), then the topic files, then the package-root files as
- * `../…` because their paths are shown relative to the docs directory. A test walks this list
- * against the real installed engine and skips when it cannot find it, so a docs file that moves
- * upstream is caught rather than printed into a brief as a dead path.
+ * The relative paths of the engine docs the brief points at, re-exported from the sections module so
+ * `agent-brief.ts` stays the one import for the brief's vocabulary.
  */
-export const PI_DOC_FILES = [
-	"docs.json",
-	"extensions.md",
-	"skills.md",
-	"packages.md",
-	"settings.md",
-	"sessions.md",
-	"session-format.md",
-	"json.md",
-	"rpc.md",
-	"sdk.md",
-	"tui.md",
-	"keybindings.md",
-	"models.md",
-	"providers.md",
-	"prompt-templates.md",
-	"security.md",
-	"../README.md",
-	"../CHANGELOG.md",
-] as const;
+export { PI_DOC_FILES } from "./agent-brief-sections.js";
+export type { BriefLimits } from "./agent-brief-sections.js";
 
-/** The limits the brief honours; a subset of `ChildLimits`, so both read the same field names. */
-export interface BriefLimits {
-	maxToolCalls: number;
-	allowWeb: boolean;
-	allowMcp: boolean;
-	allowNlm: boolean;
+/**
+ * What the reviewer is told about the delivery it reviews (T32a). The parent computes nothing about
+ * the diff: these are the two commit anchors and the convention file paths, and the child reads the
+ * content itself.
+ */
+export interface ReviewBrief {
+	/** The git HEAD recorded at the previous delivery, or `""` for the first. */
+	lastDeliveryHead: string;
+	/** The current git HEAD. */
+	head: string;
+	/** The cap on the combined diff the child is told to read. */
+	maxDiffBytes: number;
+	/** The repo's stated convention files the child reads when they exist. */
+	conventionFiles: readonly string[];
 }
 
 export interface AgentBriefInput {
@@ -127,6 +122,8 @@ export interface AgentBriefInput {
 	 * so the brief stays pure; `""` omits the workshop sentence entirely.
 	 */
 	workshopDir?: string;
+	/** The delivery anchors and convention paths, for the `reviewer` role (T32a). */
+	review?: ReviewBrief;
 }
 
 export interface AgentBrief {
@@ -174,8 +171,54 @@ function scoutWorkshopSentence(workshopDir: string | undefined): string {
 }
 
 /**
+ * The `reviewer` role paragraph (T32a). The reviewer's subject is the artifact, never the person.
+ * It reads the change itself (the parent retained nothing), proposes at most one finding, and
+ * abstains with `insufficient_context` when neither a stated rule nor an intent line decides it.
+ */
+const REVIEW_ROLE_PARAGRAPH = [
+	"You are the pi-devs-psychologist extension running headless in the `reviewer` role. Your subject is the artifact — the change — never the person and never their mood. You review ONE delivery: the change since the last delivery, plus the repo's stated conventions.",
+	"The parent retained nothing about the change: it did not read the diff, and it does not read your answer as instructions to anyone. You read the change yourself, and you PROPOSE. You never write, never edit, never commit, never install. Your only output is one `psych_submit` call.",
+	"Citing is the whole discipline: a finding stands only on a stated rule you read from a convention file, or on a SESSION intent line copied EXACTLY. No citation, no claim. Reporting a rule you cannot name is exactly the fabrication this role refuses.",
+	"One finding class per review, chosen from `verdict`:",
+	"- `convention_mismatch`: the change contradicts a rule stated in a convention file. Put the rule in `rule` and cite the convention file (its path, or an exact quoted line).",
+	"- `intent_vs_artifact`: the work contradicts what the session said it would do. Cite the SESSION line and put it in `intentLine` too.",
+	"- `unverified_claim`: the change or the session asserts something no cited run proved.",
+	"- `insufficient_context`: you cannot determine the answer. This is the DEFAULT and a correct answer — put why in `text`, leave `rule` and `file` empty, and cite nothing.",
+	"`insufficient_context` beats a confident guess: a reviewer without the worker's full context is structurally prone to confident wrongness, so declining is a first-class outcome, not a failure.",
+	"Never mention scores, streaks, productivity, efficiency, burnout, fatigue, stress, or any diagnosis. Never advise on the person. You review a change.",
+].join("\n");
+
+/**
+ * The "delivery you review" section (T32a): the anchors, the exact commands the child runs, the
+ * byte cap, and the convention files. Omitted when no review context was passed.
+ */
+function reviewSection(review: ReviewBrief): string {
+	const last = review.lastDeliveryHead.trim();
+	const head = review.head.trim();
+	const files =
+		review.conventionFiles.length > 0
+			? review.conventionFiles.map((file) => `\`${file}\``).join(", ")
+			: "none are configured — you cannot check convention adherence in this run";
+	const committed =
+		last.length > 0 ? `\`git diff ${last}..${head}\`` : `\`git show ${head}\``;
+	return [
+		"## The delivery you review",
+		`You review one delivery, anchored on git commits. The current HEAD is \`${head}\`; the previous delivery was ${
+			last.length > 0 ? `\`${last}\`` : "not recorded (this is the first)"
+		}.`,
+		[
+			"Run these with your own tools, never assuming the parent already did:",
+			`- ${committed} — the committed change`,
+			"- `git diff` — the working tree, which is not yet committed",
+			`- read each of these convention files that exists: ${files}`,
+		].join("\n"),
+		`The combined diff must not exceed ${review.maxDiffBytes} bytes. If it does, review the last ${review.maxDiffBytes} bytes and say in \`text\` what you left out.`,
+	].join("\n\n");
+}
+
+/**
  * The role paragraph. The psychologist gets its full prompt, `ask` its own contract (T30), `scout`
- * its hunting contract (T31); `pair` still gets the short placeholder until T32.
+ * its hunting contract (T31), `pair` the reviewer's finding contract (T32a).
  */
 function roleParagraph(role: ChildRole, workshopDir: string | undefined): string {
 	if (role === "psychologist") return PSYCHOLOGIST_SYSTEM_PROMPT;
@@ -184,105 +227,12 @@ function roleParagraph(role: ChildRole, workshopDir: string | undefined): string
 		const sentence = scoutWorkshopSentence(workshopDir);
 		return sentence.length > 0 ? `${SCOUT_ROLE_PARAGRAPH}\n${sentence}` : SCOUT_ROLE_PARAGRAPH;
 	}
+	if (role === "pair") return REVIEW_ROLE_PARAGRAPH;
 	return (
 		`You are the pi-devs-psychologist extension running headless in the \`${role}\` role. ` +
 		"You are an observer: you never change files, never commit, never install, and your only " +
 		"output is one `psych_submit` call."
 	);
-}
-
-/** The "Where you are" section (item 2). */
-function whereYouAre(piVersion: string): string {
-	return [
-		"## Where you are",
-		`You run inside the pi coding agent, version \`${piVersion}\`, started headless by the ` +
-			"pi-devs-psychologist extension to observe *another* pi session. The operator works with " +
-			"pi every day and develops pi plugins in this workspace.",
-		"You are an observer. You never change files, never commit, never install. Your only output " +
-			"is one `psych_submit` call.",
-	].join("\n\n");
-}
-
-/** The "Pi documentation" section (item 3). Omitted with a note when the docs dir is unknown. */
-function piDocumentation(docsDir: string | undefined): string {
-	if (!docsDir) {
-		return [
-			"## Pi documentation",
-			"The installed pi documentation could not be found on this machine. Do not state facts " +
-				"about pi's configuration, API or CLI from memory; say instead that you cannot verify " +
-				"them here.",
-		].join("\n\n");
-	}
-	const bullets = PI_DOC_FILES.map((file) =>
-		file === "docs.json" ? `- \`${file}\` — navigation index; read it first to find a topic` : `- \`${file}\``,
-	);
-	return [
-		"## Pi documentation",
-		`The installed pi documentation is at \`${docsDir}\`; the paths below are relative to it.`,
-		bullets.join("\n"),
-		"Read only the file a question needs.",
-	].join("\n\n");
-}
-
-/** The "Pi packages" section (item 4). Fixed text. */
-function piPackages(): string {
-	return [
-		"## Pi packages",
-		"Community plugins are listed at https://pi.dev/packages. Search: " +
-			"`https://pi.dev/packages?name=<term>` (fetch with `fetch_content`). A package page is " +
-			"`https://pi.dev/packages/<name>` and shows its manifest, install command and README. " +
-			"Install specs look like `npm:<name>` or `git:github.com/<owner>/<repo>`. Run `pi list` " +
-			"first so you never propose something already installed. Packages execute code: you may " +
-			"*propose* one with its source link; you never install it.",
-	].join("\n\n");
-}
-
-/** The "Tools you may use" section (item 5). Each capability bullet appears only when allowed. */
-function toolsYouMayUse(limits: BriefLimits, nlmNotebooks: readonly string[]): string {
-	const bullets: string[] = [];
-	if (limits.allowWeb) {
-		bullets.push(
-			"If `web_search` is not in your tool list, call `web_enable` first. Prefer `queries` with " +
-				"2–3 angles. Cite URLs.",
-		);
-	}
-	if (limits.allowMcp) {
-		bullets.push(
-			"`mcp({})` lists connected servers; `mcp({ search })` finds tools. Use `mcpScript` only " +
-				"when chaining several calls.",
-		);
-	}
-	bullets.push("Your prompt lists available skills. Load one with `read` on its path only when the task matches.");
-	if (limits.allowNlm) {
-		const notebooks = nlmNotebooks.length > 0 ? nlmNotebooks.join(", ") : "none configured — do not query one";
-		bullets.push(
-			'Run `nlm login --check`; if it fails, skip NotebookLM entirely (never run `nlm login`). ' +
-				'Query with `nlm notebook query <id> "<question>"`. Allowed notebooks: ' +
-				notebooks +
-				". Never `nlm chat start`. Keep output small (no `--json` dumps into context).",
-		);
-	}
-	bullets.push("`read`, `grep`/`find`/`ls`, `git diff`, `git log`, `git show` are fine.");
-	return ["## Tools you may use", bullets.map((bullet) => `- ${bullet}`).join("\n")].join("\n\n");
-}
-
-/** The "Budget" section (item 6). */
-function budgetSection(maxToolCalls: number): string {
-	return [
-		"## Budget",
-		`At most \`${maxToolCalls}\` tool calls. Spend them only if they change your answer. Zero tool ` +
-			"calls is a correct outcome when the evidence already decides.",
-	].join("\n\n");
-}
-
-/** The "Research rule" section (item 7). */
-function researchRule(): string {
-	return [
-		"## Research rule",
-		"Evidence lines are the only basis for verdicts and the intervention. Research you do may " +
-			"only fill `suggestions`, and every suggestion needs a `source` (URL, docs path, " +
-			"`nlm:<id>`, or package spec).",
-	].join("\n\n");
 }
 
 /** The exact final line `buildUserText` emits; replaced so the child is told to submit. */
@@ -296,6 +246,9 @@ export const ASK_FINAL_LINE = "Answer the question now. Submit with psych_submit
 
 /** The final line the child sees when it was sent to scout the ecosystem (T31). */
 export const SCOUT_FINAL_LINE = "Scout now. Submit with psych_submit.";
+
+/** The final line the child sees when it was sent to review a delivery (T32a). */
+export const REVIEW_FINAL_LINE = "Review the delivery now. Submit with psych_submit.";
 
 /** The `TOPIC — …` block the scout role puts immediately before the final line (T31). */
 export function scoutTopicBlock(topic: string): string {
@@ -321,7 +274,13 @@ function buildAgentUserText(input: AgentBriefInput): string {
 	const questionBlock = input.role === "ask" && input.question ? askQuestionBlock(input.question) : "";
 	const topicBlock = input.role === "scout" && input.topic ? scoutTopicBlock(input.topic) : "";
 	const finalLine =
-		input.role === "ask" ? ASK_FINAL_LINE : input.role === "scout" ? SCOUT_FINAL_LINE : SUBMIT_FINAL_LINE;
+		input.role === "ask"
+			? ASK_FINAL_LINE
+			: input.role === "scout"
+				? SCOUT_FINAL_LINE
+				: input.role === "pair"
+					? REVIEW_FINAL_LINE
+					: SUBMIT_FINAL_LINE;
 	return evidence + digestBlock + questionBlock + topicBlock + finalLine;
 }
 
@@ -329,6 +288,7 @@ function buildAgentUserText(input: AgentBriefInput): string {
 export function buildAgentBrief(input: AgentBriefInput): AgentBrief {
 	const systemAppend = [
 		roleParagraph(input.role, input.workshopDir),
+		...(input.role === "pair" && input.review ? [reviewSection(input.review)] : []),
 		whereYouAre(input.piVersion),
 		piDocumentation(input.docsDir),
 		piPackages(),

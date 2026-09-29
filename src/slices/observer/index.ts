@@ -94,6 +94,12 @@ export interface ObserverDeps {
 		notePrompt?(text: string): void;
 		noteToolCall?(toolName: string): void;
 	};
+	/**
+	 * A delivery boundary the reviewer role triggers on (T32a): a successful commit/push, or a
+	 * `/label` bookmark. Independent of the T15 commit check — that one names an unverified commit,
+	 * this one starts a review of whatever was delivered. Nothing is blocked or delayed (D8/D8).
+	 */
+	onDeliveryBoundary?(ctx: ExtensionContext, kind: "commit" | "label"): void;
 }
 
 /**
@@ -102,12 +108,14 @@ export interface ObserverDeps {
  */
 export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState, deps: ObserverDeps = {}): void {
 	state.track(
-		pi.on("input", (event, _ctx) => {
+		pi.on("input", (event, ctx) => {
 			if (!state.config.enabled) return;
 			if (!isProgrammerPrompt(event.source)) return;
 			const text = event.text ?? "";
 			state.observe({ kind: "prompt", at: Date.now(), text });
 			deps.outcome?.notePrompt?.(text);
+			// A `/label` bookmark is a delivery boundary the reviewer triggers on (T32a).
+			if (/^\s*\/label\b/.test(text)) deps.onDeliveryBoundary?.(ctx, "label");
 		}),
 	);
 
@@ -151,11 +159,12 @@ export function registerObserver(pi: ExtensionAPI, state: DevsPsychologistState,
 			// Delivery-boundary check (T15). Observe only — the command is never blocked or delayed
 			// (D8). A successful commit that ships unproven work is named for zero tokens; nothing
 			// else happens (a failure, a verified change set, or `commitCheck: false` are all silent).
-			if (!state.config.commitCheck || !ok) return;
-			if (!isCommitCommand(pending?.command)) return;
-			const mutations = mutationsSinceVerified(state.observations);
-			if (mutations === 0) return;
-			deps.notifyUnverifiedCommit?.(ctx, mutations);
+			if (ok && isCommitCommand(pending?.command)) {
+				const mutations = mutationsSinceVerified(state.observations);
+				if (state.config.commitCheck && mutations > 0) deps.notifyUnverifiedCommit?.(ctx, mutations);
+				// The reviewer trigger (T32a) fires on ANY successful delivery, independent of T15.
+				deps.onDeliveryBoundary?.(ctx, "commit");
+			}
 		}),
 	);
 

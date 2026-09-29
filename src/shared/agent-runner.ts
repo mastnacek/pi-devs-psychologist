@@ -17,7 +17,7 @@
  * operator can diagnose the run without a debugger and without leaking a credential into a report.
  */
 
-import { buildAgentBrief } from "./agent-brief.js";
+import { buildAgentBrief, type ReviewBrief } from "./agent-brief.js";
 import { buildChildLaunch } from "./agent-argv.js";
 import { join } from "node:path";
 import { agentRunTmpDir, STDERR_TAIL_BYTES, type AgentRunIo, type ChildProcessHandle } from "./agent-runner-io.js";
@@ -39,6 +39,8 @@ export interface AgentRunRequest {
 	question?: string;
 	/** The friction being scouted, for the `scout` role (T31), placed as a `TOPIC — …` block. */
 	topic?: string;
+	/** The delivery anchors and convention paths, for the `reviewer`/`pair` role (T32a). */
+	review?: ReviewBrief;
 	/** The parent session's abort signal; aborting it kills the child. */
 	signal?: AbortSignal;
 }
@@ -205,6 +207,7 @@ export async function runAgent(
 		...(request.digest ? { digest: request.digest } : {}),
 		...(request.question ? { question: request.question } : {}),
 		...(request.topic ? { topic: request.topic } : {}),
+		...(request.review ? { review: request.review } : {}),
 		...(options.workshopDir ? { workshopDir: options.workshopDir } : {}),
 	});
 	const launch = buildChildLaunch({

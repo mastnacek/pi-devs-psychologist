@@ -14,9 +14,11 @@ import {
 	NEED_STATES,
 	NEEDS,
 	PROGRESS_STATES,
+	REVIEW_VERDICTS,
 	SCOUT_FITS,
 	type InterventionKind,
 	type NeedKey,
+	type ReviewVerdict,
 	type ScoutFit,
 } from "./appraisal.js";
 
@@ -34,6 +36,8 @@ export interface Labels {
 	interventionKinds: Record<InterventionKind, string>;
 	/** How well a scout candidate fits the friction (T31). */
 	scoutFits: Record<ScoutFit, string>;
+	/** The reviewer's finding class (T32a). */
+	reviewVerdicts: Record<ReviewVerdict, string>;
 }
 
 export const EN_LABELS: Labels = {
@@ -77,6 +81,12 @@ export const EN_LABELS: Labels = {
 		solves: "solves it",
 		partial: "partial fit",
 		inspiration: "inspiration",
+	},
+	reviewVerdicts: {
+		convention_mismatch: "convention mismatch",
+		intent_vs_artifact: "intent vs artifact",
+		unverified_claim: "unverified claim",
+		insufficient_context: "insufficient context",
 	},
 };
 
@@ -122,6 +132,12 @@ export const CS_LABELS: Labels = {
 		partial: "částečně sedí",
 		inspiration: "inspirace",
 	},
+	reviewVerdicts: {
+		convention_mismatch: "rozpor s konvencí",
+		intent_vs_artifact: "záměr vs artefakt",
+		unverified_claim: "neprokázané tvrzení",
+		insufficient_context: "málo kontextu",
+	},
 };
 
 /** Every label key, for the completeness test and for the command's `lang` help. */
@@ -133,6 +149,7 @@ export const LABEL_GROUPS = [
 	"flowStates",
 	"interventionKinds",
 	"scoutFits",
+	"reviewVerdicts",
 ] as const;
 
 /** Compile-time proof that the label maps name every enum member. Unused at runtime. */
@@ -144,4 +161,5 @@ export const LABEL_SOURCES = {
 	flowStates: FLOW_STATES,
 	interventionKinds: INTERVENTION_KINDS,
 	scoutFits: SCOUT_FITS,
+	reviewVerdicts: REVIEW_VERDICTS,
 } as const;

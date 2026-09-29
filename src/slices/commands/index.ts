@@ -40,6 +40,11 @@ export interface CommandDeps {
 	 * the top recurring fingerprint. Same status-line contract as `ask`.
 	 */
 	scout(ctx: ExtensionCommandContext, topic: string): Promise<string>;
+	/**
+	 * Review the change since the last delivery (`/psych review`, T32a). Ignores the once-per-delivery
+	 * rule but not the budget. Same status-line contract as `ask`.
+	 */
+	review(ctx: ExtensionCommandContext): Promise<string>;
 	/** Persist a patch to the chosen layer; returns the path written. */
 	save(patch: Record<string, unknown>, isGlobal: boolean, ctx: ExtensionCommandContext): string;
 	/** Re-read the config cascade after a write, so the effect is immediate. */
@@ -111,6 +116,13 @@ export function registerPsychCommand(
 					// The topic is optional: with none, the slice derives one from the top recurring
 					// fingerprint and answers with the usage line when there is nothing to derive from.
 					const line = await deps.scout(ctx, value);
+					if (line.length > 0) notify(line);
+					return;
+				}
+
+				case "review": {
+					// A terminal leaf with no argument (T32a): run one review now, ignoring once-per-delivery.
+					const line = await deps.review(ctx);
 					if (line.length > 0) notify(line);
 					return;
 				}

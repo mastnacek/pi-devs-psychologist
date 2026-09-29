@@ -54,9 +54,11 @@ import { registerChildSlice } from "./src/slices/child/index.js";
 import { registerPsychCommand } from "./src/slices/commands/index.js";
 import { askCommandHandler, type AskDeps } from "./src/slices/ask/index.js";
 import { runScoutTrigger, scoutCommandHandler, type ScoutDeps } from "./src/slices/scout/index.js";
+import { reviewCommandHandler, runReviewTrigger, type ReviewDeps } from "./src/slices/reviewer/index.js";
+import { resolveGitHead } from "./src/shared/review.js";
 import { defaultInterventionDeps, deliverIntervention, notifyUnverifiedCommit } from "./src/slices/interventions/index.js";
 import { registerObserver } from "./src/slices/observer/index.js";
-import { presentAppraisal, presentAsk, presentScout } from "./src/slices/overlay/index.js";
+import { presentAppraisal, presentAsk, presentReview, presentScout } from "./src/slices/overlay/index.js";
 import { repoMapEvidenceLines, repoMapReport } from "./src/slices/mapper/index.js";
 import { renderReport, renderEffect } from "./src/slices/report/index.js";
 
@@ -191,6 +193,18 @@ export default function devsPsychologistExtension(
 	// appraiser has already consumed the budget and moved the baseline before this is called.
 	appraiserDeps.runScout = (ctx, topic) => runScoutTrigger(state, ctx, scoutDeps, topic);
 
+	// `/psych review` (T32a): the reviewer role's own consent gate, its own model, and the delivery
+	// boundary as its trigger. It reads the diff itself; the parent retains nothing about the change.
+	const reviewDeps: ReviewDeps = {
+		readHistory,
+		callModel: callModelDep,
+		present: (ctx, input) => presentReview(ctx, input, state.config.lang),
+		notify: (ctx, text) => {
+			if (ctx.hasUI) ctx.ui.notify(text, "info");
+		},
+		resolveHead: resolveGitHead,
+	};
+
 	// The repo map (T8): the appraiser asks for citable SESSION lines, the mapper slice owns the
 	// walk and the once-per-session cache. Injected, so neither slice imports the other.
 	appraiserDeps.repoMap = (target, cwd) => repoMapEvidenceLines(target, cwd);
@@ -252,6 +266,9 @@ export default function devsPsychologistExtension(
 			notePrompt: (text) => noteFollowed(state.outcomes, text),
 			noteToolCall: (toolName) => noteQuickWin(state.outcomes, toolName),
 		},
+		// The delivery boundary (T32a): a successful commit/push or a `/label` bookmark starts a
+		// review. Fire-and-forget, single-flighted, and never in the way of the delivery itself.
+		onDeliveryBoundary: (ctx) => runReviewTrigger(state, ctx, reviewDeps),
 	});
 	registerAppraiser(pi, state, appraiserDeps);
 
@@ -335,6 +352,8 @@ export default function devsPsychologistExtension(
 		ask: askCommandHandler(state, askDeps),
 		// The scout slice owns the same mapping for /psych scout (T31).
 		scout: scoutCommandHandler(state, scoutDeps),
+		// The reviewer slice owns it for /psych review (T32a).
+		review: reviewCommandHandler(state, reviewDeps),
 		save: (patch, isGlobal, ctx) => {
 			// An explicit runtime choice supersedes the one-run flag; any other setting keeps it.
 			if (patch && typeof patch === "object" && "runtime" in patch) state.runtimeOverride = undefined;

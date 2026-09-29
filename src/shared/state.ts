@@ -28,7 +28,8 @@ import {
 } from "./run-account.js";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-// Re-exported so a caller can name the async records through `state.js` alone.
+// Re-exported so a caller can name the cached-catalog helper through `state.js` alone.
+export { refreshModelCatalog } from "./model-catalog.js";
 export type { LastRunAccount, PendingAppraisal, TimerIo, TimerToken } from "./run-account.js";
 
 /** Tool call metadata captured at start, paired with its outcome at end. */
@@ -125,6 +126,14 @@ export interface DevsPsychologistState {
 	 * recurring failure is scouted at most once rather than on every turn it keeps recurring.
 	 */
 	scoutDone: Set<string>;
+	/**
+	 * The git HEAD of the previous delivery, the anchor the reviewer diffs against (T32a). `""` until
+	 * the first review, and updated after every review run so consecutive commits review the range
+	 * since the last one.
+	 */
+	reviewLastHead: string;
+	/** The git HEAD already reviewed this delivery, so a delivery is reviewed at most once (T32a). */
+	reviewedHead: string;
 	/**
 	 * Token and cost figures for the last appraisal.
 	 *
@@ -253,6 +262,8 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		appraisalsSkipped: 0,
 		lastTriggerReasons: [],
 		scoutDone: new Set(),
+		reviewLastHead: "",
+		reviewedHead: "",
 		ifLive,
 		observe(observation) {
 			state.observations.push(observation);
@@ -276,6 +287,8 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 			state.appraisalsSkipped = 0;
 			state.lastTriggerReasons = [];
 			state.scoutDone = new Set();
+			state.reviewLastHead = "";
+			state.reviewedHead = "";
 			// The agent-runtime cost is per session; the run itself is owned by the child handle, which
 			// `session_shutdown` kills before it drains.
 			state.agentSessionCostUsd = 0;
@@ -295,63 +308,6 @@ export function createDevsPsychologistState(_pi: ExtensionAPI): DevsPsychologist
 		},
 	};
 	return state;
-}
-
-/**
- * The synchronous slice of the model registry this plugin reads.
- *
- * Structural rather than an import of the engine's class, so the cache can be tested against a
- * fake catalog without standing up a registry.
- */
-export interface ModelCatalogSource {
-	getAvailable(): readonly ModelRefLike[];
-	getAll(): readonly ModelRefLike[];
-}
-
-export interface ModelRefLike {
-	provider?: unknown;
-	id?: unknown;
-}
-
-/**
- * Refresh the cached catalog from the registry.
- *
- * Prefers models whose providers have complete auth — the ones this plugin could actually call —
- * and falls back to the whole catalog when nothing is configured yet, so the picker still teaches
- * what exists instead of being empty. Every entry comes from the registry and none is invented, so
- * a completed value is always a model the engine can resolve.
- *
- * Deliberately not called from `resetWindow`: the catalog is not session-window state and must
- * survive the reset that every session start performs.
- */
-export function refreshModelCatalog(
-	state: DevsPsychologistState,
-	registry: ModelCatalogSource | undefined,
-): void {
-	if (!registry) return;
-	const collect = (read: () => readonly ModelRefLike[]): readonly ModelRefLike[] => {
-		try {
-			return read() ?? [];
-		} catch {
-			// A registry that cannot answer is treated as empty, never as a crash.
-			return [];
-		}
-	};
-	let models = collect(() => registry.getAvailable());
-	if (models.length === 0) models = collect(() => registry.getAll());
-
-	const refs = new Set<string>();
-	const providers = new Set<string>();
-	for (const model of models) {
-		const provider = model?.provider;
-		const id = model?.id;
-		if (typeof provider !== "string" || provider.length === 0) continue;
-		if (typeof id !== "string" || id.length === 0) continue;
-		refs.add(provider + "/" + id);
-		providers.add(provider);
-	}
-	state.modelCatalog = [...refs].sort();
-	state.modelProviders = [...providers].sort();
 }
 
 /** Reload the cascading config for a session rooted at `cwd`. */

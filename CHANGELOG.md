@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## 0.7.0 (unreleased)
+
+T32a. The reviewer role: one delivery-boundary review on the already-proven agent seams, proposing at
+most one finding that cites a stated rule, or abstaining with `insufficient_context`. It is NOT a
+second auditor — pi-pair left open exactly two claims (a different, stronger model and convention
+adherence against a stated rule), and this builds only those. Agent runtime only, its own consent
+gate (`roles.reviewer.enabled`, default `false`), because it reads the repo's source code with a
+model that leaves the machine. ADR 0001 invariants 1–7 apply.
+
+### Added
+
+- **`roles.reviewer` config (T32a).** `enabled` (default `false` — its own consent gate), `model`
+  (empty = the shared `model`, disclosed on the card), `maxDiffBytes` (default `200000`), and
+  `conventionFiles` (`AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `.pi/rules.md`). Normalised key by
+  key like every other role setting.
+- **`REVIEW_SCHEMA` and `enforceReview` (T32a).** `verdict` is one of `convention_mismatch`,
+  `intent_vs_artifact`, `unverified_claim`, `insufficient_context`; `rule`/`file` are required for a
+  non-abstention finding and cleared on an abstention; a finding with no surviving citation is
+  dropped (no citation, no claim). `insufficient_context` is first-class.
+- **The `pair` child role and its brief (T32a).** `psych_submit` submits `REVIEW_SCHEMA`; the child
+  is told the delivery anchors and to run `git diff <lastHead>..<head>` (or `git show <head>` for the
+  first delivery) and `git diff` itself, plus the byte cap and the convention files. The parent never
+  retains change content.
+- **`modelRefOverride` on `ModelCallRequest` (T32a).** The agent path honours a per-request model, so
+  the reviewer runs its own stronger model without widening `agent.model`; the API path ignores it.
+- **Delivery-boundary trigger (T32a).** A successful `git commit`/`git push`, a `/label` bookmark, or
+  `/psych review`. At most once per delivery (per commit head), sharing the budget, the session cost
+  cap, single-flight and `/psych stop` with the appraiser.
+- **`/psych review` command and the review card (T32a).** A new card (the delivery anchor, the one
+  finding with its rule and citation, or a one-line abstention), width-safe at 40 and 120 columns,
+  en + cs, with a plain-notification fallback. Nothing is ever sent to the working agent, and nothing
+  is written to disk.
+
 ## 0.6.1 (unreleased)
 
 T8. The appraiser gets an objective map of the repo the session is working in — file sizes, the

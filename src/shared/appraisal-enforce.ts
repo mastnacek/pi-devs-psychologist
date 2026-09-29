@@ -20,16 +20,20 @@ import {
 	NEEDS,
 	NEUTRAL,
 	PROGRESS_STATES,
+	REVIEW_VERDICTS,
 	neutralAppraisal,
 	type Appraisal,
 	type AskAnswer,
 	type InterventionKind,
 	type NeedKey,
+	type ReviewFinding,
+	type ReviewVerdict,
 } from "./appraisal.js";
 import {
 	allowedLines,
 	enforceSuggestions,
 	keepSupported,
+	normalize,
 	NO_SOURCES,
 	readCited,
 	type SourcePolicy,
@@ -271,4 +275,91 @@ export function parseAsk(
 	const answer = enforceAsk(parsed, evidenceLines, sourcePolicy);
 	if (answer.answer.length === 0) return { ok: false, error: "the answer was empty" };
 	return { ok: true, answer };
+}
+
+/**
+ * The fixed verdict order (ADR 0001). A finding class is ranked by it; with one finding per review
+ * the order is a stable tie-break rather than a re-sort, but it is stated once here so a future
+ * multi-finding shape cannot invent a different order.
+ */
+export function reviewVerdictRank(verdict: ReviewVerdict): number {
+	return REVIEW_VERDICTS.indexOf(verdict);
+}
+
+function reviewText(value: unknown, max: number): string {
+	return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+/**
+ * Enforce a reviewer finding's rules (T32a).
+ *
+ * A finding survives only when `rule`, `file` and `text` are present AND at least one `cited` line
+ * matches a line the plugin supplied verbatim (list-marker tolerant, exactly like a verdict). An
+ * abstention (`insufficient_context`) is the one shape allowed to carry no rule and no file, and
+ * its `rule`/`file` are CLEARED so a stray value cannot dress an abstention as a finding. Every
+ * unmatched citation, and every dropped finding, is counted into `unmatched` and `dropped`.
+ */
+export interface EnforcedReview {
+	finding: ReviewFinding | undefined;
+	/** Citations that matched no supplied line, and the mark for a dropped finding. */
+	unmatched: string[];
+	/** 1 when the finding was dropped, 0 when it survived. */
+	dropped: number;
+}
+
+export function enforceReview(raw: unknown, evidenceLines: readonly string[]): EnforcedReview {
+	const allowed = allowedLines(evidenceLines);
+	const unmatched: string[] = [];
+	const verdict = (raw as { verdict?: unknown })?.verdict;
+	const verdictOk = typeof verdict === "string" && (REVIEW_VERDICTS as readonly string[]).includes(verdict);
+	const text = reviewText((raw as { text?: unknown })?.text, 300);
+	if (!verdictOk) {
+		unmatched.push("review: unknown verdict");
+		return { finding: undefined, unmatched, dropped: 1 };
+	}
+
+	const { kept, unmatched: bad } = keepSupported(readCited(raw), allowed);
+	unmatched.push(...bad);
+	const kind = verdict as ReviewVerdict;
+
+	// Abstention is first-class and needs neither a rule nor a file; the two fields are cleared so
+	// the shape stays unambiguous.
+	if (kind === "insufficient_context") {
+		return { finding: { verdict: kind, rule: "", file: "", text, cited: kept }, unmatched, dropped: 0 };
+	}
+
+	const rule = reviewText((raw as { rule?: unknown })?.rule, 300);
+	const file = reviewText((raw as { file?: unknown })?.file, 300);
+	// No citation, no claim: a non-abstention finding with nothing surviving is dropped.
+	if (rule.length === 0 || file.length === 0 || text.length === 0 || kept.length === 0) {
+		unmatched.push(`review: ${file.length > 0 ? file : kind}`);
+		return { finding: undefined, unmatched, dropped: 1 };
+	}
+
+	// The intent line must also be a supplied session line; an unmatched one is dropped (but is not
+	// itself a reason to drop the finding, which already carries a citation).
+	let intentLine: string | undefined;
+	const rawIntent = reviewText((raw as { intentLine?: unknown })?.intentLine, 400);
+	if (rawIntent.length > 0) {
+		const found = allowed.get(normalize(rawIntent));
+		if (found === undefined) unmatched.push(rawIntent);
+		else intentLine = found;
+	}
+
+	return {
+		finding: { verdict: kind, rule, file, text, cited: kept, ...(intentLine ? { intentLine } : {}) },
+		unmatched,
+		dropped: 0,
+	};
+}
+
+export type ReviewParseResult =
+	| { ok: true; review: EnforcedReview }
+	| { ok: false; error: string };
+
+/** Parse a model response into an enforced reviewer finding. Junk is not JSON. */
+export function parseReview(body: string, evidenceLines: readonly string[]): ReviewParseResult {
+	const parsed = extractJson(body);
+	if (parsed === undefined) return { ok: false, error: "response contained no JSON object" };
+	return { ok: true, review: enforceReview(parsed, evidenceLines) };
 }

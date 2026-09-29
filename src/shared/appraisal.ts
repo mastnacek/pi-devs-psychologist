@@ -225,6 +225,52 @@ export interface NeedVerdict {
 	cited: string[];
 }
 
+/**
+ * The `reviewer` role's finding class (`/psych review`, T32a). One finding class per review: the
+ * reviewer proposes, it never enumerates, and `insufficient_context` is a first-class verdict — the
+ * default answer when neither a stated rule nor a session intent line supports a claim (ADR 0001
+ * invariant 2).
+ */
+export const REVIEW_VERDICTS = [
+	"convention_mismatch",
+	"intent_vs_artifact",
+	"unverified_claim",
+	"insufficient_context",
+] as const;
+export type ReviewVerdict = (typeof REVIEW_VERDICTS)[number];
+
+/**
+ * The `reviewer` role's contract (`/psych review`, T32a).
+ *
+ * `rule` (the stated rule) and `file` are required for every non-abstention finding and must be
+ * EMPTY for `insufficient_context`; enforcement (in `appraisal-enforce.ts`) is what makes that
+ * conditional true, because one schema serves both shapes. `cited` holds exact lines from what the
+ * plugin supplied; an empty `cited` on a non-abstention finding is dropped. `intentLine` is the
+ * session evidence line for `intent_vs_artifact`.
+ */
+export const REVIEW_SCHEMA: TSchema = Type.Object({
+	verdict: StringEnum(REVIEW_VERDICTS, { description: REVIEW_VERDICTS.join(" | ") }),
+	rule: Type.Optional(
+		Type.String({ maxLength: 300, description: "the stated rule; empty only for insufficient_context" }),
+	),
+	file: Type.Optional(Type.String({ maxLength: 300, description: "the file the finding is about" })),
+	text: Type.String({ maxLength: 300, description: "one actionable sentence" }),
+	cited: Cited,
+	intentLine: Type.Optional(
+		Type.String({ description: "a SESSION evidence line, for intent_vs_artifact" }),
+	),
+});
+
+/** The `reviewer` role's enforced finding. `rule`/`file` are empty only for an abstention. */
+export interface ReviewFinding {
+	verdict: ReviewVerdict;
+	rule: string;
+	file: string;
+	text: string;
+	cited: string[];
+	intentLine?: string;
+}
+
 export interface Intervention {
 	kind: InterventionKind;
 	text: string;

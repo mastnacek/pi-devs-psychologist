@@ -225,6 +225,10 @@ once per fingerprint per session, and never in the same turn as an appraisal.
 |---|---|---|
 | `roles.scout.enabled` | `false` | **Live.** Consent gate for the scout role. Off, it runs neither on `/psych scout` nor from a trigger. Agent runtime only |
 | `roles.scout.workshopDir` | `"D:\\01_programovani\\pi\\plugins"` | **Live.** The operator's plugin monorepo the scout is told to read (README files only, never edit). `""` omits the sentence from the child's brief |
+| `roles.reviewer.enabled` | `false` | **Live.** Consent gate for the reviewer role. Off, it runs neither on `/psych review` nor on a delivery boundary. Agent runtime only. It is its own gate because the reviewer reads the repo's source code with a model that leaves the machine (ADR 0001) |
+| `roles.reviewer.model` | `""` | **Live.** `provider/id` for the review. Empty = the shared `model`, and the card then says "same model as the working agent" (a reviewer on the worker's model shares its blind spots) |
+| `roles.reviewer.maxDiffBytes` | `200000` | **Live.** The cap on the combined diff the child is told to read. Past it, it reviews the last `maxDiffBytes` and says in `text` what it left out |
+| `roles.reviewer.conventionFiles` | `["AGENTS.md","CLAUDE.md","CONTRIBUTING.md",".pi/rules.md"]` | **Live.** The repo's stated rules the child reads. `[]` means it cannot check convention adherence |
 
 Coercion, so a typo degrades instead of breaking the session: junk numbers fall back to
 the default; `model` must be a string, and an unparsable one becomes `""` rather than a
@@ -246,6 +250,7 @@ spots is not an observer. A different *account* is not automatically a different
 | `/psych now` | Form an appraisal immediately, consuming budget |
 | `/psych ask <question>` | Consult the observer directly. Runs the agent runtime (falls back to a tool-less API call on `runtime: api`, and says so). One card: the answer, its cited evidence, researched suggestions. Consumes budget; an uncited answer is marked unsupported, never hidden |
 | `/psych scout [topic]` | Find an existing plugin for recurring friction, or a gap worth building. Agent runtime only, behind `roles.scout.enabled`. The topic defaults to the top recurring fingerprint. One card: candidates (name, fit, why, install spec, url) and, when nothing fits, a paste-ready SPAI idea line. When nothing is found and the operator asked, it says so — never silently |
+| `/psych review` | Review the change since the last delivery against the repo's stated conventions. Agent runtime only, behind `roles.reviewer.enabled`. Runs one now, ignoring the once-per-delivery rule but not the budget. One card: the delivery anchor, one finding class (or the one-line abstention) with its rule and citation |
 | `/psych effect` | Table of delivered interventions per kind: delivered, improved, unchanged, worse, followed. Session-scoped, width-safe |
 | `/psych on` / `off` | Master switch |
 | `/psych model <provider/id>` | Choose the psychologist. The value completes from the engine's registered models and providers (use `--global` to make it machine-wide) |
@@ -296,22 +301,47 @@ content in their arguments today and this plugin currently keeps only the path. 
 same position could also act as a **reviewer**: run the work on a model affordable in
 volume, review it with a stronger one at delivery boundaries.
 
-It will be a **separate role with a separate consent gate**, never a switch on this one.
-The psychologist reads counts; a reviewer reads content that can leave the machine.
+It is a **separate role with a separate consent gate**, never a switch on this one.
+The psychologist reads counts; the reviewer reads content that can leave the machine.
 Enabling the one must not silently opt you into the other. The decision, the VSA shape
 and the invariants are in [`docs/adr/0001-two-roles-one-observer.md`](docs/adr/0001-two-roles-one-observer.md).
+
+### Reviewer role
+
+The reviewer is not a second auditor. It is one run on the already-proven agent seams: it
+reads the diff since the last delivery (`git diff <lastHead>..HEAD` plus the working tree,
+read by the child itself — the parent never retains change content) and the repo's stated
+conventions, and proposes **at most one finding**, or abstains.
+
+- **Its own consent gate.** `roles.reviewer.enabled` (default `false`), separate from the
+  psychologist's `model`. It reads source code with a model that leaves the machine, so
+  enabling a mood chip must never opt you into a code review.
+- **It proposes only.** No file mutation, no tool interception, no authority. Nothing is
+  ever sent to the working agent, and nothing is written to disk.
+- **It cites a stated rule.** A finding stands only on a stated rule read from a convention
+  file, or on a session intent line copied exactly. No citation, no claim.
+- **It abstains with `insufficient_context`.** That is the default answer, a first-class
+  outcome, not a failure: a reviewer without the worker's full context is structurally prone
+  to confident wrongness.
+- **The "same model" disclosure.** With `roles.reviewer.model` empty, the reviewer runs on the
+  shared `model` and the card says so — an observer that shares the worker's blind spots is
+  not a strong reviewer.
+
+Trigger is the delivery boundary: a successful `git commit`/`git push`, a `/label` bookmark,
+or `/psych review`. At most once per delivery (per commit head), agent runtime only, sharing
+the budget, the session cost cap and single-flight with the appraiser.
 
 ---
 
 ## Status
 
-`0.6.0` — **complete.** It observes, appraises when the evidence carries something new, names unverified commits, measures whether its interventions help, can run the observer as a read-only pi agent (`runtime: "agent"`) with web, MCP, skills and pi docs, shows the appraisal as a card, and
-answers `/psych`, `/psych ask` and `/psych scout`. 604 tests.
+`0.7.0` — **complete.** It observes, appraises when the evidence carries something new, names unverified commits, measures whether its interventions help, can run the observer as a read-only pi agent (`runtime: "agent"`) with web, MCP, skills and pi docs, shows the appraisal as a card,
+answers `/psych`, `/psych ask`, `/psych scout` and `/psych review`. 643 tests.
 
 Live today: the observation window, the session-history fold, the appraiser with its budget, the
 appraisal card, the delivery policy (card → notification → steering, off by default), the
-`/psych` command and report, and the statusline chip. Next: persistence of the last appraisal
-across `/reload` (T7) and the structural mapper (T8). The reviewer role is designed and
-deliberately unbuilt (T12). See `TASKS.md`.
+`/psych` command and report, and the statusline chip. The reviewer role (T32a) is built. Next:
+persistence of the last appraisal across `/reload` (T7) and the structural mapper (T8). See
+`TASKS.md`.
 
 MIT.

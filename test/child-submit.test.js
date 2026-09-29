@@ -9,7 +9,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { makeCtx, makePi } from "./fakes.js";
-import { APPRAISAL_SCHEMA, ASK_SCHEMA, SCOUT_SCHEMA } from "../src/shared/appraisal.js";
+import { APPRAISAL_SCHEMA, ASK_SCHEMA, REVIEW_SCHEMA, SCOUT_SCHEMA } from "../src/shared/appraisal.js";
 import { registerSubmitTool, schemaForRole } from "../src/slices/child/submit.js";
 
 /** A well-formed appraisal that claims nothing — the minimal legal answer for the psychologist role. */
@@ -39,9 +39,9 @@ function submit(built, params) {
 test("the role picks the schema, and the psychologist gets the real appraisal contract", () => {
   assert.equal(schemaForRole("psychologist"), APPRAISAL_SCHEMA);
   assert.equal(schemaForRole("ask"), ASK_SCHEMA);
-  // scout has its own contract since T31; pair borrows the ask shape until T32.
+  // scout has its own contract since T31; pair the reviewer's since T32a.
   assert.equal(schemaForRole("scout"), SCOUT_SCHEMA);
-  assert.equal(schemaForRole("pair"), ASK_SCHEMA);
+  assert.equal(schemaForRole("pair"), REVIEW_SCHEMA);
   assert.equal(build("psychologist").def.parameters, APPRAISAL_SCHEMA);
   assert.equal(build("ask").def.parameters, ASK_SCHEMA);
 });

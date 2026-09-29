@@ -67,10 +67,12 @@ test("the psychologist role prompt is SYSTEM_PROMPT with only the output paragra
   assert.ok(systemAppend.includes("You are the engineering psychologist observing a coding session"));
 });
 
-test("ask/scout/pair get a short placeholder role paragraph, not the psychologist prompt", () => {
+test("ask, scout and pair each get their own role contract, not the psychologist prompt", () => {
+  // The role token each paragraph names itself by: `pair` runs as the `reviewer` role (T32a).
+  const own = { ask: "`ask` role", scout: "`scout` role", pair: "`reviewer` role" };
   for (const role of ["ask", "scout", "pair"]) {
     const { systemAppend } = buildAgentBrief(fixture({ role }));
-    assert.ok(systemAppend.includes(`\`${role}\` role`), `${role} names itself`);
+    assert.ok(systemAppend.includes(own[role]), `${role} names itself`);
     assert.ok(!systemAppend.includes("You are the engineering psychologist"), `${role} is not the psychologist`);
     assert.ok(systemAppend.includes("## Budget"), `${role} still gets the shared sections`);
   }

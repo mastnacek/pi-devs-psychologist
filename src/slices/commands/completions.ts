@@ -73,6 +73,8 @@ function subcommands(state: DevsPsychologistState): Completion[] {
 		// The scout takes free text too, and its topic is optional (T31): the trailing space opens it,
 		// and running it with no topic scouts the top recurring fingerprint.
 		branch("scout", "scout", s.cmdScout),
+		// A terminal leaf: no trailing space, because Tab confirms it as final (T32a).
+		leaf("review", "review", s.cmdReview),
 		// The marker goes in `label` (display-only, the primary column) as well as the description:
 		// a settings menu that does not show which choice is in effect makes the user run `status`
 		// first to find out. `value` stays a clean token because it is inserted verbatim.

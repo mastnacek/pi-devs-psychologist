@@ -80,6 +80,12 @@ export type ModelCallResult = ModelCallSuccess | ModelCallFailure;
 export interface ModelCallRequest {
 	/** `provider/modelId`, as configured. Empty means "not configured". */
 	modelRef: string;
+	/**
+	 * Agent runtime only: a model reference that OVERRIDES `modelRef` for this run (T32a). The API
+	 * path IGNORES it, so its request stays byte-identical (D2). The reviewer role uses it to run its
+	 * own, stronger model without widening the shared `agent.model`.
+	 */
+	modelRefOverride?: string;
 	systemPrompt: string;
 	userText: string;
 	maxTokens: number;
@@ -110,6 +116,8 @@ export interface ModelCallRequest {
 	question?: string;
 	/** Agent runtime only: the friction the `scout` role is asked about (T31). */
 	topic?: string;
+	/** Agent runtime only: the delivery anchors, for the `reviewer`/`pair` role (T32a). */
+	review?: import("./agent-brief.js").ReviewBrief;
 }
 
 /** Split `provider/modelId` on the first slash only. */

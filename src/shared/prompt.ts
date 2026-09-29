@@ -145,6 +145,34 @@ Research is impossible in this runtime: there are no tools, so submit an empty c
 Answer with ONE JSON object and nothing else, no prose and no code fences:
 {"candidates":[],"cited":[]}`;
 
+/** The reviewer user message's final line for the API safety net (T32a). */
+export const REVIEW_JSON_FINAL_LINE = "Review the delivery now. JSON only.";
+
+/**
+ * The reviewer user message for the API runtime (T32a). The reviewer is agent-runtime only (it must
+ * read the diff itself), so this is a well-formed safety net rather than a path that runs; the
+ * evidence prefix stays byte-identical to `buildUserText` (D2).
+ */
+export function buildReviewUserText(
+	liveLines: readonly string[],
+	sessionLines: readonly string[],
+): string {
+	const base = buildUserText(liveLines, sessionLines);
+	const evidence = base.slice(0, base.length - JSON_ONLY_FINAL_LINE.length);
+	return `${evidence}${REVIEW_JSON_FINAL_LINE}`;
+}
+
+/**
+ * The reviewer role's system prompt for the API runtime (T32a). Cut to the API boundary: no tools,
+ * so no diff to read — abstain.
+ */
+export const REVIEW_SYSTEM_PROMPT = `You are the pi-devs-psychologist reviewer.
+
+You review the artifact, never the person. In this runtime there are no tools, so you cannot read the diff or the convention files: submit the abstention insufficient_context and say in "text" what you could not determine.
+
+Answer with ONE JSON object and nothing else, no prose and no code fences:
+{"verdict":"convention_mismatch|intent_vs_artifact|unverified_claim|insufficient_context","text":"one sentence"}`;
+
 export const ASK_SYSTEM_PROMPT = `You are the engineering psychologist an operator has asked a direct question.
 
 You are NOT the agent doing the work. You never comment on code, style, architecture, design or correctness. Your subject is the session and the operator's pi setup.

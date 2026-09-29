@@ -31,8 +31,14 @@ import { DEFAULT_ROLES_CONFIG, normalizeRoles, type RolesConfig } from "./role-c
 // Re-exported so `config.ts` stays the one import for the plugin's settings vocabulary.
 export { DEFAULT_AGENT_CONFIG, effectiveAgentModel, normalizeAgent, THINKING_LEVELS } from "./agent-config.js";
 export type { AgentConfig, AgentContextLevel, RuntimeMode } from "./agent-config.js";
-export { DEFAULT_ROLES_CONFIG, DEFAULT_WORKSHOP_DIR, normalizeRoles } from "./role-config.js";
-export type { RolesConfig, ScoutRoleConfig } from "./role-config.js";
+export {
+	DEFAULT_CONVENTION_FILES,
+	DEFAULT_REVIEWER_MAX_DIFF_BYTES,
+	DEFAULT_ROLES_CONFIG,
+	DEFAULT_WORKSHOP_DIR,
+	normalizeRoles,
+} from "./role-config.js";
+export type { ReviewerRoleConfig, RolesConfig, ScoutRoleConfig } from "./role-config.js";
 
 /** How the appraiser decides when to run: on new evidence (D7) or on a turn clock. */
 export type TriggerMode = "signals" | "cadence";
@@ -133,7 +139,13 @@ export const DEFAULT_CONFIG: DevsPsychologistConfig = {
 	lang: "en",
 	runtime: "api",
 	agent: { ...DEFAULT_AGENT_CONFIG },
-	roles: { scout: { ...DEFAULT_ROLES_CONFIG.scout } },
+	roles: {
+		scout: { ...DEFAULT_ROLES_CONFIG.scout },
+		reviewer: {
+			...DEFAULT_ROLES_CONFIG.reviewer,
+			conventionFiles: [...DEFAULT_ROLES_CONFIG.reviewer.conventionFiles],
+		},
+	},
 	model: "",
 	trigger: "signals",
 	cadenceTurns: 3,

@@ -45,7 +45,10 @@ export function createAgentCall(state: DevsPsychologistState, options: AgentCall
 				error: `session cost cap reached ($${state.agentSessionCostUsd.toFixed(2)} of $${cap.toFixed(2)})`,
 			};
 		}
-		const modelRef = effectiveAgentModel(state.config);
+		const modelRef =
+			req.modelRefOverride && req.modelRefOverride.trim().length > 0
+				? req.modelRefOverride.trim()
+				: effectiveAgentModel(state.config);
 		// A registry may be absent (headless fakes); the run does not need it, only the label does.
 		const resolved = registry && parseModelRef(modelRef) ? resolveModel(registry, modelRef) : undefined;
 		// One agent run started this session; the report budgets the session against it (T27).
@@ -58,6 +61,7 @@ export function createAgentCall(state: DevsPsychologistState, options: AgentCall
 				...(req.digest ? { digest: req.digest } : {}),
 				...(req.question ? { question: req.question } : {}),
 				...(req.topic ? { topic: req.topic } : {}),
+				...(req.review ? { review: req.review } : {}),
 			},
 			{
 				cliPath: options.cliPath,

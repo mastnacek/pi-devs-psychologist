@@ -252,6 +252,12 @@ Full specifications (goal, files, behaviour, acceptance, non-goals) live in
 - `x T29` Context level `fork` (full session, confirm on first use)
 - `x T30` `/psych ask <question>`
 - `x T31` Scout role — recurring friction → existing plugin or a SPAI idea
-- `? T32a` Reviewer role — narrowed after the pi-pair comparison (docs/pi-pair-comparison.md):
-  delivery-boundary child on a stronger model, citing AGENTS.md rules; needs an operator go
+- `x T32a` Reviewer role — narrowed after the pi-pair comparison (docs/pi-pair-comparison.md):
+  delivery-boundary child on a stronger model, citing AGENTS.md rules.
+  **Delivered:** `roles.reviewer` consent gate + `REVIEW_SCHEMA` + `enforceReview`; the `pair` child
+  role (own paragraph, its own model via `modelRefOverride`, the delivery anchors, exact
+  `git diff <lastHead>..<head>` / `git diff` commands); trigger on a successful commit/push, a
+  `/label` bookmark or `/psych review`; one-per-head; card + notification fallback; `/psych review`
+  command. Proposes only, cites a stated rule, abstains with `insufficient_context`, and discloses a
+  same-model reviewer. Agent runtime only.
 - `x T33` NotebookLM research grounding

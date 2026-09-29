@@ -41,6 +41,20 @@ export interface CardStrings {
 	scoutIdea: string;
 	/** Shown when no candidate survived and there is no build — an outcome, not a failure. */
 	scoutNothingFound: string;
+
+	/** The `review` card (`/psych review`, T32a). */
+	reviewAnchor: string;
+	reviewFile: string;
+	reviewRule: string;
+	/** Shown as the "previous delivery" when there is none. */
+	reviewFirst: string;
+	/** The one-line form of an abstention: the reviewer declined and why. */
+	reviewDeclined: string;
+	/** Shown when the finding failed enforcement and nothing survived. */
+	reviewDropped: string;
+	/** The same-model disclosure (ADR 0001 invariant 6). */
+	reviewSameModel: string;
+	reviewUnmatched: (count: number) => string;
 }
 
 export const CARD_EN: CardStrings = {
@@ -64,6 +78,15 @@ export const CARD_EN: CardStrings = {
 	scoutCandidates: "Existing packages",
 	scoutIdea: "Idea — paste it into your tracker",
 	scoutNothingFound: "Nothing found: no existing package fits and nothing is worth building.",
+
+	reviewAnchor: "Delivery",
+	reviewFile: "file",
+	reviewRule: "rule",
+	reviewFirst: "first delivery",
+	reviewDeclined: "Declined:",
+	reviewDropped: "No finding survived enforcement (no citation, no claim).",
+	reviewSameModel: "same model as the working agent — it may share its blind spots",
+	reviewUnmatched: (count) => `${count} uncited claim(s) dropped`,
 };
 
 export const CARD_CS: CardStrings = {
@@ -87,4 +110,13 @@ export const CARD_CS: CardStrings = {
 	scoutCandidates: "Existující balíčky",
 	scoutIdea: "Nápad — vlož si ho do svého trackeru",
 	scoutNothingFound: "Nic nalezeno: žádný existující balíček nesedí a není co stavět.",
+
+	reviewAnchor: "Dodávka",
+	reviewFile: "soubor",
+	reviewRule: "pravidlo",
+	reviewFirst: "první dodávka",
+	reviewDeclined: "Odmítnuto:",
+	reviewDropped: "Žádný nález neprošel kontrolou (bez citace žádné tvrzení).",
+	reviewSameModel: "stejný model jako pracovní agent — mohl by sdílet jeho slepá místa",
+	reviewUnmatched: (count) => `${count} necitovaných tvrzení zahozeno`,
 };

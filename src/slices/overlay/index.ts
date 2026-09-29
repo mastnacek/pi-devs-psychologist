@@ -21,6 +21,8 @@ import { AskView } from "./ask-view.js";
 import { measureAskCard, type AskCardInput } from "./ask-layout.js";
 import { ScoutView } from "./scout-view.js";
 import { measureScoutCard, type ScoutCardInput } from "./scout-layout.js";
+import { ReviewView } from "./review-view.js";
+import { measureReviewCard, type ReviewCardInput } from "./review-layout.js";
 import { FRAME_LINES, measureCard, type CardInput } from "./layout.js";
 
 /** Preferred card width in columns; never wider than the terminal. */
@@ -89,6 +91,8 @@ export { AskView } from "./ask-view.js";
 export { layoutAskCard, measureAskCard, type AskCardInput } from "./ask-layout.js";
 export { ScoutView } from "./scout-view.js";
 export { layoutScoutCard, measureScoutCard, type ScoutCardInput } from "./scout-layout.js";
+export { ReviewView } from "./review-view.js";
+export { layoutReviewCard, measureReviewCard, type ReviewCardInput } from "./review-layout.js";
 export { FRAME_LINES, measureCard, type CardInput } from "./layout.js";
 
 /**
@@ -147,6 +151,40 @@ export async function presentScout(
 		await ctx.ui.custom<void>(
 			(tui, theme, _keybindings, done) =>
 				new ScoutView(input, theme, () => done(), {
+					locale: lang,
+					maxHeight,
+					requestRender: () => tui.requestRender(),
+				}),
+			{ overlay: true, overlayOptions: { anchor: "center", width, maxHeight } },
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Show the `review` card (`/psych review`, T32a). Returns whether it was displayed.
+ *
+ * Same contract as the other presenters: `false` where no interactive surface exists, so the caller
+ * falls back to a notification rather than losing the finding.
+ */
+export async function presentReview(
+	ctx: ExtensionContext,
+	input: ReviewCardInput,
+	lang: Locale = DEFAULT_LOCALE,
+): Promise<boolean> {
+	if (ctx.mode !== "tui" || !ctx.hasUI) return false;
+
+	const term = terminalSize();
+	const width = Math.max(40, Math.min(CARD_WIDTH, term.columns));
+	const natural = measureReviewCard(input, stringsFor(lang), width).total;
+	const maxHeight = Math.max(MIN_CARD_HEIGHT, Math.min(natural, term.rows - TERMINAL_MARGIN));
+
+	try {
+		await ctx.ui.custom<void>(
+			(tui, theme, _keybindings, done) =>
+				new ReviewView(input, theme, () => done(), {
 					locale: lang,
 					maxHeight,
 					requestRender: () => tui.requestRender(),

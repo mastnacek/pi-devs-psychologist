@@ -95,6 +95,14 @@ export interface Strings extends RunStrings, CardStrings {
 	cmdAsk: string;
 	/** `/psych scout [topic]` (T31). */
 	cmdScout: string;
+	/** `/psych review` (T32a): review the change since the last delivery. */
+	cmdReview: string;
+	/** The reviewer role needs the agent runtime (T32a). */
+	reviewNeedsAgent: string;
+	/** The reviewer role's consent gate is off (T32a). */
+	reviewDisabled: string;
+	/** `/psych review` outside a git repository: nothing to review (T32a). */
+	reviewNoGit: string;
 	/** The scout role needs the agent runtime (T31); the reason is named, not the failure. */
 	scoutNeedsAgent: string;
 	/** The scout role's consent gate is off (T31). */
@@ -204,6 +212,10 @@ const EN: Strings = {
 	cmdEffect: "show whether the interventions helped",
 	cmdAsk: "ask the observer a direct question",
 	cmdScout: "find an existing plugin for recurring friction, or a gap worth building",
+	cmdReview: "review the change since the last delivery against the stated conventions",
+	reviewNeedsAgent: "Reviewing needs the agent runtime. Set it with: /psych runtime agent",
+	reviewDisabled: "The reviewer role is off. Set roles.reviewer.enabled in the config file to enable it.",
+	reviewNoGit: "This project is not a git repository, so there is no delivery to review.",
 	scoutNeedsAgent: "Scouting needs the agent runtime. Set it with: /psych runtime agent",
 	scoutDisabled: "The scout role is off. Set roles.scout.enabled in the config file to enable it.",
 	notifyScoutCandidate: (name, fit, why, installSpec, url) => `${name} (${fit}) — ${why}\n${installSpec}\n${url}`,
@@ -211,7 +223,7 @@ const EN: Strings = {
 	nowValue: (value) => `(now: ${value})`,
 	// The help must not advertise a `global` subcommand: it is a trailing flag, and a user who
 	// followed the old text got "Unknown option: global".
-	usage: "Usage: /psych [status|now|stop|effect|ask <question>|scout [topic]|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Usage: /psych [status|now|stop|effect|ask <question>|scout [topic]|review|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Unknown option",
 	configWritten: (path) => `Config written to ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: config created at ${path}`,
@@ -304,12 +316,16 @@ const CS: Strings = {
 	cmdEffect: "zobrazit, zda zásahy pomohly",
 	cmdAsk: "zeptat se pozorovatele přímo",
 	cmdScout: "najít existující plugin pro opakující se tření, nebo mezeru k postavení",
+	cmdReview: "posoudit změnu od poslední dodávky vuči uvedeným konvencím",
+	reviewNeedsAgent: "Posuzování vyžaduje agent runtime. Nastav: /psych runtime agent",
+	reviewDisabled: "Role recenzenta je vypnutá. Zapni ji přes roles.reviewer.enabled v konfiguračním souboru.",
+	reviewNoGit: "Tento projekt není git repozitář, takže není žádná dodávka k posouzení.",
 	scoutNeedsAgent: "Skauting vyžaduje agent runtime. Nastav: /psych runtime agent",
 	scoutDisabled: "Role skauta je vypnutá. Zapni ji přes roles.scout.enabled v konfiguračním souboru.",
 	notifyScoutCandidate: (name, fit, why, installSpec, url) => `${name} (${fit}) — ${why}\n${installSpec}\n${url}`,
 	notSet: "(nenastaveno)",
 	nowValue: (value) => `(nyní: ${value})`,
-	usage: "Použití: /psych [status|now|stop|effect|ask <dotaz>|scout [téma]|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
+	usage: "Použití: /psych [status|now|stop|effect|ask <dotaz>|scout [téma]|review|on|off|model <provider/id>|budget <n>|lang <en|cs>|runtime <api|agent>|context <evidence|digest|fork>|agent-model <provider/id>] [--global]",
 	unknownOption: "Neznámá volba",
 	configWritten: (path) => `Konfigurace zapsána do ${path}`,
 	configSeeded: (path) => `pi-devs-psychologist: konfigurace vytvořena v ${path}`,
